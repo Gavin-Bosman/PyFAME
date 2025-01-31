@@ -3,9 +3,131 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- v0.5.8-0.5.9 inversion and scrambling of facial landmarks, bubble occlusion option for `occlude_face_region`
+- v0.6... bubble occlusion option for `occlude_face_region`
 - v0.6... unit testing
 - v1.0 gui preview prior to file processing
+
+## [0.6.7] - 2025-01-18
+
+### Added
+
+- Function `shuffle_frame_order()` can now take an input parameter `block_order`, a list of integers. When `block_order` is provided, `block_size` will be automatically computed based on the length of the block order list. For example, given a block order of [1,0,3,2,4,5], the function will compute `block_size` by taking the total frame count and dividing it by the length of the list.
+
+### Changed
+
+- Function `get_optical_flow()` now takes a parameter `optical_flow_type`. The function now includes the option to compute Farneback's dense optical flow on top of Lucas-Kanade sparse optical flow. Several other Farneback control parameters have been added to the function, but have all been defined with defaults and typical values in the function documentation.
+- Furthermore, due to the sheer size of outputted csv files from `get_optical_flow()`, a new parameter `csv_sample_freq` has been added. This value (given in milliseconds) determines how frequently the function will write out optical flow vectors to the outputted csv file. This is implemented using a rolling time window, and comparing the current video timestamp with its value at each iteration of the running loop.
+
+### Removed
+
+## [0.6.6] - 2025-01-11
+
+### Added
+
+- New function `shuffle_frame_order()` has been implemented. The function has two running modes: `SHUFFLE_FRAME_ORDER` and `REVERSE_FRAME_ORDER`. Frames are read from the input video and stored in blocks, who's size is determined by input parameter `block_size`. Given an input video running at 30 fps, the default `block_size` of 30 will shuffle the order of roughly 1 second segments of the video file. The output order of the frame blocks is determined randomly. Users may pass a `rand_seed` to seed the rng for reproducable results.
+
+### Changed
+
+### Removed
+
+## [0.6.5] - 2025-01-02
+
+### Added
+
+- Function `point_light_display()` has been further expanded. Now the function can display point displacement history, which can be drawn on the output file in one of two methods. Displacement history can be toggled on and off using the input parameter `show_history`. `SHOW_HISTORY_ORIGIN` will draw the displacement vector for each point relative to their original positions in frame 1. `SHOW_HISTORY_RELATIVE` will draw each points path history, displaying each path segment for a set amount of time given by input parameter `history_window_msec`.
+
+### Changed
+
+- Previously, removing points to satisfy the `point_density` was done purely randomly. However this caused issues abstracting the shapes of the landmark regions, making them difficult to identify. Point removal has been reimplemented using a normal gaussian distribution to control which points are removed and which are retained. As a result, even at lower densities the points stay clustered as to maintain the shape of the landmark they are tracking.
+- Point size and color were previously hard-coded values. New parameters `point_color`, `point_radius`, and `history_color` allow the user to customize how the functions outputs appear.
+
+### Removed
+
+## [0.6.4] - 2024-12-30
+
+### Added
+
+- New function `point_light_display()` has been implemented. The function utilises the 478 landmark points tracked by the mediapipe FaceMesh to generate a point-light display of the face. The default functionality displays all 478 landmark points. However, users may provide landmark sets or predefined landmark sets from `pyfameutils` to the input parameter `landmarks_regions` to further specify which regions or landmarks will be included in the functions output. 
+- Users may wish to manipulate the number of points without affecting the overall shape of the landmark regions. In order to do so, users may provide a floating point density to the input parameter `point_density`.
+
+### Changed
+
+### Removed
+
+## [0.6.3] - 2024-12-22
+
+### Added
+
+- Expanded functionality for function `get_optical_flow()`. Now beyond outputing the visualised optical flow vectors, the function will output a csv containing the timestamp, previous and current (x,y) positions, vector magnitude, vector angle, status and error rate for each tracked point at every frame. 
+
+### Changed
+
+- `get_optical_flow()` has now been fully parameterized. The Lucas-Kanade optical flow control parameters were previously hard-coded values, but are now available to be passed as input parameters with predefined defaults. New parameters include `max_corners`, `corner_quality_lvl`, `min_corner_distance`, `win_size`, `max_pyr_lvl`, `max_lk_iter` and `lk_accuracy_thresh`.
+- Both `point_color` and `vector_color` are now available as input parameters.
+
+### Removed
+
+## [0.6.2] - 2024-12-17
+
+### Added
+
+- New function `get_optical_flow()` has been implemented. The function makes use of the Shi-Tomasi corners algorithm to find good points to track, and passes these points on to the Lucas-Kanade sparse optical flow algorithm. At each new frame, the function draws a point over the current positions of the good points list, then using inter-frame movement draws motion vector histories of each point overtop of the input file. 
+- Alternatively to using the Shi-Tomasi good corners algorithm, the user may provide a set of FaceMesh landmark id's to track within the input parameter `landmarks_to_track`.
+
+### Changed
+
+### Removed
+
+## [0.6.1] - 2024-12-09
+
+### Added
+
+### Changed
+
+- Bug causing grid-scramble order to be recomputed midway through file processing has been fixed.
+- Bug causing jittery movement of facial landmarks when using `LANDMARK_SCRAMBLE` with video files has been fixed.
+
+### Removed
+
+## [0.6.0] - 2024-12-07
+
+### Added
+
+- Function `facial_scramble()` now takes an input parameter `scramble_method`. Three new scrambling methods have been defined within `pyfameutils`. These include `LOW_LEVEL_GRID_SCRAMBLE`, `HIGH_LEVEL_GRID_SCRAMBLE` and `LANDMARK_SCRAMBLE`.
+- Landmark based scrambling is a new addition to the function. It takes the eyes, eyebrows, nose and mouth, and randomly swaps their positions and orientation. In order to provide seamless gaps between the underlying face and the manipulated landmark regions, the landmarks are cut out and stored, then the holes in the image are filled using the Telea image inpainting algorithm. Telea inpainting fills the image holes with a smooth gradient sampled from nearest neighbouring pixels.
+- In order to seamlessly paste the facial landmarks back onto the face, cv2's SeamlessClone() method was used to ensure proper blending of landmark edges into the facial skin tone. 
+
+### Changed
+
+- Grid-based scrambling has been subdivided into `LOW_LEVEL_GRID_SCRAMBLE` and `HIGH_LEVEL_GRID_SCRAMBLE`. High level grid scrambling will function the same as previously implemented, with fully random shuffling of grid squares. Low level grid scrambling will make use of a new parameter `GRID_SCRAMBLE_THRESHOLD`; which defines the max x or y distance that a particular grid square can be moved from its original position.
+- In order to reduce computation time from recomputing grid-square positions at each frame, the shuffled grid order is now precomputed prior to the functions main running loop. Beyond the grid-shuffle order, both grid-shuffling methods are implemented essentially the same. So precomputing the shuffle order allows for the removal of many lines of duplicate code.
+- Many papers performing these types of facial scrambling/shuffling operate over grayscale images and video. As such `facial_scramble` now includes input parameter `out_grayscale` in order to toggle grayscale and color outputs.
+
+### Removed
+
+## [0.5.9] - 2024-12-02
+
+### Added
+
+- New function `facial_scramble` has been implemented. This function currently can perform grid-based shuffling of the face. Input parameter `grid_square_size` specifies the square dimensions (in pixels) of each grid square, and is used to compute the optimal grid arrangement to encapsulate the entire face with minimal background inclusions. 
+- The grid shuffle order is computed randomly using NumPy's `default_rng()`. A random seed may be passed as an input parameter to ensure reproducable outputs. 
+
+### Changed
+
+### Removed
+
+## [0.5.8] - 2024-11-24
+
+### Added
+
+- Bug fixes for `apply_noise()`.
+- `apply_noise()` has been further expanded to include masking capabilities, and is now compatible with all predefined mask variables available in `pyfameutils`.
+
+### Changed
+
+### Removed
+
+- Removed `random` as a dependency; all random operations are now computed using NumPy's random generator class.
 
 ## [0.5.7] - 2024-11-20
 

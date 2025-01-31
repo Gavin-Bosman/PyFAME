@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+from math import atan
 
 # Defining pertinent facemesh landmark sets
 FACE_OVAL_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 454, 366, 401, 288, 397, 365, 379, 378, 400, 377, 
@@ -10,13 +11,13 @@ FACE_OVAL_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 454, 366, 401, 288, 397,
 FACE_OVAL_TIGHT_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 345, 352, 376, 433, 397, 365, 379, 378, 400, 377, 
             152, 148, 176, 149, 150, 136, 172, 213, 147, 123, 116, 127, 162, 21, 54, 103, 67, 109, 10]
 
-LEFT_EYE_IDX = [301, 334, 296, 336, 285, 413, 464, 453, 452, 451, 450, 449, 448, 261, 265, 383, 301]
-LEFT_IRIS_IDX = [33, 7, 163, 144, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246, 33]
-RIGHT_EYE_IDX = [71, 105, 66, 107, 55, 189, 244, 233, 232, 231, 230, 229, 228, 31, 35, 156, 71]
+LEFT_EYE_IDX = [301, 298, 333, 299, 336, 285, 413, 464, 453, 452, 451, 450, 449, 448, 261, 265, 383, 301]
+LEFT_IRIS_IDX = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246, 33]
+RIGHT_EYE_IDX = [71, 68, 104, 69, 107, 55, 189, 244, 233, 232, 231, 230, 229, 228, 31, 35, 156, 71]
 RIGHT_IRIS_IDX = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466, 263]
 
-NOSE_IDX = [168, 193, 122, 196, 174, 217, 209, 49, 129, 64, 235, 75, 60, 125, 19, 462, 290, 305, 439, 
-            278, 279, 429, 437, 399, 419, 351, 417, 168]
+NOSE_IDX = [168, 193, 122, 196, 174, 217, 209, 49, 129, 64, 98, 167, 164, 393, 327, 294, 278, 279, 429, 437, 
+            399, 419, 351, 417, 168]
 LIPS_IDX = [164, 393, 391, 322, 410, 287, 273, 335, 406, 313, 18, 83, 182, 106, 43, 57, 186, 92, 165, 167, 164]
 LIPS_TIGHT_IDX = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 0, 37, 39, 40, 185, 61]
 LEFT_CHEEK_IDX = [207, 187, 147, 123, 116, 111, 31, 228, 229, 230, 231, 232, 233, 188, 196, 174, 217, 209, 49, 203, 206, 207]
@@ -64,48 +65,6 @@ def create_path(landmark_set:list[int]) -> list[tuple]:
         routes.append(current_route)
     
     return routes
-
-def compute_line_intersection(p1:tuple, p2:tuple, line:int, vertical:bool=False) -> tuple | None:
-    """ compute_line_intersection takes two (x,y) points, and a line. If the path of the two provided points intersects the 
-    provided line, an intersection point (x,y) is calculated and returned.
-
-    Parameters:
-    -----------
-
-    p1: tuple of int
-        The first (x,y) point to be compared.
-    
-    p2: tuple of int
-        The second (x,y) point to be compared.
-    
-    line: int
-        An integer representing a line in the x-y coordinate space.
-    
-    vertical: bool
-        A boolean flag indicating whether or not the comparison line is vertical.
-
-    Returns:
-    --------
-
-    A point (x,y) intersecting the provided line, or None if no such point exists.
-    """
-    x1, y1 = p1
-    x2, y2 = p2
-
-    if vertical:
-        if (x1 < line and x2 >= line) or (x1 >= line and x2 < line):
-            # Calculate intersection point
-            t = (line - x1) / (x2 - x1)
-            intersect_y = y1 + t * (y2-y1)
-            return (line, round(intersect_y))
-    else:
-        if (y1 < line and y2 >= line) or  (y1 >= line and y2 < line):
-            # Calculate intersection point
-            t = (line - y1) / (y2 - y1)
-            intersect_x = x1 + t * (x2-x1)
-            return (round(intersect_x), line)
-    
-    return None
 
 # Preconstructed face region paths for use with facial manipulation functions. Landmarks below are convex polygons
 LEFT_EYE_PATH = create_path(LEFT_EYE_IDX)
@@ -177,6 +136,71 @@ BLUR_METHOD_MEDIAN = 13
 NOISE_METHOD_PIXELATE = 18
 NOISE_METHOD_SALT_AND_PEPPER = 19
 NOISE_METHOD_GAUSSIAN = 20
+
+# Shuffling methods
+LOW_LEVEL_GRID_SCRAMBLE = 27
+HIGH_LEVEL_GRID_SCRAMBLE = 28
+LANDMARK_SCRAMBLE = 29
+
+# Optical Flow types
+SPARSE_OPTICAL_FLOW = 30
+DENSE_OPTICAL_FLOW = 31
+
+# Point Light Display History Modes
+SHOW_HISTORY_ORIGIN = 32
+SHOW_HISTORY_RELATIVE = 33
+
+# Frame Shuffle Modes
+SHUFFLE_FRAME_ORDER = 34
+REVERSE_FRAME_ORDER = 35
+
+def calculate_rot_angle(slope1:float, slope2:float = 0):
+        angle = abs((slope2-slope1) / (1 + slope1*slope2))
+        rad_angle = atan(angle)
+        rot_angle = (rad_angle * 180) / np.pi
+        return rot_angle
+
+def compute_line_intersection(p1:tuple, p2:tuple, line:int, vertical:bool=False) -> tuple | None:
+    """ compute_line_intersection takes two (x,y) points, and a line. If the path of the two provided points intersects the 
+    provided line, an intersection point (x,y) is calculated and returned.
+
+    Parameters:
+    -----------
+
+    p1: tuple of int
+        The first (x,y) point to be compared.
+    
+    p2: tuple of int
+        The second (x,y) point to be compared.
+    
+    line: int
+        An integer representing a line in the x-y coordinate space.
+    
+    vertical: bool
+        A boolean flag indicating whether or not the comparison line is vertical.
+
+    Returns:
+    --------
+
+    A point (x,y) intersecting the provided line, or None if no such point exists.
+    """
+    x1, y1 = p1
+    x2, y2 = p2
+
+    if vertical:
+        if (x1 < line and x2 >= line) or (x1 >= line and x2 < line):
+            # Calculate intersection point
+            t = (line - x1) / (x2 - x1)
+            intersect_y = y1 + t * (y2-y1)
+            return (line, round(intersect_y))
+    else:
+        if (y1 < line and y2 >= line) or  (y1 >= line and y2 < line):
+            # Calculate intersection point
+            t = (line - y1) / (y2 - y1)
+            intersect_x = x1 + t * (x2-x1)
+            return (round(intersect_x), line)
+    
+    return None
 
 def get_min_max_bgr(filePath:str, focusColor:int|str = COLOR_RED) -> tuple:
     """Given an input video file path, returns the minimum and maximum (B,G,R) colors, containing the minimum and maximum

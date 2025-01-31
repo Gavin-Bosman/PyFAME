@@ -9,7 +9,6 @@ import sys
 from typing import Callable
 from .pyfameutils import *
 from operator import itemgetter
-from math import atan
 
 def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MASK, with_sub_dirs:bool = False, background_color: tuple[int] = (255,255,255),
                      min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, static_image_mode:bool = False) -> None:
@@ -514,6 +513,8 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
         raise TypeError("Mask_face_region: parameter background_color must be of type tuple.")
     elif len(background_color) < 3:
         raise ValueError("Mask_face_region: parameter background_color expects a length 3 tuple of integers.")
+    elif not isinstance(background_color[0], int):
+        raise ValueError("Mask_face_region: parameter background_color expects a length 3 tuple of integers.")
     
     if not isinstance(min_detection_confidence, float):
         raise TypeError("Mask_face_region: parameter min_detection_confidence must be of type float.")
@@ -690,12 +691,6 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                 mean_img[:] = mean[:3]
                 frame = np.where(masked_frame == 255, mean_img, frame)
                 return frame
-    
-    def calculate_rot_angle(slope1:float, slope2:float = 0):
-        angle = abs((slope2-slope1) / (1 + slope1*slope2))
-        rad_angle = atan(angle)
-        rot_angle = (rad_angle * 180) / np.pi
-        return rot_angle
 
     # Performing checks on function parameters
     if not isinstance(input_dir, str):
@@ -853,10 +848,6 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
 
                 max_y = max(face_oval_coords, key=itemgetter(1))[1]
                 min_y = min(face_oval_coords, key=itemgetter(1))[1]
-
-                # Compute the center bisecting lines of the face oval (used in hemi-face landmarks)
-                cx = round((max_y + min_y)/2)           
-                cy = round((max_x + min_x)/2)
 
                 # Handling special cases (concave landmark regions)
                 match landmark_set:
@@ -1046,9 +1037,9 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                                 p1 = landmark_screen_coords[min_x_lm]
                                 p2 = landmark_screen_coords[max_x_lm]
                                 slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
-                                prev_slope = slope
                                 rot_angle = calculate_rot_angle(slope1=slope, slope2=prev_slope)
-                                angle_from_x_axis = calculate_rot_angle(slope1=prev_slope)
+                                prev_slope = slope
+                                angle_from_x_axis = calculate_rot_angle(slope1=slope)
 
                                 # Compute the center bisecting line of the landmark
                                 cx = round((p2.get('y') + p1.get('y'))/2)
@@ -1496,9 +1487,9 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
             capture.release()
             result.release()
 
-def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate", output_size:tuple[int] = (32,32), noise_prob:float = 0.5,
-                rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, with_sub_dirs:bool = False, 
-                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate", pixel_size:int = 32, noise_prob:float = 0.5,
+                rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, mask_type:int | None = None, 
+                with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes an input image or video file, and applies the specified noise method to the image or each frame of the video. For
     noise_method `pixelate`, an output image size must be specified in order to resize the image/frame's pixels.
 
@@ -1511,16 +1502,16 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
     output_dir: str
         A path string to a directory where outputted csv files will be written to.
 
-    noise_method: str|int
+    noise_method: str or int
         Either an integer flag, or string literal specifying the noise method of choice. 
 
-    output_size: None|tuple[int]
-        The resulting output size of the image or video frames after pixelization.
+    pixel_size: int
+        The pixel scale applied when pixelating the output file.
     
     noise_prob: float
         The probability of noise being applied to a given pixel, default is 0.5.
     
-    rand_seed: int | None
+    rand_seed: int or None
         A seed for the random number generator used in gaussian and salt and pepper noise. Allows the user 
         to create reproducable results. 
     
@@ -1529,6 +1520,9 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
 
     standard_dev: float
         The standard deviation or variance of the gaussian distribution used when sampling for gaussian noise.
+    
+    mask_type: int or None
+        An integer specifying the facial region in which to apply the specified noise operation.
 
     with_sub_dirs: bool
         Indicates whether the input directory contains subfolders.
@@ -1572,10 +1566,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
     elif noise_method not in [NOISE_METHOD_SALT_AND_PEPPER, NOISE_METHOD_PIXELATE, NOISE_METHOD_GAUSSIAN]:
         raise ValueError("Apply_noise: parameter noise method must be one of 'salt and pepper', 'pixelate' or 'gaussian'.")
     
-    if not isinstance(output_size, tuple):
-        raise TypeError("Apply_noise: parameter output_size expects a tuple of integers.")
-    elif not isinstance(output_size[0], int) or not isinstance(output_size[1], int):
-        raise ValueError("Apply_noise: parameter output_size expects integer values for it's dimensions.")
+    if not isinstance(pixel_size, int):
+        raise TypeError("Apply_noise: parameter pixel_size expects an integer.")
     
     if not isinstance(noise_prob, float):
         raise TypeError("Apply_noise: parameter noise_prob expects a float.")
@@ -1591,6 +1583,11 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
     
     if not isinstance(standard_dev, float):
         raise TypeError("Apply_noise: parameter standard_dev expects a float.")
+
+    if not isinstance(mask_type, int):
+        raise TypeError("Apply_noise: parameter mask_type expects an integer.")
+    elif mask_type not in MASK_OPTIONS:
+        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within pyfameutils.MASK_OPTIONS.")
     
     if not isinstance(with_sub_dirs, bool):
         raise TypeError("Apply_noise: parameter with_sub_dirs expects a boolean.")
@@ -1604,7 +1601,432 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         raise TypeError("Apply_noise: parameter min_tracking_confidence expects a float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
         raise ValueError("Apply_noise: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    def mask_frame(frame: cv.typing.MatLike, mask_type: int) -> cv.typing.MatLike:
 
+        face_mesh_results = face_mesh.process(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+        landmark_screen_coords = []
+
+        if face_mesh_results.multi_face_landmarks:
+            for face_landmarks in face_mesh_results.multi_face_landmarks:
+
+                # Convert normalised landmark coordinates to x-y pixel coordinates
+                for id,lm in enumerate(face_landmarks.landmark):
+                    ih, iw, ic = frame.shape
+                    x,y = int(lm.x * iw), int(lm.y * ih)
+                    landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+        else:
+            print("Mask_face_region: Face mesh detection error.")
+            sys.exit(1)
+
+        match mask_type:
+
+            case 1: # Face oval mask
+                face_outline_coords = []
+                
+                # face oval screen coordinates
+                for cur_source, cur_target in FACE_OVAL_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    face_outline_coords.append((source.get('x'),source.get('y')))
+                    face_outline_coords.append((target.get('x'),target.get('y')))
+
+                oval_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                oval_mask = cv.fillConvexPoly(oval_mask, np.array(face_outline_coords), 1)
+                oval_mask = oval_mask.astype(bool)
+
+                # Otsu thresholding to seperate foreground and background
+                grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                grey_blurred = cv.GaussianBlur(grey_frame, (7,7), 0)
+                thresh_val, thresholded = cv.threshold(grey_blurred, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU)
+
+                # Adding a temporary image border to allow for correct floodfill behaviour
+                bordered_thresholded = cv.copyMakeBorder(thresholded, 10, 10, 10, 10, cv.BORDER_CONSTANT)
+                floodfilled = bordered_thresholded.copy()
+                cv.floodFill(floodfilled, None, (0,0), 255)
+
+                # Removing temporary border and creating foreground mask
+                floodfilled = floodfilled[10:-10, 10:-10]
+                floodfilled = cv.bitwise_not(floodfilled)
+                foreground = cv.bitwise_or(thresholded, floodfilled)
+
+                # Masking the face oval
+                masked_frame = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                masked_frame[oval_mask] = 255
+
+                # Remove unwanted background inclusions in the masked area
+                masked_frame = cv.bitwise_and(masked_frame, foreground)
+                masked_frame = np.reshape(masked_frame, (masked_frame.shape[0], masked_frame.shape[1], 1))
+
+                return masked_frame
+
+            case 2: # Face skin isolation
+                le_screen_coords = []
+                re_screen_coords = []
+                lips_screen_coords = []
+                face_outline_coords = []
+
+                # left eye screen coordinates
+                for cur_source, cur_target in LEFT_EYE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    le_screen_coords.append((source.get('x'),source.get('y')))
+                    le_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # right eye screen coordinates
+                for cur_source, cur_target in RIGHT_EYE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    re_screen_coords.append((source.get('x'),source.get('y')))
+                    re_screen_coords.append((target.get('x'),target.get('y')))
+
+                # lips screen coordinates
+                for cur_source, cur_target in LIPS_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    lips_screen_coords.append((source.get('x'),source.get('y')))
+                    lips_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # face oval screen coordinates
+                for cur_source, cur_target in FACE_OVAL_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    face_outline_coords.append((source.get('x'),source.get('y')))
+                    face_outline_coords.append((target.get('x'),target.get('y')))
+
+                # Creating boolean masks for the facial regions
+                le_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                le_mask = le_mask.astype(bool)
+
+                re_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                re_mask = re_mask.astype(bool)
+
+                lip_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
+                lip_mask = lip_mask.astype(bool)
+
+                oval_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                oval_mask = cv.fillConvexPoly(oval_mask, np.array(face_outline_coords), 1)
+                oval_mask = oval_mask.astype(bool)
+
+                # Otsu thresholding to seperate foreground and background
+                grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                grey_blurred = cv.GaussianBlur(grey_frame, (7,7), 0)
+                thresh_val, thresholded = cv.threshold(grey_blurred, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU)
+
+                # Adding a temporary image border to allow for correct floodfill behaviour
+                bordered_thresholded = cv.copyMakeBorder(thresholded, 10, 10, 10, 10, cv.BORDER_CONSTANT)
+                floodfilled = bordered_thresholded.copy()
+                cv.floodFill(floodfilled, None, (0,0), 255)
+
+                # Removing temporary border and creating foreground mask
+                floodfilled = floodfilled[10:-10, 10:-10]
+                floodfilled = cv.bitwise_not(floodfilled)
+                foreground = cv.bitwise_or(thresholded, floodfilled)
+
+                # Masking the face oval
+                masked_frame = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                masked_frame[oval_mask] = 255
+
+                # Masking out eyes and lips
+                masked_frame[le_mask] = 0
+                masked_frame[re_mask] = 0
+                masked_frame[lip_mask] = 0
+                
+                # Remove unwanted background inclusions in the masked area
+                masked_frame = cv.bitwise_and(masked_frame, foreground)
+                masked_frame = np.reshape(masked_frame, (masked_frame.shape[0], masked_frame.shape[1], 1))
+                return masked_frame
+            
+            case 3: # Both eyes mask
+                le_screen_coords = []
+                re_screen_coords = []
+
+                # left eye screen coordinates
+                for cur_source, cur_target in LEFT_EYE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    le_screen_coords.append((source.get('x'),source.get('y')))
+                    le_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # right eye screen coordinates
+                for cur_source, cur_target in RIGHT_EYE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    re_screen_coords.append((source.get('x'),source.get('y')))
+                    re_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                le_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                le_mask = le_mask.astype(bool)
+
+                re_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                re_mask = re_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0],frame.shape[1],1), dtype=np.uint8)
+                masked_frame[le_mask] = 255
+                masked_frame[re_mask] = 255
+
+                return masked_frame
+            
+            case 21: # Both irises mask
+                li_screen_coords = []
+                ri_screen_coords = []
+
+                # Left iris screen coordinates
+                for cur_source, cur_target in LEFT_IRIS_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    li_screen_coords.append((source.get('x'),source.get('y')))
+                    li_screen_coords.append((target.get('x'), target.get('y')))
+                
+                # Right iris screen coordinates
+                for cur_source, cur_target in RIGHT_IRIS_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    ri_screen_coords.append((source.get('x'),source.get('y')))
+                    ri_screen_coords.append((target.get('x'), target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                li_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                li_mask = cv.fillConvexPoly(li_mask, np.array(li_screen_coords), 1)
+                li_mask = li_mask.astype(bool)
+
+                ri_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                ri_mask = cv.fillConvexPoly(ri_mask, np.array(ri_screen_coords), 1)
+                ri_mask = ri_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0],frame.shape[1],1), dtype=np.uint8)
+                masked_frame[li_mask] = 255
+                masked_frame[ri_mask] = 255
+
+                return masked_frame
+            
+            case 22: # Lips mask
+                lips_screen_coords = []
+
+                # Lips screen coordinates
+                for cur_source, cur_target in LIPS_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    lips_screen_coords.append((source.get('x'),source.get('y')))
+                    lips_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                lip_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
+                lip_mask = lip_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0],frame.shape[1],1), dtype=np.uint8)
+                masked_frame[lip_mask] = 255
+
+                return masked_frame
+
+            case 23: # Hemi-face left mask
+                hfl_screen_coords = []
+
+                # Left Hemi-face screen coordinates
+                for cur_source, cur_target in HEMI_FACE_LEFT_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    hfl_screen_coords.append((source.get('x'),source.get('y')))
+                    hfl_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                hfl_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                hfl_mask = cv.fillConvexPoly(hfl_mask, np.array(hfl_screen_coords), 1)
+                hfl_mask = hfl_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
+                masked_frame[hfl_mask] = 255
+
+                # Otsu thresholding to seperate foreground and background
+                grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                grey_blurred = cv.GaussianBlur(grey_frame, (7,7), 0)
+                thresh_val, thresholded = cv.threshold(grey_blurred, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU)
+
+                # Adding a temporary image border to allow for correct floodfill behaviour
+                bordered_thresholded = cv.copyMakeBorder(thresholded, 10, 10, 10, 10, cv.BORDER_CONSTANT)
+                floodfilled = bordered_thresholded.copy()
+                cv.floodFill(floodfilled, None, (0,0), 255)
+
+                # Removing temporary border and creating foreground mask
+                floodfilled = floodfilled[10:-10, 10:-10]
+                floodfilled = cv.bitwise_not(floodfilled)
+                foreground = cv.bitwise_or(thresholded, floodfilled)
+
+                # Remove unwanted background inclusions in the masked area
+                masked_frame = cv.bitwise_and(masked_frame, foreground)
+                masked_frame = masked_frame.reshape(masked_frame.shape[0], masked_frame.shape[1], 1)
+                return masked_frame
+
+            case 24: # Hemi-face right mask
+                hfr_screen_coords = []
+
+                # Right hemi-face screen coordinates
+                for cur_source, cur_target in HEMI_FACE_RIGHT_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    hfr_screen_coords.append((source.get('x'),source.get('y')))
+                    hfr_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                hfr_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                hfr_mask = cv.fillConvexPoly(hfr_mask, np.array(hfr_screen_coords), 1)
+                hfr_mask = hfr_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
+                masked_frame[hfr_mask] = 255
+
+                # Otsu thresholding to seperate foreground and background
+                grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                grey_blurred = cv.GaussianBlur(grey_frame, (7,7), 0)
+                thresh_val, thresholded = cv.threshold(grey_blurred, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU)
+
+                # Adding a temporary image border to allow for correct floodfill behaviour
+                bordered_thresholded = cv.copyMakeBorder(thresholded, 10, 10, 10, 10, cv.BORDER_CONSTANT)
+                floodfilled = bordered_thresholded.copy()
+                cv.floodFill(floodfilled, None, (0,0), 255)
+
+                # Removing temporary border and creating foreground mask
+                floodfilled = floodfilled[10:-10, 10:-10]
+                floodfilled = cv.bitwise_not(floodfilled)
+                foreground = cv.bitwise_or(thresholded, floodfilled)
+
+                # Remove unwanted background inclusions in the masked area
+                masked_frame = cv.bitwise_and(masked_frame, foreground)
+                masked_frame = masked_frame.reshape(masked_frame.shape[0], masked_frame.shape[1], 1)
+                return masked_frame
+            
+            case 25: # Hemi-face bottom mask
+                hfb_screen_coords = []
+
+                # Bottom hemi-face screen coordinates
+                for cur_source, cur_target in HEMI_FACE_BOTTOM_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    hfb_screen_coords.append((source.get('x'),source.get('y')))
+                    hfb_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                hfb_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                hfb_mask = cv.fillConvexPoly(hfb_mask, np.array(hfb_screen_coords), 1)
+                hfb_mask = hfb_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
+                masked_frame[hfb_mask] = 255
+
+                # Otsu thresholding to seperate foreground and background
+                grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                grey_blurred = cv.GaussianBlur(grey_frame, (7,7), 0)
+                thresh_val, thresholded = cv.threshold(grey_blurred, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU)
+
+                # Adding a temporary image border to allow for correct floodfill behaviour
+                bordered_thresholded = cv.copyMakeBorder(thresholded, 10, 10, 10, 10, cv.BORDER_CONSTANT)
+                floodfilled = bordered_thresholded.copy()
+                cv.floodFill(floodfilled, None, (0,0), 255)
+
+                # Removing temporary border and creating foreground mask
+                floodfilled = floodfilled[10:-10, 10:-10]
+                floodfilled = cv.bitwise_not(floodfilled)
+                foreground = cv.bitwise_or(thresholded, floodfilled)
+
+                # Remove unwanted background inclusions in the masked area
+                masked_frame = cv.bitwise_and(masked_frame, foreground)
+                masked_frame = masked_frame.reshape(masked_frame.shape[0], masked_frame.shape[1], 1)
+                return masked_frame
+            
+            case 26: # Hemi-face top mask
+                hft_screen_coords = []
+
+                # Bottom hemi-face screen coordinates
+                for cur_source, cur_target in HEMI_FACE_TOP_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    hft_screen_coords.append((source.get('x'),source.get('y')))
+                    hft_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # Creating boolean masks for the facial regions
+                hft_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                hft_mask = cv.fillConvexPoly(hft_mask, np.array(hft_screen_coords), 1)
+                hft_mask = hft_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
+                masked_frame[hft_mask] = 255
+
+                return masked_frame
+
+            case 14: # Eyes nose mouth mask
+                le_screen_coords = []
+                re_screen_coords = []
+                nose_screen_coords = []
+                lips_screen_coords = []
+
+                # left eye screen coordinates
+                for cur_source, cur_target in LEFT_EYE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    le_screen_coords.append((source.get('x'),source.get('y')))
+                    le_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # right eye screen coordinates
+                for cur_source, cur_target in RIGHT_EYE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    re_screen_coords.append((source.get('x'),source.get('y')))
+                    re_screen_coords.append((target.get('x'),target.get('y')))
+                
+                # nose screen coordinates
+                for cur_source, cur_target in NOSE_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    nose_screen_coords.append((source.get('x'),source.get('y')))
+                    nose_screen_coords.append((target.get('x'),target.get('y')))
+
+                # lips screen coordinates
+                for cur_source, cur_target in LIPS_PATH:
+                    source = landmark_screen_coords[cur_source]
+                    target = landmark_screen_coords[cur_target]
+                    lips_screen_coords.append((source.get('x'),source.get('y')))
+                    lips_screen_coords.append((target.get('x'),target.get('y')))
+
+                # Creating boolean masks for the facial regions
+                le_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                le_mask = le_mask.astype(bool)
+
+                re_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                re_mask = re_mask.astype(bool)
+
+                nose_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                nose_mask = cv.fillConvexPoly(nose_mask, np.array(nose_screen_coords), 1)
+                nose_mask = nose_mask.astype(bool)
+
+                lip_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
+                lip_mask = lip_mask.astype(bool)
+
+                masked_frame = np.zeros((frame.shape[0],frame.shape[1],1), dtype=np.uint8)
+                masked_frame[le_mask] = 255
+                masked_frame[re_mask] = 255
+                masked_frame[nose_mask] = 255
+                masked_frame[lip_mask] = 255
+
+                return masked_frame
+            
+            case _:
+                print("Mask_face_region: Undefined facial mask, please specify one of FACE_SKIN_ISOLATION, FACE_OVAL, FACE_OVAL_TIGHT.")
+                sys.exit(1)
+            
+    # Defining the mediapipe facemesh task
+    face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = static_image_mode, min_detection_confidence = min_detection_confidence,
+                                                min_tracking_confidence = min_tracking_confidence)
+    
     # Creating a list of file path strings to iterate through when processing
     files_to_process = []
 
@@ -1695,10 +2117,15 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
             match noise_method:
                 case 'pixelate' | 18:
                     height, width = output_frame.shape[:2]
-                    h, w = output_size
+                    h = frame.shape[0]//pixel_size
+                    w = frame.shape[1]//pixel_size
 
                     temp = cv.resize(frame, (w, h), None, 0, 0, cv.INTER_LINEAR)
                     output_frame = cv.resize(temp, (width, height), None, 0, 0, cv.INTER_NEAREST)
+
+                    if mask_type != None:
+                        img_mask = mask_frame(frame, mask_type)
+                        output_frame = np.where(img_mask == 255, output_frame, frame)
 
                 case 'salt and pepper' | 19:
                     # Divide prob in 2 for "salt" and "pepper"
@@ -1721,6 +2148,10 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     # Apply boolean masks
                     output_frame[pepper_mask] = [0,0,0]
                     output_frame[salt_mask] = [255,255,255]
+
+                    if mask_type != None:
+                        img_mask = mask_frame(frame, mask_type)
+                        output_frame = np.where(img_mask == 255, output_frame, frame)
                 
                 case 'gaussian' | 20:
                     var = standard_dev**2
@@ -1735,6 +2166,10 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     output_frame = img_as_float64(output_frame)
                     output_frame = random_noise(image=output_frame, mode='gaussian', rng=rng, mean=mean, var=var)
                     output_frame = img_as_ubyte(output_frame)
+
+                    if mask_type != None:
+                        img_mask = mask_frame(frame, mask_type)
+                        output_frame = np.where(img_mask == 255, output_frame, frame)
 
                 case _:
                     print("Apply_noise: incompatible value for parameter noise_method.")
@@ -1753,6 +2188,1566 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
             capture.release()
             result.release()
 
+def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, scramble_method:int = HIGH_LEVEL_GRID_SCRAMBLE, rand_seed:int|None = None, grid_scramble_threshold:int = 2,
+                    grid_square_size:int = 40, with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+    """ For each input photo or video file, randomly shuffles the face/facial-landmarks. Output files can either be in full
+    color, or grayscale. Specify a random seed for reproducable results.
+
+    Parameters
+    ----------
+
+    input_dir: str
+        A path string to a directory containing the video files to be processed.
+
+    output_dir: str
+        A path string to a directory where processed image or video files will be written too.
+
+    out_grayscale: bool
+        A boolean flag indicating if the output file should, or should not be converted to grayscale.
+
+    scramble_method: int
+        One of LOW_LEVEL_GRID_SCRAMBLE, HIGH_LEVEL_GRID_SCRAMBLE or LANDMARK_SCRAMBLE. 
+    
+    rand_seed: int
+        An integer used to seed the random number generator used in scrambling. 
+    
+    grid_scramble_threshold: int
+        The maximum number of grid positions that a particular grid square can move. When the image grid is randomly scrambled, 
+        each grid square can move at most *threshold* positions in the x and y axis.
+    
+    grid_square_size: int
+        The square dimensions of each grid square used in RANDOM_GRID_SCRAMBLE. The default value of 40, represents grid
+        squares of size 40 pixels by 40 pixels.
+
+    with_sub_dirs: bool
+        Indicates whether the input directory contains subfolders.
+    
+    min_detection_confidence: float
+        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
+        FaceMesh constructor.
+
+    min_tracking_confidence: float
+        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
+        FaceMesh constructor.
+    
+    Raises
+    ------
+
+    TypeError:
+        Given invalid input parameter typings.
+    ValueError: 
+        Given an unspecified shuffle_method.
+    OSError:
+        Given invalid pathstrings to input files. 
+    """
+
+    static_image_mode = False
+    single_file = False
+
+    # Performing checks on input parameters
+    if not isinstance(input_dir, str):
+        raise TypeError("Facial_scramble: parameter input_dir expects a string.")
+    elif not os.path.exists(input_dir):
+        raise OSError("Facial_scramble: input_dir must be a valid pathstring to a file or directory.")
+    elif os.path.isfile(input_dir):
+        single_file = True
+
+    if not isinstance(output_dir, str):
+        raise TypeError("Facial_scramble: parameter output_dir expects a string.")
+    elif not os.path.exists(output_dir):
+        raise OSError("Facial_scramble: output_dir must be a valid pathstring to a file or directory.")
+    
+    if not isinstance(out_grayscale, bool):
+        raise TypeError("Facial_scramble: parameter out_grayscale expects a boolean.")
+    
+    if not isinstance(scramble_method, int):
+        raise TypeError("Facial_scramble: parameter shuffle_method expects an integer.")
+    elif scramble_method not in [27, 28, 29, 30]:
+        raise ValueError("Facial_scramble: parameter shuffle_method must be one of RANDOM_SHUFFLE or RANDOM_GRID_SHUFFLE.")
+    
+    if rand_seed != None:
+        if not isinstance(rand_seed, int):
+            raise TypeError("Facial_scramble: parameter rand_seed expects an integer.")
+    
+    if not isinstance(grid_scramble_threshold, int):
+        raise TypeError("Facial_scramble: parameter grid_scramble_threshold expects an integer")
+    
+    if not isinstance(with_sub_dirs, bool):
+        raise TypeError("Facial_scramble: parameter with_sub_dirs expects a boolean.")
+    
+    if not isinstance(min_detection_confidence, float):
+        raise TypeError("Facial_scramble: parameter min_detection_confidence must be of type float.")
+    elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        raise ValueError("Facial_scramble: parameter min_detection_confidence must be in the range [0,1].")
+    
+    if not isinstance(min_tracking_confidence, float):
+        raise TypeError("Facial_scramble: parameter min_tracking_confidence must be of type float.")
+    elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        raise ValueError("Facial_scramble: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Defining the mediapipe facemesh task
+    face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = static_image_mode, min_detection_confidence = min_detection_confidence,
+                                                min_tracking_confidence = min_tracking_confidence)
+    
+    # Creating a list of file path strings to iterate through when processing
+    files_to_process = []
+
+    if single_file:
+        files_to_process.append(input_dir)
+    elif not with_sub_dirs:
+        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
+    else:
+        files_to_process = [os.path.join(path, file) 
+                            for path, dirs, files in os.walk(input_dir, topdown=True) 
+                            for file in files]
+    
+    # Creating named output directories for video output
+    if not os.path.isdir(output_dir + "\\Scrambled"):
+        os.mkdir(output_dir + "\\Scrambled")
+    output_dir = output_dir + "\\Scrambled"
+
+    for file in files_to_process:
+            
+        # Filetype is used to determine the functions running mode
+        filename, extension = os.path.splitext(os.path.basename(file))
+        codec = None
+        capture = None
+        result = None
+        frame = None
+        shuffled_keys = None
+        rot_angles = None
+        x_displacements = None
+        rng = None
+
+        if rand_seed != None:
+            rng = np.random.default_rng(rand_seed)
+        else:
+            rng = np.random.default_rng()
+
+        # Using the file extension to sniff video codec or image container for images
+        match extension:
+            case ".mp4":
+                codec = "MP4V"
+                static_image_mode = False
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".mov":
+                codec = "MP4V"
+                static_image_mode = False
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".jpg" | ".jpeg" | ".png" | ".bmp":
+                static_image_mode = True
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case _:
+                print("Facial_scramble: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                sys.exit(1)
+        
+        # Initialise videoCapture and videoWriter objects
+        if not static_image_mode:
+            capture = cv.VideoCapture(file)
+            if not capture.isOpened():
+                print("Facial_scramble: Error opening video file.")
+                sys.exit(1)
+            
+            size = (int(capture.get(3)), int(capture.get(4)))
+
+            if out_grayscale == True:
+                result = cv.VideoWriter(output_dir + "\\" + filename + "_scrambled" + extension,
+                                    cv.VideoWriter.fourcc(*codec), 30, size, isColor=False)
+            else:
+                result = cv.VideoWriter(output_dir + "\\" + filename + "_scrambled" + extension,
+                                    cv.VideoWriter.fourcc(*codec), 30, size, isColor=True)
+                
+            if not result.isOpened():
+                print("Facial_scramble: Error opening VideoWriter object.")
+                sys.exit(1)
+            
+            success, frame = capture.read()
+            if not success:
+                print("Facial_scramble: Error reading in initial frame.")
+                sys.exit(1)
+        else:
+            frame = cv.imread(file)
+
+        if scramble_method != LANDMARK_SCRAMBLE:
+            # Precomputing shuffled grid positions
+            face_mesh_results = face_mesh.process(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+            landmark_screen_coords = []
+
+            if face_mesh_results.multi_face_landmarks:
+                for face_landmarks in face_mesh_results.multi_face_landmarks:
+
+                    # Convert normalised landmark coordinates to x-y pixel coordinates
+                    for id,lm in enumerate(face_landmarks.landmark):
+                        ih, iw, ic = frame.shape
+                        x,y = int(lm.x * iw), int(lm.y * ih)
+                        landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            else:
+                continue
+
+            fo_screen_coords = []
+
+            # Face oval screen coordinates
+            for cur_source, cur_target in FACE_OVAL_PATH:
+                source = landmark_screen_coords[cur_source]
+                target = landmark_screen_coords[cur_target]
+                fo_screen_coords.append((source.get('x'), source.get('y')))
+                fo_screen_coords.append((target.get('x'), target.get('y')))
+            
+            fo_mask = np.zeros((frame.shape[0], frame.shape[1]))
+            fo_mask = cv.fillConvexPoly(fo_mask, np.array(fo_screen_coords), 1)
+            fo_mask = fo_mask.astype(bool)
+
+            # Get x and y bounds of the face oval
+            max_x = max(fo_screen_coords, key=itemgetter(0))[0]
+            min_x = min(fo_screen_coords, key=itemgetter(0))[0]
+
+            max_y = max(fo_screen_coords, key=itemgetter(1))[1]
+            min_y = min(fo_screen_coords, key=itemgetter(1))[1]
+
+            height = max_y-min_y
+            width = max_x-min_x
+
+            # Calculate x and y padding, ensuring integer
+            x_pad = grid_square_size - (width % grid_square_size)
+            y_pad = grid_square_size - (height % grid_square_size)
+
+            if x_pad % 2 !=0:
+                min_x -= np.floor(x_pad/2)
+                max_x += np.ceil(x_pad/2)
+            else:
+                min_x -= x_pad/2
+                max_x += x_pad/2
+            
+            if y_pad % 2 !=0:
+                min_y -= np.floor(y_pad/2)
+                max_y += np.ceil(y_pad/2)
+            else:
+                min_y -= y_pad/2
+                max_y += y_pad/2
+                
+            # Ensure integer
+            min_x = int(min_x)
+            max_x = int(max_x)
+            min_y = int(min_y)
+            max_y = int(max_y)
+
+            height = max_y-min_y
+            width = max_x-min_x
+            cols = int(width/grid_square_size)
+            rows = int(height/grid_square_size)
+
+            grid_squares = {}
+
+            # Populate the grid_squares dict with segments of the frame
+            for i in range(rows):
+                for j in range(cols):
+                    grid_squares.update({(i,j):frame[min_y:min_y + grid_square_size, min_x:min_x + grid_square_size]})
+                    min_x += grid_square_size
+                min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+                min_y += grid_square_size
+            
+            keys = list(grid_squares.keys())
+
+            # Shuffle the keys of the grid_squares dict
+            if scramble_method == LOW_LEVEL_GRID_SCRAMBLE:
+                shuffled_keys = keys.copy()
+                shuffled_keys = np.array(shuffled_keys, dtype="i,i")
+                shuffled_keys = shuffled_keys.reshape((rows, cols))
+
+                ref_keys = keys.copy()
+                ref_keys = np.array(ref_keys, dtype="i,i")
+                ref_keys = ref_keys.reshape((rows, cols))
+
+                visited_keys = set()
+
+                # Localised threshold based shuffling of the grid
+                for y in range(rows):
+                    for x in range(cols):
+                        if (x,y) in visited_keys:
+                            continue
+                        else:
+                            x_min = max(0, x - grid_scramble_threshold)
+                            x_max = min(cols-1, x + grid_scramble_threshold)
+                            y_min = max(0, y - grid_scramble_threshold)
+                            y_max = min(rows - 1, y + grid_scramble_threshold)
+
+                            valid_new_positions = [
+                                (new_x, new_y)
+                                for new_x in range(x_min, x_max + 1)
+                                for new_y in range(y_min, y_max + 1)
+                                if (new_x, new_y) not in visited_keys
+                            ]
+
+                            if valid_new_positions:
+                                new_x, new_y = rng.choice(valid_new_positions)
+
+                                # Perform the positional swap
+                                shuffled_keys[new_y,new_x] = ref_keys[y,x]
+                                shuffled_keys[y,x] = ref_keys[new_y, new_x]
+                                visited_keys.add((new_x, new_y))
+                                visited_keys.add((x,y))
+                            else:
+                                visited_keys.add((x,y))
+
+                shuffled_keys = list(shuffled_keys.reshape((-1,)))
+                # Ensure tuple(int) 
+                shuffled_keys = [tuple([int(x), int(y)]) for (x,y) in shuffled_keys]
+            else:
+                # Scramble the keys of the grid_squares dict
+                shuffled_keys = keys.copy()
+                rng.shuffle(shuffled_keys)
+        else:
+                rot_angles = {}
+                x_displacements = {}
+
+                for i in range(4):
+                    rn = rng.random()
+
+                    if i+1 < 3:
+                            if rn < 0.25:
+                                rot_angles.update({i+1:90})
+                            elif rn < 0.5:
+                                rot_angles.update({i+1:-90})
+                            elif rn < 0.75:
+                                rot_angles.update({i+1:180})
+                            else:
+                                rot_angles.update({i+1:0})
+                    elif i+1 == 3:
+                        if rn < 0.5:
+                            rot_angles.update({i+1:90})
+                        else:
+                            rot_angles.update({i+1:-90})
+                    else:
+                        if rn < 0.5:
+                            rot_angles.update({i+1:180})
+                        else:
+                            rot_angles.update({i+1:0})
+                    
+                    if rn < 0.5:
+                        x_displacements.update({i+1:int(-40 * rng.random())})
+                    else:
+                        x_displacements.update({i+1:int(40 * rng.random())})
+
+        # Main Processing loop for video files (will only iterate once over images)
+        while True:
+            face_mesh_results = face_mesh.process(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+            landmark_screen_coords = []
+
+            if face_mesh_results.multi_face_landmarks:
+                for face_landmarks in face_mesh_results.multi_face_landmarks:
+
+                    # Convert normalised landmark coordinates to x-y pixel coordinates
+                    for id,lm in enumerate(face_landmarks.landmark):
+                        ih, iw, ic = frame.shape
+                        x,y = int(lm.x * iw), int(lm.y * ih)
+                        landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            else:
+                continue
+            
+            output_frame = np.zeros((frame.shape[0], frame.shape[1], 3), dtype=np.uint8)
+            
+            match scramble_method:
+                case 27 | 28: # Grid scrambling
+                    fo_screen_coords = []
+
+                    # Face oval screen coordinates
+                    for cur_source, cur_target in FACE_OVAL_PATH:
+                        source = landmark_screen_coords[cur_source]
+                        target = landmark_screen_coords[cur_target]
+                        fo_screen_coords.append((source.get('x'), source.get('y')))
+                        fo_screen_coords.append((target.get('x'), target.get('y')))
+                    
+                    fo_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                    fo_mask = cv.fillConvexPoly(fo_mask, np.array(fo_screen_coords), 1)
+                    fo_mask = fo_mask.astype(bool)
+                    
+                    min_x = min(fo_screen_coords, key=itemgetter(0))[0]
+                    min_y = min(fo_screen_coords, key=itemgetter(1))[1]
+
+                    grid_squares = {}
+
+                    # Populate the grid_squares dict with segments of the frame
+                    for i in range(rows):
+                        for j in range(cols):
+                            grid_squares.update({(i,j):frame[min_y:min_y + grid_square_size, min_x:min_x + grid_square_size]})
+                            min_x += grid_square_size
+                        min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+                        min_y += grid_square_size
+                    
+                    min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+                    min_y = int(min(fo_screen_coords, key=itemgetter(1))[1])
+                    
+                    keys = list(grid_squares.keys())
+
+                    # Populate the scrambled grid dict
+                    shuffled_grid_squares = {}
+
+                    for old_key, new_key in zip(keys, shuffled_keys):
+                        square = grid_squares.get(new_key)
+                        shuffled_grid_squares.update({old_key:square})
+
+                    # Fill the output frame with scrambled grid segments
+                    for i in range(rows):
+                        for j in range(cols):
+                            cur_square = shuffled_grid_squares.get((i,j))
+                            output_frame[min_y:min_y+grid_square_size, min_x:min_x+grid_square_size] = cur_square
+                            min_x += grid_square_size
+                        min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+                        min_y += grid_square_size
+                    
+                    min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+                    min_y = int(min(fo_screen_coords, key=itemgetter(1))[1])
+
+                    # Calculate the slope of the connecting line & angle to the horizontal
+                    # landmarks 162, 389 form a paralell line to the x-axis when the face is vertical
+                    p1 = landmark_screen_coords[162]
+                    p2 = landmark_screen_coords[389]
+                    slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
+
+                    if slope > 0:
+                        angle_from_x_axis = (-1)*calculate_rot_angle(slope1=slope)
+                    else:
+                        angle_from_x_axis = calculate_rot_angle(slope1=slope)
+                    cx = min_x + (width/2)
+                    cy = min_y + (height/2)
+
+                    # Using the rotation angle, generate a rotation matrix and apply affine transform
+                    rot_mat = cv.getRotationMatrix2D((cx,cy), (angle_from_x_axis), 1)
+                    output_frame = cv.warpAffine(output_frame, rot_mat, (frame.shape[1], frame.shape[0]))
+
+                    # Ensure grid only overlays the face oval
+                    masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
+                    masked_frame[fo_mask] = 255
+                    output_frame = np.where(masked_frame == 255, output_frame, frame)
+                    output_frame = output_frame.astype(np.uint8)
+
+                case 29: # Landmark scrambling
+                    le_screen_coords = []
+                    re_screen_coords = []
+                    nose_screen_coords = []
+                    lips_screen_coords = []
+                    fo_screen_coords = []
+                    
+                    # Left eye screen coordinates
+                    for cur_source, cur_target in LEFT_EYE_PATH:
+                        source = landmark_screen_coords[cur_source]
+                        target = landmark_screen_coords[cur_target]
+                        le_screen_coords.append((source.get('x'), source.get('y')))
+                        le_screen_coords.append((target.get('x'), target.get('y')))
+                    
+                    # Right eye screen coordinates
+                    for cur_source, cur_target in RIGHT_EYE_PATH:
+                        source = landmark_screen_coords[cur_source]
+                        target = landmark_screen_coords[cur_target]
+                        re_screen_coords.append((source.get('x'), source.get('y')))
+                        re_screen_coords.append((target.get('x'), target.get('y')))
+                    
+                    # Nose screen coordinates
+                    for cur_source, cur_target in NOSE_PATH:
+                        source = landmark_screen_coords[cur_source]
+                        target = landmark_screen_coords[cur_target]
+                        nose_screen_coords.append((source.get('x'), source.get('y')))
+                        nose_screen_coords.append((target.get('x'), target.get('y')))
+                    
+                    # Lips screen coordinates
+                    for cur_source, cur_target in LIPS_PATH:
+                        source = landmark_screen_coords[cur_source]
+                        target = landmark_screen_coords[cur_target]
+                        lips_screen_coords.append((source.get('x'), source.get('y')))
+                        lips_screen_coords.append((target.get('x'), target.get('y')))
+                    
+                    # Face oval screen coordinates
+                    for cur_source, cur_target in FACE_OVAL_TIGHT_PATH:
+                        source = landmark_screen_coords[cur_source]
+                        target = landmark_screen_coords[cur_target]
+                        fo_screen_coords.append((source.get('x'), source.get('y')))
+                        fo_screen_coords.append((target.get('x'), target.get('y')))
+
+                    # Creating boolean masks for the facial landmark regions
+                    le_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                    le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                    le_mask = le_mask.astype(bool)
+
+                    re_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                    re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                    re_mask = re_mask.astype(bool)
+
+                    nose_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                    nose_mask = cv.fillConvexPoly(nose_mask, np.array(nose_screen_coords), 1)
+                    nose_mask = nose_mask.astype(bool)
+
+                    lip_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                    lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
+                    lip_mask = lip_mask.astype(bool)
+
+                    fo_mask = np.zeros((frame.shape[0], frame.shape[1]))
+                    fo_mask = cv.fillConvexPoly(fo_mask, np.array(fo_screen_coords), 1)
+                    fo_mask = fo_mask.astype(bool)
+
+                    masks = [le_mask, re_mask, nose_mask, lip_mask]
+                    screen_coords = [le_screen_coords, re_screen_coords, nose_screen_coords, lips_screen_coords]
+                    lms = []
+                    output_frame = frame.copy()
+
+                    # Cut out, and store landmarks
+                    for mask, coords in zip(masks, screen_coords):
+                        im_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                        im_mask[mask] = 255
+
+                        max_x = max(coords, key=itemgetter(0))[0]
+                        min_x = min(coords, key=itemgetter(0))[0]
+
+                        max_y = max(coords, key=itemgetter(1))[1]
+                        min_y = min(coords, key=itemgetter(1))[1]
+
+                        # Compute the center bisecting lines of the landmark
+                        cx = round((max_y + min_y)/2)           
+                        cy = round((max_x + min_x)/2)
+
+                        # Cut out landmark region and store it
+                        lm = cv.bitwise_and(src1=frame, src2=frame, mask=im_mask)
+                        lms.append((lm, (cy,cx)))
+
+                        # Fill landmark holes with inpainting
+                        output_frame[mask] = 0
+                        output_frame = cv.inpaint(output_frame, im_mask, 10, cv.INPAINT_NS)
+
+                    landmarks = dict(map(lambda i,j: (i,j), [1,2,3,4], lms))
+
+                    for key in landmarks:
+                        # Get the landmark, and the center point of its position
+                        landmark, center = landmarks[key]
+                        cx, cy = center
+                        h,w = landmark.shape[:2]
+
+                        rot_angle = rot_angles[key]
+                        x_disp = x_displacements[key]
+
+                        # Generate rotation matrices for the landmark
+                        if key == 3:
+                            rot_mat = cv.getRotationMatrix2D(center=center, angle=rot_angle, scale=1)
+                            landmark = cv.warpAffine(landmark, rot_mat, (w,h))
+                            cy += 20
+                        else:
+                            rot_mat = cv.getRotationMatrix2D(center=center, angle=rot_angle, scale=1)
+                            landmark = cv.warpAffine(landmark, rot_mat, (w,h))
+                        
+                        cx += x_disp
+
+                        # Create landmark mask
+                        lm_mask = np.zeros((landmark.shape[0], landmark.shape[1]), dtype=np.uint8)
+                        lm_mask = np.where(landmark != 0, 255, 0)
+                        lm_mask = lm_mask.astype(np.uint8)
+                        
+                        # Clone the landmark onto the original face in its new position
+                        output_frame = cv.seamlessClone(landmark, output_frame, lm_mask, (cx, cy), cv.NORMAL_CLONE)
+
+            if not static_image_mode:
+                if out_grayscale == True:
+                    output_frame = cv.cvtColor(output_frame, cv.COLOR_BGR2GRAY)
+                
+                result.write(output_frame)
+                success, frame = capture.read()
+                if not success:
+                    break 
+            else:
+                if out_grayscale == True:
+                    output_frame = cv.cvtColor(output_frame, cv.COLOR_BGR2GRAY)
+
+                success = cv.imwrite(output_dir + "\\" + filename + "_scrambled" + extension, output_frame)
+                if not success:
+                    print("Facial_scramble: cv2 imwrite error.")
+                    sys.exit(1)
+                break
+        
+        if not static_image_mode:
+            capture.release()
+            result.release()
+
+def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[list] = [FACE_OVAL_PATH], point_density:float = 0.5, 
+                        show_history:bool = False, history_mode:int = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_color:tuple[int] = (0,0,255),
+                        point_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+    '''Generates a point light display of the face region contained in the input image or video file. Points are either predefined mediapipe FaceMesh points, passed 
+    within the input parameter landmark_points, or they are randomly generated if no input points are provided. The number of points can span 1-468 (the total number of 
+    landmarks available on the mediapipe FaceMesh), depending on how dense the user would like the resulting point light display to be. 
+
+    Parameters
+    ----------
+
+    input_dir: str
+        A path string to a valid directory containing the image or video files to be processed.
+    
+    output_dir: str
+        A path string to a valid directory where the output image or video files will be written to.
+    
+    landmark_regions: list of list
+        Landmark regions to be highlighted by the point light display. Any predefined landmark path or landmark path created with 
+        pyfameutils.create_path() can be passed.
+    
+    point_density: float
+        The proportion of points in a given landmark region to be displayed in the output point light display. Its value must
+        lie in the range [0,1].
+    
+    show_history: bool
+        A boolean flag indicating if the point path history should be drawn on the output file.
+    
+    history_mode: int
+        An integer flag specifying the history display method. One of SHOW_HISTORY_ORIGIN or SHOW_HISTORY_RELATIVE, which will display history
+        path vectors from the current positions to the original position or previous positions, respectively.
+
+    history_window_msec: int
+        The time duration (in milliseconds) for history path vectors to be displayed when using SHOW_HISTORY_RELATIVE.
+
+    history_color: tuple of int
+        The BGR color code representing the color of history path vectors.
+    
+    point_color: tuple of int
+        The BGR color code representing the color of the points in the output point-light display.
+    
+    with_sub_dirs: bool
+        Indicates whether the input directory contains subfolders.
+    
+    min_detection_confidence: float
+        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
+        FaceMesh constructor.
+
+    min_tracking_confidence: float
+        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
+        FaceMesh constructor.
+    '''
+    
+    single_file = False
+
+    # Perform checks on input parameters
+    if not isinstance(input_dir, str):
+        raise TypeError("Point_light_display: parameter input_dir expects a string.")
+    elif not os.path.exists(input_dir):
+        raise OSError("Point_light_display: parameter input_dir is required to be a valid pathstring.")
+    if os.path.isfile(input_dir):
+        single_file = True
+    
+    if not isinstance(output_dir, str):
+        raise TypeError("Point_light_display: parameter output_dir expects a string.")
+    elif not os.path.exists(output_dir):
+        raise OSError("Point_light_display: parameter output_dir is required to be a valid path.")
+    elif not os.path.isdir(output_dir):
+        raise OSError("Point_light_display: parameter output_dir must be a path string to a directory.")
+    
+    if not isinstance(landmark_regions, list):
+        raise TypeError("Point_light_display: parameter landmark_points expects a list of list.")
+    elif len(landmark_regions) == 0:
+        raise ValueError("Point_light_display: parameter landmark_points cannot be an empty list.")
+    elif not isinstance(landmark_regions[0], list):
+        raise TypeError("Point_light_display: parameter landmark_points expects a list of list.")
+    
+    if not isinstance(point_density, float):
+        raise TypeError("Point_light_display: parameter point_density expects a float.")
+    elif point_density < 0 or point_density > 1:
+        raise ValueError("Point_light_display: parameter point_density must be in the range [0,1].")
+    
+    if not isinstance(show_history, bool):
+        raise TypeError("Point_light_display: parameter show_history must be a boolean.")
+
+    if not isinstance(history_mode, int):
+        raise TypeError("Point_light_display: parameter history_mode must be an integer.")
+    elif history_mode not in [SHOW_HISTORY_ORIGIN, SHOW_HISTORY_RELATIVE]:
+        raise ValueError("Point_light_display: parameter history_mode must be one of SHOW_HISTORY_ORIGIN or SHOW_HISTORY_RELATIVE.")
+    
+    if not isinstance(history_window_msec, int):
+        raise TypeError("Point_light_display: parameter history_window_msec must be an integer.")
+    elif history_window_msec < 0:
+        show_history = False
+    
+    if not isinstance(point_color, tuple):
+        raise TypeError("Point_light_display: parameter point_color must be of type tuple.")
+    elif len(point_color) < 3:
+        raise ValueError("Point_light_display: parameter point_color expects a length 3 tuple of integers.")
+    elif not isinstance(point_color[0], int):
+        raise ValueError("Point_light_display: parameter point_color expects a length 3 tuple of integers.")
+    
+    if not isinstance(history_color, tuple):
+        raise TypeError("Point_light_display: parameter history_color must be of type tuple.")
+    elif len(history_color) < 3:
+        raise ValueError("Point_light_display: parameter history_color expects a length 3 tuple of integers.")
+    elif not isinstance(history_color[0], int):
+        raise ValueError("Point_light_display: parameter history_color expects a length 3 tuple of integers.")
+
+    if not isinstance(with_sub_dirs, bool):
+        raise TypeError("Point_light_display: parameter with_sub_dirs must be a boolean.")
+    
+    if not isinstance(min_detection_confidence, float):
+        raise TypeError("Point_light_display: parameter min_detection_confidence must be of type float.")
+    elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        raise ValueError("Point_light_display: parameter min_detection_confidence must be in the range [0,1].")
+    
+    if not isinstance(min_tracking_confidence, float):
+        raise TypeError("Point_light_display: parameter min_tracking_confidence must be of type float.")
+    elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        raise ValueError("Point_light_display: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Defining the mediapipe facemesh task
+    face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, min_detection_confidence = min_detection_confidence,
+                                                min_tracking_confidence = min_tracking_confidence)
+    
+    # Creating a list of file path strings to iterate through when processing
+    files_to_process = []
+
+    if single_file:
+        files_to_process.append(input_dir)
+    elif not with_sub_dirs:
+        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
+    else:
+        files_to_process = [os.path.join(path, file) 
+                            for path, dirs, files in os.walk(input_dir, topdown=True) 
+                            for file in files]
+    
+    # Creating named output directories for video output
+    if not os.path.isdir(output_dir + "\\PLD"):
+        os.mkdir(output_dir + "\\PLD")
+    output_dir = output_dir + "\\PLD"
+
+    for file in files_to_process:
+
+        # Filetype is used to determine the functions running mode
+        filename, extension = os.path.splitext(os.path.basename(file))
+        codec = None
+        capture = None
+        result = None
+
+        # Using the file extension to sniff video codec or image container for images
+        match extension:
+            case ".mp4":
+                codec = "MP4V"
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".mov":
+                codec = "MP4V"
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".jpg" | ".jpeg" | ".png" | ".bmp":
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case _:
+                print("Point_light_display: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                sys.exit(1)
+        
+        capture = cv.VideoCapture(file)
+        if not capture.isOpened():
+            print("Point_light_display: Error opening video file.")
+            sys.exit(1)
+        
+        size = (int(capture.get(3)), int(capture.get(4)))
+
+        result = cv.VideoWriter(output_dir + "\\" + filename + "_point_light_display" + extension,
+                                cv.VideoWriter.fourcc(*codec), 30, size)
+        if not result.isOpened():
+            print("Point_light_display: Error opening VideoWriter object.")
+            sys.exit(1)
+        
+        # Persistent variables for processing loop
+        counter = 0
+        lm_idx_to_display = np.array([], dtype=np.uint8)
+        prev_points = None
+
+        success, frame = capture.read()
+        if not success:
+            print("Point_light_display: Error reading in initial frame.")
+            sys.exit(1)
+
+        mask = np.zeros_like(frame, dtype=np.uint8)
+        fps = capture.get(cv.CAP_PROP_FPS)
+        frame_history_count = round(fps * (history_window_msec/1000))
+        frame_history = []
+
+        # Main Processing loop for video files
+        while True:
+
+            output_img = np.zeros_like(frame, dtype=np.uint8)
+
+            face_mesh_results = face_mesh.process(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+            landmark_screen_coords = []
+
+            if face_mesh_results.multi_face_landmarks:
+                for face_landmarks in face_mesh_results.multi_face_landmarks:
+
+                    # Convert normalised landmark coordinates to x-y pixel coordinates
+                    for id,lm in enumerate(face_landmarks.landmark):
+                        ih, iw, ic = frame.shape
+                        x,y = int(lm.x * iw), int(lm.y * ih)
+                        landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            else:
+                continue
+            
+            if counter == 0:
+                for lm_path in landmark_regions:
+                    lm_mask = np.zeros((frame.shape[0], frame.shape[1]))
+
+                    match lm_path:
+                        # Both Cheeks
+                        case [(0,)]:
+                            lc_screen_coords = []
+                            rc_screen_coords = []
+
+                            left_cheek_path = create_path(LEFT_CHEEK_IDX)
+                            right_cheek_path = create_path(RIGHT_CHEEK_IDX)
+
+                            # Left cheek screen coordinates
+                            for cur_source, cur_target in left_cheek_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                lc_screen_coords.append((source.get('x'),source.get('y')))
+                                lc_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            # Right cheek screen coordinates
+                            for cur_source, cur_target in right_cheek_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                rc_screen_coords.append((source.get('x'),source.get('y')))
+                                rc_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            lc_screen_coords = np.array(lc_screen_coords, dtype=np.int32)
+                            lc_screen_coords.reshape((-1, 1, 2))
+
+                            lc_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            lc_mask = cv.fillPoly(img=lc_mask, pts=[lc_screen_coords], color=(255,255,255))
+                            lc_mask = lc_mask.astype(bool)
+
+                            rc_screen_coords = np.array(rc_screen_coords, dtype=np.int32)
+                            rc_screen_coords.reshape((-1, 1, 2))
+
+                            rc_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            rc_mask = cv.fillPoly(img=rc_mask, pts=[rc_screen_coords], color=(255,255,255))
+                            rc_mask = rc_mask.astype(bool)
+
+                            lm_mask[lc_mask] = 255
+                            lm_mask[rc_mask] = 255
+                            lm_mask = lm_mask.astype(bool)
+                        
+                        # Left Cheek Only
+                        case [(1,)]:
+                            lc_screen_coords = []
+
+                            left_cheek_path = create_path(LEFT_CHEEK_IDX)
+
+                            # Left cheek screen coordinates
+                            for cur_source, cur_target in left_cheek_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                lc_screen_coords.append((source.get('x'),source.get('y')))
+                                lc_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            # cv2.fillPoly requires a specific shape and int32 values for the points
+                            lc_screen_coords = np.array(lc_screen_coords, dtype=np.int32)
+                            lc_screen_coords.reshape((-1, 1, 2))
+
+                            lm_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            lm_mask = cv.fillPoly(img=lm_mask, pts=[lc_screen_coords], color=(255,255,255))
+                            lm_mask = lm_mask.astype(bool)
+                        
+                        # Right Cheek Only
+                        case [(2,)]:
+                            rc_screen_coords = []
+                            
+                            right_cheek_path = create_path(RIGHT_CHEEK_IDX)
+
+                            # Right cheek screen coordinates
+                            for cur_source, cur_target in right_cheek_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                rc_screen_coords.append((source.get('x'),source.get('y')))
+                                rc_screen_coords.append((target.get('x'),target.get('y')))
+
+                            # cv2.fillPoly requires a specific shape and int32 values for the points
+                            rc_screen_coords = np.array(rc_screen_coords, dtype=np.int32)
+                            rc_screen_coords.reshape((-1, 1, 2))
+
+                            lm_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            lm_mask = cv.fillPoly(img=lm_mask, pts=[rc_screen_coords], color=(255,255,255))
+                            lm_mask = lm_mask.astype(bool)
+
+                        # Cheeks and Nose
+                        case [(3,)]:
+                            lc_screen_coords = []
+                            rc_screen_coords = []
+                            nose_screen_coords = []
+
+                            left_cheek_path = create_path(LEFT_CHEEK_IDX)
+                            right_cheek_path = create_path(RIGHT_CHEEK_IDX)
+
+                            # Left cheek screen coordinates
+                            for cur_source, cur_target in left_cheek_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                lc_screen_coords.append((source.get('x'),source.get('y')))
+                                lc_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            # Right cheek screen coordinates
+                            for cur_source, cur_target in right_cheek_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                rc_screen_coords.append((source.get('x'),source.get('y')))
+                                rc_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            # Nose screen coordinates
+                            for cur_source, cur_target in NOSE_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                nose_screen_coords.append((source.get('x'),source.get('y')))
+                                nose_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            lc_screen_coords = np.array(lc_screen_coords, dtype=np.int32)
+                            lc_screen_coords.reshape((-1, 1, 2))
+
+                            lc_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            lc_mask = cv.fillPoly(img=lc_mask, pts=[lc_screen_coords], color=(255,255,255))
+                            lc_mask = lc_mask.astype(bool)
+
+                            rc_screen_coords = np.array(rc_screen_coords, dtype=np.int32)
+                            rc_screen_coords.reshape((-1, 1, 2))
+
+                            rc_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            rc_mask = cv.fillPoly(img=rc_mask, pts=[rc_screen_coords], color=(255,255,255))
+                            rc_mask = rc_mask.astype(bool)
+
+                            nose_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            nose_mask = cv.fillConvexPoly(nose_mask, np.array(nose_screen_coords), 1)
+                            nose_mask = nose_mask.astype(bool)
+
+                            lm_mask[lc_mask] = 255
+                            lm_mask[rc_mask] = 255
+                            lm_mask[nose_mask] = 255
+                            lm_mask = lm_mask.astype(bool)
+                        
+                        # Both eyes
+                        case [(4,)]:
+                            le_screen_coords = []
+                            re_screen_coords = []
+
+                            for cur_source, cur_target in LEFT_EYE_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                le_screen_coords.append((source.get('x'),source.get('y')))
+                                le_screen_coords.append((target.get('x'),target.get('y')))
+
+                            for cur_source, cur_target in RIGHT_EYE_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                re_screen_coords.append((source.get('x'),source.get('y')))
+                                re_screen_coords.append((target.get('x'),target.get('y')))
+
+                            # Creating boolean masks for the facial landmarks 
+                            le_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                            le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                            le_mask = le_mask.astype(bool)
+
+                            re_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                            re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                            re_mask = re_mask.astype(bool)
+
+                            lm_mask[le_mask] = 255
+                            lm_mask[re_mask] = 255
+                            lm_mask = lm_mask.astype(bool)
+
+                        # Face Skin
+                        case [(5,)]:
+                            # Getting screen coordinates of facial landmarks
+                            le_screen_coords = []
+                            re_screen_coords = []
+                            lips_screen_coords = []
+                            face_outline_coords = []
+
+                            # Left eye screen coordinates
+                            for cur_source, cur_target in LEFT_IRIS_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                le_screen_coords.append((source.get('x'),source.get('y')))
+                                le_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            # Right eye screen coordinates
+                            for cur_source, cur_target in RIGHT_IRIS_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                re_screen_coords.append((source.get('x'),source.get('y')))
+                                re_screen_coords.append((target.get('x'),target.get('y')))
+
+                            # Lips screen coordinates
+                            for cur_source, cur_target in LIPS_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                lips_screen_coords.append((source.get('x'),source.get('y')))
+                                lips_screen_coords.append((target.get('x'),target.get('y')))
+                            
+                            # Face oval screen coordinates
+                            for cur_source, cur_target in FACE_OVAL_PATH:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                face_outline_coords.append((source.get('x'),source.get('y')))
+                                face_outline_coords.append((target.get('x'),target.get('y')))
+
+                            # Creating boolean masks for the facial landmarks 
+                            le_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                            le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                            le_mask = le_mask.astype(bool)
+
+                            re_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                            re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                            re_mask = re_mask.astype(bool)
+
+                            lip_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                            lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
+                            lip_mask = lip_mask.astype(bool)
+
+                            oval_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                            oval_mask = cv.fillConvexPoly(oval_mask, np.array(face_outline_coords), 1)
+                            oval_mask = oval_mask.astype(bool)
+
+                            # Masking the face oval
+                            lm_mask[oval_mask] = 255
+                            lm_mask[le_mask] = 0
+                            lm_mask[re_mask] = 0
+                            lm_mask[lip_mask] = 0
+                            lm_mask = lm_mask.astype(bool)
+                        
+                        # Chin
+                        case [(6,)]:
+                            chin_screen_coords = []
+                            chin_path = create_path(CHIN_IDX)
+
+                            for cur_source, cur_target in chin_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                chin_screen_coords.append((source.get('x'), source.get('y')))
+                                chin_screen_coords.append((target.get('x'), target.get('y')))
+                            
+                            chin_screen_coords = np.array(chin_screen_coords, dtype=np.int32)
+                            chin_screen_coords.reshape((-1, 1, 2))
+                            
+                            lm_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                            lm_mask = cv.fillPoly(img=lm_mask, pts=[chin_screen_coords], color=(255,255,255))
+                            lm_mask = lm_mask.astype(bool)
+
+                        case _:
+                            lm_coords = []
+
+                            for cur_source, cur_target in lm_path:
+                                source = landmark_screen_coords[cur_source]
+                                target = landmark_screen_coords[cur_target]
+                                lm_coords.append((source.get('x'), source.get('y')))
+                                lm_coords.append((target.get('x'), target.get('y')))
+                            
+                            lm_mask = np.zeros((frame.shape[0],frame.shape[1]))
+                            lm_mask = cv.fillConvexPoly(lm_mask, np.array(lm_coords), 1)
+                            lm_mask = lm_mask.astype(bool)
+
+                    # Use the generated bool mask to get valid indicies
+                    for lm in landmark_screen_coords:
+                        x = lm.get('x')
+                        y = lm.get('y')
+                        if lm_mask[y,x] == True:
+                            lm_idx_to_display = np.append(lm_idx_to_display, lm.get('id'))
+            
+                if point_density != 1.0:
+                        # Pad and reshape idx array to slices of size 10
+                        new_lm_idx = lm_idx_to_display.copy()
+                        pad_size = len(new_lm_idx)%10
+                        append_arr = np.full(10-pad_size, -1)
+                        new_lm_idx = np.append(new_lm_idx, append_arr)
+                        new_lm_idx = new_lm_idx.reshape((-1, 10))
+
+                        bin_idx_mask = np.zeros((new_lm_idx.shape[0], new_lm_idx.shape[1]))
+
+                        for i,_slice in enumerate(new_lm_idx):
+                            num_ones = round(np.floor(10*point_density))
+
+                            # Generate normal distribution around center of slice
+                            mean = 4.5
+                            std_dev = 1.67
+                            normal_idx = np.random.normal(loc=mean, scale=std_dev, size=num_ones)
+                            normal_idx = np.clip(normal_idx, 0, 9).astype(int)
+
+                            new_bin_arr = np.zeros(10)
+                            for idx in normal_idx:
+                                new_bin_arr[idx] = 1
+                            
+                            # Ensure the correct proportion of ones are present
+                            while new_bin_arr.sum() < num_ones:
+                                add_idx = np.random.choice(np.where(new_bin_arr == 0)[0])
+                                new_bin_arr[add_idx] = 1
+                            
+                            bin_idx_mask[i] = new_bin_arr
+                        
+                        bin_idx_mask = bin_idx_mask.reshape((-1,))
+                        new_lm_idx = new_lm_idx.reshape((-1,))
+                        lm_idx_to_display = np.where(bin_idx_mask == 1, new_lm_idx, -1)
+            
+            # After landmark idx are computed in first iteration, this conditional block becomes the main loop
+            if counter > 0:
+
+                cur_points = []
+                history_mask = np.zeros_like(frame, dtype=np.uint8)
+
+                # Get current landmark screen coords
+                for id in lm_idx_to_display:
+                    if id != -1:
+                        point = landmark_screen_coords[id]
+                        cur_points.append((point.get('x'), point.get('y')))
+                
+                if prev_points == None or show_history == False:
+                    prev_points = cur_points.copy()
+
+                    for point in cur_points:
+                        x1, y1 = point
+                        if x1 > 0 and y1 > 0:
+                            output_img = cv.circle(output_img, (x1, y1), 3, point_color, -1)
+
+                elif history_mode == SHOW_HISTORY_ORIGIN:
+                    # If show_history is true, display vector paths of all points
+                    for (old, new) in zip(prev_points, cur_points):
+                        x0, y0 = old
+                        x1, y1 = new
+                        mask = cv.line(mask, (int(x0), int(y0)), (int(x1), int(y1)), history_color, 2)
+                        output_img = cv.circle(output_img, (int(x1), int(y1)), 3, point_color, -1)
+
+                    output_img = cv.add(output_img, mask)
+                    mask = np.zeros_like(frame, dtype=np.uint8)
+
+                else:
+                    # If show_history is true, display vector paths of all points
+                    for (old, new) in zip(prev_points, cur_points):
+                        x0, y0 = old
+                        x1, y1 = new
+                        mask = cv.line(mask, (int(x0), int(y0)), (int(x1), int(y1)), history_color, 2)
+                        output_img = cv.circle(output_img, (int(x1), int(y1)), 3, point_color, -1)
+
+                    if len(frame_history) < frame_history_count:
+                        frame_history.append(mask)
+                        for img in frame_history:
+                            history_mask = cv.bitwise_or(history_mask, img)
+                    else:
+                        frame_history.append(mask)
+                        frame_history.pop(0)
+                        for img in frame_history:
+                            history_mask = cv.bitwise_or(history_mask, img)
+
+                    prev_points = cur_points.copy()
+                    output_img = cv.add(output_img, history_mask)
+                    mask = np.zeros_like(frame, dtype=np.uint8)
+
+                result.write(output_img)
+
+                success, frame = capture.read()
+                if not success:
+                    break 
+            
+            counter += 1
+            
+        capture.release()
+        result.release()
+
+def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str = SPARSE_OPTICAL_FLOW, landmarks_to_track:list[int]|None = None,
+                     max_corners:int = 20, corner_quality_lvl:float = 0.3, min_corner_distance:int = 7, block_size:int = 7, win_size:tuple[int] = (15,15), 
+                     max_pyr_lvl:int = 2, pyr_scale:float = 0.5, max_lk_iter:int = 10, lk_accuracy_thresh:float = 0.03, poly_sigma:float = 1.5, 
+                     point_color:tuple[int] = (255,255,255), point_radius:int = 5, vector_color:tuple[int]|None = None, with_sub_dirs:bool = False, 
+                     csv_sample_freq:int = 1000, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+    '''Takes an input video file, and computes the sparse or dense optical flow, outputting the visualised optical flow to output_dir.
+    Sparse optical flow uses the Lucas-Kanade algorithm to track a set of sparse points found using the Shi-Tomasi corner points algorithm. Alternatively, 
+    the user may provide a set of FaceMesh landmark points to track. Dense optical flow uses Farneback's algorithm to track all points in a frame.
+
+    Parameters
+    ----------
+
+    input_dir: str
+        A path string to a directory containing the video files to be processed.
+
+    output_dir: str
+        A path string to a directory where outputted csv files will be written to.
+
+    optical_flow_type: str or int
+        Either an integer specifer (one of SPARSE_OPTICAL_FLOW, DENSE_OPTICAL_FLOW) or a string literal specifying 
+        "sparse" or "dense".
+    
+    landmarks_to_track: list or None
+        A list of user provided integer landmark id's to be tracked during Lucas-Kanade optical flow. If no landmarks are 
+        provided, the Shi-Tomasi corners algorithm will be used to find good tracking points.
+    
+    max_corners: int
+        The maximum number of corners to detect using the Shi-Tomasi corners algorithm.
+    
+    corner_quality_lvl: float
+        A float in the range [0,1] that determines the minimum quality of accepted corners found using the Shi-Tomasi corners algorithm.
+    
+    min_corner_distance: int
+        The minimum Euclidean distance required between two detected corners for both corners to be accepted.
+    
+    block_size: int
+        The size of the search window used in the Shi-Tomasi corners algorithm (for sparse optical flow), or the size of the pixel neighborhood
+        used in Farneback's dense optical flow algorithm.
+    
+    win_size: tuple of int
+        The size of the search window (in pixels) used at each pyramid level in Lucas-Kanade sparse optical flow.
+
+    max_pyr_lvl: int
+        The maximum number of pyramid levels used in Lucas Kanade sparse optical flow. As you increase this parameter larger motions can be 
+        detected but consequently computation time increases.
+    
+    pyr_scale: float
+        A float in the range [0,1] representing the downscale of the image at each pyramid level in Farneback's dense optical flow algorithm.
+        For example, with a pyr_scale of 0.5, at each pyramid level the image will be half the size of the previous image.
+    
+    max_lk_iter: int
+        The maximum number of iterations (over each frame) the Lucas-Kanade sparse optical flow algorithm will make before terminating.
+
+    lk_accuracy_thresh: float
+        A float in the range [0,1] representing the optimal termination accuracy for the Lucas-Kanade sparse optical flow algorithm.
+    
+    poly_sigma: float
+        A floating point value representing the standard deviation of the Gaussian distribution used in the polynomial expansion of Farneback's
+        dense optical flow algorithm. Typically with block_sizes of 5 or 7, a poly_sigma of 1.2 or 1.5 are used respectively.
+
+    point_color: tuple of int
+        A BGR color code of integers representing the color of points drawn over the output video. 
+    
+    point_radius: int
+        The radius (in pixels) of points drawn over the output video.
+    
+    vector_color: tuple of int
+        A BGR color code of integers representing the color of flow vectors drawn over the output video. If no color is provided (the default), 
+        vector colors will be computed randomly.
+
+    with_sub_dirs: bool
+        Indicates whether the input directory contains subfolders.
+
+    csv_sample_freq: int
+        The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
+        the value to increase the number of optical flow vector samples written to the output csv file.
+    
+    min_detection_confidence: float
+        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
+        FaceMesh constructor.
+
+    min_tracking_confidence: float
+        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
+        FaceMesh constructor.
+    '''
+
+    single_file = False
+
+    if not isinstance(input_dir, str):
+        raise TypeError("Get_optical_flow: parameter input_dir expects a string.")
+    elif not os.path.exists(input_dir):
+        raise OSError("Get_optical_flow: parameter input_dir is required to be a valid pathstring.")
+    if os.path.isfile(input_dir):
+        single_file = True
+    
+    if not isinstance(output_dir, str):
+        raise TypeError("Get_optical_flow: parameter output_dir expects a string.")
+    elif not os.path.exists(output_dir):
+        raise OSError("Get_optical_flow: parameter output_dir is required to be a valid path.")
+    elif not os.path.isdir(output_dir):
+        raise OSError("Get_optical_flow: parameter output_dir must be a path string to a directory.")
+    
+    if not isinstance(optical_flow_type, int):
+        if not isinstance(optical_flow_type, str):
+            raise TypeError("Get_optical_flow: parameter optical_flow_type expects a string or integer.")
+        elif str.lower(optical_flow_type) not in ["sparse", "dense"]:
+            raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of 'sparse' or 'dense'.")
+        else:
+            if str.lower(optical_flow_type) == "sparse":
+                optical_flow_type = SPARSE_OPTICAL_FLOW
+            elif str.lower(optical_flow_type) == "dense":
+                optical_flow_type = DENSE_OPTICAL_FLOW
+    elif optical_flow_type not in [SPARSE_OPTICAL_FLOW, DENSE_OPTICAL_FLOW]:
+        raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of SPARSE_OPTICAL_FLOW or DENSE_OPTICAL_FLOW.")
+    
+    if landmarks_to_track != None:
+        if not isinstance(landmarks_to_track, list):
+            raise TypeError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
+        elif not isinstance(landmarks_to_track[0], int):
+            raise TypeError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
+    
+    if not isinstance(max_corners, int):
+        raise TypeError("Get_optical_flow: parameter max_corners must be an integer.")
+    
+    if not isinstance(corner_quality_lvl, float):
+        raise TypeError("Get_optical_flow: parameter corner_quality_lvl must be a float.")
+    elif corner_quality_lvl > 1.0 or corner_quality_lvl < 0.0:
+        raise ValueError("Get_optical_flow: parameter corner_quality_lvl must be a float in the range [0,1].")
+    
+    if not isinstance(min_corner_distance, int):
+        raise TypeError("Get_optical_flow: parameter min_corner_distance must be an integer.")
+    
+    if not isinstance(block_size, int):
+        raise TypeError("Get_optical_flow: parameter block_size must be an integer.")
+    
+    if not isinstance(win_size, tuple):
+        raise TypeError("Get_optical_flow: parameter win_size must be a tuple of integers.")
+    elif not isinstance(win_size[0], int) or not isinstance(win_size[1], int):
+        raise ValueError("Get_optical_flow: parameter win_size must be a tuple of integers.")
+    
+    if not isinstance(max_pyr_lvl, int):
+        raise TypeError("Get_optical_flow: parameter max_pyr_lvl must be an integer.")
+    
+    if not isinstance(pyr_scale, float):
+        raise TypeError("Get_optical_flow: parameter pyr_scale must be a float.")
+    elif pyr_scale >= 1.0 or pyr_scale < 0.0:
+        raise ValueError("Get_optical_flow: parameter pyr_scale must be a float in the range [0,1).")
+    
+    if not isinstance(max_lk_iter, int):
+        raise TypeError("Get_optical_flow: parameter max_lk_iter must be an integer.")
+    
+    if not isinstance(lk_accuracy_thresh, float):
+        raise TypeError("Get_optical_flow: parameter lk_accuracy_thresh must be a float.")
+    elif lk_accuracy_thresh > 1.0 or lk_accuracy_thresh < 0.0:
+        raise ValueError("Get_optical_flow: parameter lk_accuracy_thresh must be a float in the range [0,1].")
+    
+    if not isinstance(poly_sigma, float):
+        raise TypeError("Get_optical_flow: parameter poly_sigma must be a float.")
+    
+    if not isinstance(point_color, tuple):
+        raise TypeError("Get_optical_flow: parameter point_color must be a tuple of integers.")
+    else:
+        for val in point_color:
+            if not isinstance(val, int):
+                raise ValueError("Get_optical_flow: parameter point color must be a tuple of integers.")
+    
+    if not isinstance(point_radius, int):
+        raise TypeError("Get_optical_flow: parameter point_radius must be an integer.")
+
+    if vector_color != None:
+        if not isinstance(vector_color, tuple):
+            raise TypeError("Get_optical_flow: parameter vector_color must be a tuple of integers.")
+        else:
+            for val in vector_color:
+                if not isinstance(val, int):
+                    raise ValueError("Get_optical_flow: parameter vector_color must be a tuple of integers.")
+    
+    if not isinstance(with_sub_dirs, bool):
+        raise TypeError("Get_optical_flow: parameter with_sub_dirs must be a boolean.")
+    
+    if not isinstance(min_detection_confidence, float):
+        raise TypeError("Get_optical_flow: parameter min_detection_confidence must be of type float.")
+    elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        raise ValueError("Get_optical_flow: parameter min_detection_confidence must be in the range [0,1].")
+    
+    if not isinstance(min_tracking_confidence, float):
+        raise TypeError("Get_optical_flow: parameter min_tracking_confidence must be of type float.")
+    elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        raise ValueError("Get_optical_flow: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Defining the mediapipe facemesh task
+    face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, min_detection_confidence = min_detection_confidence,
+                                                min_tracking_confidence = min_tracking_confidence)
+    
+    # Creating a list of file path strings to iterate through when processing
+    files_to_process = []
+
+    if single_file:
+        files_to_process.append(input_dir)
+    elif not with_sub_dirs:
+        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
+    else:
+        files_to_process = [os.path.join(path, file) 
+                            for path, dirs, files in os.walk(input_dir, topdown=True) 
+                            for file in files]
+    
+    # Creating named output directories for video output
+    if not os.path.isdir(output_dir + "\\Optical_Flow"):
+        os.mkdir(output_dir + "\\Optical_Flow")
+    output_dir = output_dir + "\\Optical_Flow"
+
+    for file in files_to_process:
+
+        # Filetype is used to determine the functions running mode
+        filename, extension = os.path.splitext(os.path.basename(file))
+        codec = None
+        capture = None
+        result = None
+        csv = None
+
+        # Using the file extension to sniff video codec or image container for images
+        match extension:
+            case ".mp4":
+                codec = "MP4V"
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".mov":
+                codec = "MP4V"
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case _:
+                print("Get_optical_flow: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                sys.exit(1)
+        
+        capture = cv.VideoCapture(file)
+        if not capture.isOpened():
+            print("Get_optical_flow: Error opening video file.")
+            sys.exit(1)
+        
+        size = (int(capture.get(3)), int(capture.get(4)))
+
+        result = cv.VideoWriter(output_dir + "\\" + filename + "_optical_flow" + extension,
+                                cv.VideoWriter.fourcc(*codec), 30, size)
+        if not result.isOpened():
+            print("Get_optical_flow: Error opening VideoWriter object.")
+            sys.exit(1)
+        
+        if optical_flow_type == SPARSE_OPTICAL_FLOW:
+            csv = open(output_dir + "\\" + filename + "_optical_flow.csv", "w")
+            csv.write("Timestamp,X_old,Y_old,X_new,Y_new,Magnitude,Angle,Status,Error\n")
+        elif optical_flow_type == DENSE_OPTICAL_FLOW:
+            csv = open(output_dir + "\\" + filename + "_optical_flow.csv", "w")
+            csv.write("Timestamp,dx,dy,Magnitude,Angle\n")
+
+        
+        counter = 0
+        init_points = None
+        mask = None
+        hsv = None
+        bgr = None
+        old_gray = None
+        rolling_time_win = csv_sample_freq
+        output_img = None
+        colors = np.random.randint(0,255,(max_corners,3))
+
+        # Parameters for lucas kanade optical flow
+        lk_params = dict(winSize  = win_size,
+            maxLevel = max_pyr_lvl,
+            criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, max_lk_iter, lk_accuracy_thresh))
+
+        # Main Processing loop
+        while True:
+            counter += 1
+            success, frame = capture.read()
+            if not success:
+                break    
+
+            face_mesh_results = face_mesh.process(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+            landmark_screen_coords = []
+
+            if face_mesh_results.multi_face_landmarks:
+                for face_landmarks in face_mesh_results.multi_face_landmarks:
+
+                    # Convert normalised landmark coordinates to x-y pixel coordinates
+                    for id,lm in enumerate(face_landmarks.landmark):
+                        ih, iw, ic = frame.shape
+                        x,y = int(lm.x * iw), int(lm.y * ih)
+                        landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            else:
+                continue
+
+            fo_screen_coords = []
+
+            # Face oval screen coordinates
+            for cur_source, cur_target in FACE_OVAL_PATH:
+                source = landmark_screen_coords[cur_source]
+                target = landmark_screen_coords[cur_target]
+                fo_screen_coords.append((source.get('x'), source.get('y')))
+                fo_screen_coords.append((target.get('x'), target.get('y')))
+            
+            # Create face oval image mask
+            fo_mask = np.zeros((frame.shape[0], frame.shape[1]))
+            fo_mask = cv.fillConvexPoly(fo_mask, np.array(fo_screen_coords), 1)
+            fo_mask = fo_mask.astype(bool)
+
+            face_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype = np.uint8)
+            face_mask[fo_mask] = 255
+
+            if counter == 1:
+                if optical_flow_type == SPARSE_OPTICAL_FLOW:
+                    mask = np.zeros_like(frame)
+                    # Get initial tracking points
+                    old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+                    # If landmarks were provided 
+                    if landmarks_to_track is not None:
+                        init_points = []
+                        init_points = np.array([[lm.get('x'), lm.get('y')] for lm in landmark_screen_coords if lm.get('id') in landmarks_to_track], dtype=np.float32)
+                        init_points = init_points.reshape(-1,1,2)
+                    else:
+                        init_points = cv.goodFeaturesToTrack(gray_frame, max_corners, corner_quality_lvl, min_corner_distance, block_size, mask=face_mask)
+                elif optical_flow_type == DENSE_OPTICAL_FLOW:
+                    hsv = np.zeros_like(frame)
+                    old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+                    hsv[...,1] = 255
+                
+            if counter > 1:
+                gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
+
+                if optical_flow_type == SPARSE_OPTICAL_FLOW:
+
+                    # Calculate optical flow
+                    cur_points, st, err = cv.calcOpticalFlowPyrLK(old_gray, gray_frame, init_points, None, **lk_params)
+
+                    # Select good points
+                    good_new_points = None
+                    good_old_points = None
+                    if cur_points is not None:
+                        good_new_points = cur_points[st==1]
+                        good_old_points = init_points[st==1]
+                    
+                    # Draw optical flow vectors and write out values
+                    for i, (new, old) in enumerate(zip(good_new_points, good_old_points)):
+                        x0, y0 = old.ravel()
+                        x1, y1 = new.ravel()
+                        dx = x1 - x0
+                        dy = y1 - y0
+
+                        magnitude = np.sqrt(dx**2 + dy**2)
+                        angle = np.arctan2(dy, dx)
+
+                        if timestamp > rolling_time_win:
+                            # Write values to csv
+                            csv.write(f"{timestamp/1000:.5f},{x0:.5f},{y0:.5f},{x1:.5f},{y1:.5f},{magnitude:.5f},{angle:.5f},{st[i][0]},{err[i][0]:.5f}\n")
+                            rolling_time_win += csv_sample_freq
+
+                        # Draw optical flow vectors on output frame
+                        if vector_color == None:
+                            mask = cv.line(mask, (int(x0), int(y0)), (int(x1), int(y1)), colors[i].tolist(), 2)
+                        else:
+                            mask = cv.line(mask, (int(x0), int(y0)), (int(x1), int(y1)), vector_color, 2)
+
+                        frame = cv.circle(frame, (int(x1), int(y1)), point_radius, point_color, -1)
+
+                    output_img = cv.add(frame, mask)
+                    result.write(output_img)
+
+                    # Update previous frame and points
+                    old_gray = gray_frame.copy()
+                    init_points = good_new_points.reshape(-1, 1, 2)
+                
+                elif optical_flow_type == DENSE_OPTICAL_FLOW:
+
+                    # Calculate dense optical flow
+                    flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyr_scale, max_pyr_lvl, win_size[0], max_lk_iter, block_size, poly_sigma, 0)
+
+                    # Get vector magnitudes and angles
+                    magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])
+
+                    if timestamp > rolling_time_win:
+                        for i in range(int(capture.get(cv.CAP_PROP_FRAME_HEIGHT))):
+                            for j in range(int(capture.get(cv.CAP_PROP_FRAME_WIDTH))):
+                                dx = flow[i,j,0]
+                                dy = flow[i,j,1]
+                                csv.write(f'{timestamp/1000:.5f},{dx:.5f},{dy:.5f},{magnitudes[i,j]:.5f},{angles[i,j]:.5f}\n')
+                        rolling_time_win += csv_sample_freq
+
+                    hsv[...,0] = angles * (180/(np.pi/2))
+                    hsv[...,2] = cv.normalize(magnitudes, None, 0, 255, cv.NORM_MINMAX)
+
+                    bgr = cv.cvtColor(hsv, cv.COLOR_HSV2BGR)
+                    result.write(bgr)
+
+                    old_gray = gray_frame.copy()
+
+        capture.release()
+        result.release()
+        csv.close()
+            
 def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str = COLOR_SPACE_RGB, with_sub_dirs:bool = False,
                              min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
@@ -1874,15 +3869,15 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
         
         # Writing the column headers to csv
         if color_space == COLOR_SPACE_RGB:
-            csv = open(output_dir + "\\" + filename + "_RGB.csv", "x")
+            csv = open(output_dir + "\\" + filename + "_RGB.csv", "w")
             csv.write("Timestamp,Mean_Red,Mean_Green,Mean_Blue,Cheeks_Red,Cheeks_Green,Cheeks_Blue," +
                       "Nose_Red,Nose_Green,Nose_Blue,Chin_Red,Chin_Green,Chin_Blue\n")
         elif color_space == COLOR_SPACE_HSV:
-            csv = open(output_dir + "\\" + filename + "_HSV.csv", "x")
+            csv = open(output_dir + "\\" + filename + "_HSV.csv", "w")
             csv.write("Timestamp,Mean_Hue,Mean_Sat,Mean_Value,Cheeks_Hue,Cheeks_Sat,Cheeks_Value," + 
                       "Nose_Hue,Nose_Sat,Nose_Value,Chin_Hue,Chin_Sat,Chin_Value\n")
         elif color_space == COLOR_SPACE_GRAYSCALE:
-            csv = open(output_dir + "\\" + filename + "_GRAYSCALE.csv", "x")
+            csv = open(output_dir + "\\" + filename + "_GRAYSCALE.csv", "w")
             csv.write("Timestamp,Mean_Value,Cheeks_Value,Nose_Value,Chin_Value\n")
     
     while True:
@@ -2080,6 +4075,193 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
     capture.release()
     csv.close()
 
+def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFLE_FRAME_ORDER, rand_seed:int|None = None, block_order:list[int]|None = None, 
+                        block_size:int = 30, with_sub_dirs:bool = False) -> None:
+    """For each video file contained within input_dir, randomly shuffles the frame order by shuffling blocks of frames. Block size is determined by
+    input parameter block_size. After shuffling the block order, the function writes the processed file to output_dir. If non-random shuffling is required, 
+    block ordering can be provided as a list of integers to the input parameter block_order. When block_order is provided, the block size is automatically computed.
+    
+    Parameters
+    ----------
+    input_dir: str
+        A path string to the directory containing input video files.
+
+    output_dir: str
+        A path string to the directory where outputted video files will be saved.
+
+    running_mode: int
+        An integer flag indicating the functions running mode. One of SHUFFLE_FRAME_ORDER or REVERSE_FRAME_ORDER.
+    
+    rand_seed: int
+        The seed number provided to the numpy random generator instance.
+    
+    block_order: list of int
+        A zero-indexed list providing the sequence order of frame-blocks to be written out. If None, output order will be random.
+        For example, a 4-block block_order list would look something like [1,0,3,2].
+
+    block_size: int
+        The number of frames in each block that will be randomly shuffled.
+    
+    with_sub_dirs: bool
+        A boolean flag indicating if the input directory contains subdirectories.
+    
+    Raises
+    ------
+
+    TypeError: given invalid parameter types.
+    OSError: given invalid file paths to input_dir or output_dir.
+    """
+
+    single_file = False
+    rng = None
+
+    # Performing checks on function parameters
+    if not isinstance(input_dir, str):
+        raise TypeError("Shuffle_frame_order: invalid type for parameter input_dir.")
+    elif not os.path.exists(input_dir):
+        raise OSError("Shuffle_frame_order: input directory path is not a valid path, or the directory does not exist.")
+    elif os.path.isfile(input_dir):
+        single_file = True
+    
+    if not isinstance(output_dir, str):
+        raise TypeError("Shuffle_frame_order: parameter output_dir must be a str.")
+    elif not os.path.exists(output_dir):
+        raise OSError("Shuffle_frame_order: output directory path is not a valid path, or the directory does not exist.")
+    elif not os.path.isdir(output_dir):
+        raise ValueError("Shuffle_frame_order: output_dir must be a valid path to a directory.")
+    
+    if not isinstance(running_mode, int):
+        raise TypeError("Shuffle_frame_order: parameter running_mode must be an integer.")
+
+    if rand_seed != None:
+        if not isinstance(rand_seed, int):
+            raise TypeError("Shuffle_frame_order: parameter rand_seed must be an integer.")
+    
+    if not isinstance(block_size, int):
+        raise TypeError("Shuffle_frame_order: parameter block_size must be an integer")
+    
+    if block_order != None:
+        if not isinstance(block_order, list):
+            raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
+        elif not isinstance(block_order[-1], int):
+            raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
+    
+    if not isinstance(with_sub_dirs, bool):
+        raise TypeError("Shuffle_frame_order: parameter with_sub_dirs must be a bool.")
+    
+    # Creating a list of file path strings to iterate through when processing
+    files_to_process = []
+
+    if single_file:
+        files_to_process.append(input_dir)
+    elif not with_sub_dirs:
+        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
+    else:
+        files_to_process = [os.path.join(path, file) 
+                            for path, dirs, files in os.walk(input_dir, topdown=True) 
+                            for file in files]
+    
+    # Creating named output directories for video output
+    if not os.path.isdir(output_dir + "\\Frame_Shuffle"):
+        os.mkdir(output_dir + "\\Frame_Shuffle")
+    output_dir = output_dir + "\\Frame_Shuffle"
+
+    if rand_seed == None:
+        rng = np.random.default_rng()
+    else:
+        rng = np.random.default_rng(rand_seed)
+
+    for file in files_to_process:
+            
+        # Filetype is used to determine the functions running mode
+        filename, extension = os.path.splitext(os.path.basename(file))
+        codec = None
+        capture = None
+        result = None
+
+        # Using the file extension to sniff video codec or image container for images
+        match extension:
+            case ".mp4":
+                codec = "MP4V"
+            case ".mov":
+                codec = "MP4V"
+            case _:
+                print("Shuffle_frame_order: Incompatible video file type. Please see utils.transcode_video_to_mp4().")
+                sys.exit(1)
+      
+        capture = cv.VideoCapture(file)
+        if not capture.isOpened():
+            print("Shuffle_frame_order: Error opening video file.")
+            sys.exit(1)
+        
+        size = (int(capture.get(3)), int(capture.get(4)))
+
+        result = cv.VideoWriter(output_dir + "\\" + filename + "_frame_shuffled" + extension,
+                                cv.VideoWriter.fourcc(*codec), 30, size)
+        if not result.isOpened():
+            print("Shuffle_frame_order: Error opening VideoWriter object.")
+            sys.exit(1)
+
+        if block_order != None:
+            block_size = int(capture.get(cv.CAP_PROP_FRAME_COUNT)//len(block_order)) + 1
+
+        if running_mode == SHUFFLE_FRAME_ORDER:
+            shuffled_frames = {}
+            counter = 0
+            cur_block = []
+
+            # Read in and store all frames
+            while ret := capture.read():
+                success, frame = ret
+                if success:
+                    cur_block.append(frame)
+                    if len(cur_block) == block_size:
+                        shuffled_frames.update({counter:cur_block.copy()})
+                        cur_block = []
+                        counter += 1
+                elif len(cur_block) > 0:
+                    shuffled_frames.update({counter:cur_block})
+                    break
+
+            original_keys = list(shuffled_frames.keys())
+            shuffled_keys = rng.permutation(original_keys.copy())
+            ref_dict = shuffled_frames.copy()
+
+            if block_order == None:
+                for old_key,new_key in zip(original_keys,shuffled_keys):
+                    new_block = ref_dict[new_key]
+                    shuffled_frames.update({old_key:new_block})
+            else:
+                for old_key,new_key in zip(original_keys,block_order):
+                    new_block = ref_dict[new_key]
+                    shuffled_frames.update({old_key:new_block})
+
+            for key in original_keys:
+                block = shuffled_frames.get(key)
+                for out_frame in block:
+                    result.write(out_frame)
+
+        elif running_mode == REVERSE_FRAME_ORDER:
+            shuffled_frames = {}
+            counter = 0
+
+            # Read in and store all frames
+            while ret := capture.read():
+                success, frame = ret
+                if success:
+                    shuffled_frames.update({counter:frame})
+                    counter += 1
+                else:
+                    break
+            
+            for key in range(len(shuffled_frames)-1, -1, -1):
+                out_frame = shuffled_frames.get(key)
+                result.write(out_frame)
+        
+        capture.release()
+        result.release()
+        
+        
 def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude: float = 8.0, timing_func:Callable[...,float] = sigmoid, 
                      shift_color:str|int = COLOR_RED, landmark_regions:list[list[tuple]] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
                      min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs) -> None: 

@@ -3,19 +3,25 @@ from pyfame.pyfameutils import *
 import cv2 as cv
 import matplotlib.pyplot as plt
 
-#in_dir = "C:\\Users\\gavin\\Desktop\\OpenCV\\Video_Song_Actors_01-24\\Video_Song_Actor_08\\Actor_08\\01-02-05-01-01-01-08.mp4"
-in_dir = "C:\\Users\\gavin\\Desktop\\OpenCV\\images\\Actor_08.png"
+in_dir = "C:\\Users\\gavin\\Desktop\\OpenCV\\Video_Song_Actors_01-24\\Video_Song_Actor_08\\Actor_08\\01-02-05-01-02-01-08.mp4"
+#in_dir = "C:\\Users\\gavin\\Desktop\\OpenCV\\images\\Actor_08.png"
 out_dir = "C:\\Users\\gavin\\Desktop\\OpenCV\\images"
 
-#TODO potentially reprocess colour data with cv.COLOR_BGR2HSV_FULL for full range of hue values
 #pf.mask_face_region(input_dir=in_dir, output_dir=out_dir, mask_type=HEMI_FACE_BOTTOM_MASK, background_color=(125,125,255))
 #pf.face_color_shift(input_dir=in_dir, output_dir=out_dir, shift_color="red", landmark_regions=[LEFT_CHEEK_PATH, CHIN_PATH], shift_magnitude=15.0)
-#pf.occlude_face_region(in_dir, out_dir, [FACE_SKIN_PATH], OCCLUSION_FILL_BLACK)
+#pf.occlude_face_region(in_dir, out_dir, [LEFT_EYE_PATH, RIGHT_EYE_PATH, NOSE_PATH, LEFT_CHEEK_PATH, RIGHT_CHEEK_PATH, LIPS_PATH], OCCLUSION_FILL_BLACK)
 #pf.extract_face_color_means(in_dir, out_dir)
 #pf.face_brightness_shift(input_dir=in_dir, output_dir=out_dir, shift_magnitude=-30, landmark_regions=[HEMI_FACE_TOP_PATH])
 #pf.face_saturation_shift(input_dir=in_dir, output_dir=out_dir, shift_magnitude=-20.0, landmark_regions=[LEFT_CHEEK_PATH, CHIN_PATH])
 #pf.blur_face_region(input_dir=in_dir, output_dir=out_dir, blur_method="Gaussian", k_size=91)
-pf.apply_noise(input_dir=in_dir, output_dir=out_dir, noise_method=NOISE_METHOD_SALT_AND_PEPPER, rand_seed=1234)
+#pf.apply_noise(input_dir=in_dir, output_dir=out_dir, noise_method=NOISE_METHOD_PIXELATE, mask_type=FACE_OVAL_MASK)
+#pf.facial_scramble(in_dir, out_dir, scramble_method=LANDMARK_SCRAMBLE, rand_seed=1334)
+pf.get_optical_flow(in_dir, out_dir, optical_flow_type=DENSE_OPTICAL_FLOW)
+#pf.shuffle_frame_order(in_dir, out_dir, running_mode=SHUFFLE_FRAME_ORDER, block_order=[0,1,2,5,4,3])
+#pf.point_light_display(in_dir, out_dir, point_density=1.0, landmark_regions=[LEFT_IRIS_PATH, RIGHT_IRIS_PATH, NOSE_PATH, LIPS_PATH], show_history=True, history_mode=SHOW_HISTORY_ORIGIN)
+
+###TODO add image processing to extract_face_color_means()
+###TODO FINISH IMPLEMENTING GAUSSIAN TIMING FUNCTION
 
 # Creating pyplot style grid of outputs
 

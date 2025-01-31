@@ -6,6 +6,10 @@ Color_Shifted/
 Masked/
 Occluded/
 Blurred/
+Scrambled/
+PLD/
+Frame_Shuffle/
+Optical_Flow/
 Brightness_Shifted/
 Sat_Shifted/
 Color_Channel_Means/
