@@ -3,9 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- v0.6... bubble occlusion option for `occlude_face_region`
-- v0.6... unit testing
+- v0.7... unit testing
+- v0.8... full docsite reimplementation with vitepress
 - v1.0 gui preview prior to file processing
+
+## [0.7.0] 2025-02-16
+
+### Added
+
+- New function `generate_shuffled_block_array()` has been implemented. This function was designed to be used alongside `shuffle_frame_order()` in order to abstract the block ordering from the user. `generate_shuffled_block_array()` takes in a file_path, shuffle_method and block_duration (in milliseconds) and returns a tuple of (block_order, block_size). This output can now directly be fed as an input parameter to `shuffle_frame_order()`, and `shuffle_frame_order()` will now call `generate_shuffled_block_array()` internally if no block_order is provided.
+- Several new frame shuffling methods have been added including random sampling with replacement, left and right cyclic shift, palindrome shuffling and frame interleaving. 
+- All functions now make use of logging. Standard logs can be found at PyFAME/logs/app.log. This file will be cycled once it reaches 5mb, and the last 5 log files will be stored in the logs folder. Error logs can be found at PyFAME/logs/error.log. This file will be rotated in a similar manner to the standard log. All functions now log their input parameters, various status updates on execution, and all parameter or execution errors that are raised.
+- Logging configurations can be found in the PyFAME/config folder in `log_config.yaml`
+
+### Changed
+
+- Several internal changes to `shuffle_frame_order()`. Many of the array-randomizing functionalities have been rescoped to 
+`generate_shuffled_block_array()`.
+- Shuffle_methods have been given a new naming scheme, all of the constant variable names follow the following format: FRAME_SHUFFLE_{method name}.
+- Bug fixes to `get_optical_flow()`, specifically the dense optical flow implementation a bug fix was required over the writing of flow vectors to a csv file.
+- `Extract_face_color_means()` can now handle static images, on top of video files.
+
+### Removed
 
 ## [0.6.7] - 2025-01-18
 

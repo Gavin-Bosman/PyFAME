@@ -1,0 +1,48 @@
+version: 1.1
+disable_existing_loggers: False
+
+formatters:
+  standard:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  extended:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s - %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: standard
+    stream: ext://sys.stdout
+  
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: extended
+    filename: logs/app.log
+    maxBytes: 5242880
+    backupCount: 5
+    encoding: utf8
+  
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: extended
+    filename: logs/error.log
+    maxBytes: 5242880
+    backupCount: 5
+    encoding: utf8
+
+loggers:
+  pyfame:
+    level: INFO
+    handlers: [console, file]
+    propagate: no
+  
+  pyfame.debug:
+    level: DEBUG
+    handlers: [file, error_file] 
+    propagate: no
+
+root:
+  level: INFO
+  handlers: [console]

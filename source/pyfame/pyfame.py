@@ -1,14 +1,27 @@
+import os
 import cv2 as cv
 import cv2.typing
 import mediapipe as mp
 import numpy as np
-import pandas as pd
 from skimage.util import *
-import os
 import sys
 from typing import Callable
-from .pyfameutils import *
+from .pyfame_utils import *
 from operator import itemgetter
+import logging
+import logging.config
+import yaml
+import itertools
+
+# Function to initialize loggers
+def setup_logging(default_path:str = "config/log_config.yaml"):
+    with open(default_path, "rt") as f:
+        config = yaml.safe_load(f.read())
+    logging.config.dictConfig(config)
+
+setup_logging()
+logger = logging.getLogger("pyfame")
+debug_logger = logging.getLogger("pyfame.debug")
 
 def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MASK, with_sub_dirs:bool = False, background_color: tuple[int] = (255,255,255),
                      min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, static_image_mode:bool = False) -> None:
@@ -73,9 +86,11 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                     x,y = int(lm.x * iw), int(lm.y * ih)
                     landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
         else:
-            print("Mask_face_region: Face mesh detection error.")
+            debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process().")
+            logger.error("Face mesh detection error, function exiting with status 1.")
             sys.exit(1)
 
+        logger.info("Creating specified image mask.")
         match mask_type:
 
             case 1: # Face oval mask
@@ -487,47 +502,84 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                 return masked_frame
             
             case _:
-                print("Mask_face_region: Undefined facial mask, please specify one of FACE_SKIN_ISOLATION, FACE_OVAL, FACE_OVAL_TIGHT.")
+                logger.warning("Undefined mask_type, Function exiting with status 1. "
+                            "Please see pyfameutils.py for a full list of predefined mask_types.")
                 sys.exit(1)
             
     # Type and value checks for function parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: parameter input_dir must be of type str.")
         raise TypeError("Mask_face_region: parameter input_dir must be of type str.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path, or the directory does not exist.")
         raise OSError("Mask_face_region: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: parameter output_dir must be of type str.")
         raise TypeError("Mask_face_region: parameter output_dir must be of type str.")
     elif not os.path.exists(output_dir):
-        raise ValueError("Mask_face_region: output directory path is not a valid path, or the directory does not exist.")
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path, or the directory does not exist.")
+        raise OSError("Mask_face_region: output directory path is not a valid path, or the directory does not exist.")
     
     if mask_type not in MASK_OPTIONS:
+        logger.warning("Function encountered a ValueError for input parameter mask_type. "
+                       "Message: mask_type must be one of the predefined constants defined by pyfameutils.MASK_OPTIONS.")
         raise ValueError("Mask_face_region: mask_type must be one of the predefined constants defined within pyfameutils.MASK_OPTIONS")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a ValueError for input parameter with_sub_dirs. "
+                       "Message: with_sub_dirs must be of type bool.")
         raise TypeError("Mask_face_region: parameter with_sub_dirs must be of type bool.")
     
     if not isinstance(background_color, tuple):
+        logger.warning("Function encountered a TypeError for input parameter background_color. "
+                       "Message: background_color must be of type tuple.")
         raise TypeError("Mask_face_region: parameter background_color must be of type tuple.")
     elif len(background_color) < 3:
+        logger.warning("Function encountered a ValueError for input parameter background_color. "
+                       "Message: background_color must be a tuple of length 3.")
         raise ValueError("Mask_face_region: parameter background_color expects a length 3 tuple of integers.")
-    elif not isinstance(background_color[0], int):
-        raise ValueError("Mask_face_region: parameter background_color expects a length 3 tuple of integers.")
+    for val in background_color:
+            if not isinstance(val, int):
+                logger.warning("Function encountered a ValueError for input parameter background_color. "
+                               "Message: background_color must be a tuple of integer values.")
+                raise ValueError("Mask_face_region: parameter background_color expects a length 3 tuple of integers.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be of type float.")
         raise TypeError("Mask_face_region: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Mask_face_region: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be of type float.")
         raise TypeError("Mask_face_region: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Mask_face_region: parameter min_tracking_confidence must be in the range [0,1].")
     
     if not isinstance(static_image_mode, bool):
+        logger.warning("Function encountered a TypeError for input parameter static_image_mode. "
+                       "Message: static_image_mode must be of type bool.")
         raise TypeError("Mask_face_region: parameter static_image_mode must be of type bool.")
+    
+    # Log input parameters
+
+    logger.info("Now entering function mask_face_region().")
+    logger.info(f"Input parameters: mask_type = {mask_type}, background_color = {background_color}.")
+    logger.info(f"Mediapipe configurations: min detection confidence = {min_detection_confidence}, "
+                f"min tracking confidence = {min_tracking_confidence}, static image mode = {static_image_mode}.")
     
     # Defining the mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = static_image_mode, min_detection_confidence = min_detection_confidence,
@@ -543,17 +595,23 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
         files_to_process = [os.path.join(path, file) 
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
+        
+    logger.info(f"Function has read {len(files_to_process)} file(s) from input directory {input_dir}.")
     
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Masked"):
         os.mkdir(output_dir + "\\Masked")
-    output_dir = output_dir + "\\Masked"
+        output_dir = output_dir + "\\Masked"
+        logger.info(f"Created output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Masked"
 
     for file in files_to_process:
 
         # Sniffing input filetype to determine running mode
         filename, extension = os.path.splitext(os.path.basename(file))
         codec = None
+        dir_file_path = output_dir + "\\" + filename + "_masked" + extension
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -572,7 +630,10 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Mask_face_region: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type. " 
+                             "Function exiting with status 1. Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                    "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
 
         capture = None
@@ -582,15 +643,18 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
 
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Mask_face_region: Error opening VideoCapture object.")
+                logger.error("Function encountered an error when attempting to instantiate cv2.VideoCapture. "
+                             "Function exiting with status 1.")
+                debug_logger.error(f"Function encountered an error when instantiating cv2.VideoCapture with file {file}.")
                 sys.exit(1)
             
             size = (int(capture.get(3)), int(capture.get(4)))
 
-            result = cv.VideoWriter(output_dir + "\\" + filename + "_masked" + extension,
-                                    cv.VideoWriter.fourcc(*codec), 30, size)
+            result = cv.VideoWriter(dir_file_path, cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Mask_face_region: Error opening VideoWriter object.")
+                logger.error("Function encountered an error when attempting to instantiate cv2.VideoWriter. "
+                             "Function exiting with status 1.")
+                debug_logger.error(f"Function encountered an error when instantiating cv2.VideoWriter at file location {dir_file_path}.")
                 sys.exit(1)
             
             while True:
@@ -603,16 +667,22 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
         
             capture.release()
             result.release()
+            logger.info(f"Function execution completed successfully. View outputted file(s) at {dir_file_path}.")
         
         else:
             img = cv.imread(file)
             masked_img = process_frame(img, mask_type)
-            success = cv.imwrite(output_dir + "\\" + filename + "_masked" + extension, masked_img)
+            success = cv.imwrite(dir_file_path, masked_img)
             if not success:
-                print("Mask_face_region: cv2.imwrite error.")
+                logger.error("Function encountered an error attempting to call cv2.imwrite(). "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function encountered an error while attempting to call cv2.imwrite(). " 
+                                   f"Ensure output_dir path string is valid, and ensure {file} is not corrupt.")
                 sys.exit(1)
+            else:
+                logger.info(f"Function execution completed successfully. View outputted file(s) at {output_dir}.")
 
-def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list[list[tuple]] = [BOTH_EYES_PATH], occlusion_fill:int = OCCLUSION_FILL_BAR,
+def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list[list[tuple]] = [EYES_NOSE_MOUTH_MASK], occlusion_fill:int = OCCLUSION_FILL_BAR,
                         with_sub_dirs:bool =  False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     ''' For each video or image contained within the input directory, the landmark regions contained within landmarks_to_occlude 
     will be occluded with either black or the facial mean pixel value. Processed files are then output to Occluded_Video_Output 
@@ -694,44 +764,92 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
 
     # Performing checks on function parameters
     if not isinstance(input_dir, str):
-        raise TypeError("Occlude_face_region: invalid type for parameter input_dir.")
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
+        raise TypeError("Occlude_face_region: parameter input_dir must be a str.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path, or the specified directory does not exist.")
         raise OSError("Occlude_face_region: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Occlude_face_region: parameter output_dir must be a str.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output directory path is not a valid path, or the specified directory does not exist.")
         raise OSError("Occlude_face_region: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered a ValueError for input parameter output_dir. "
+                       "Message: output_dir must be a valid path to a directory.")
         raise ValueError("Occlude_face_region: output_dir must be a valid path to a directory.")
     
     if not isinstance(landmarks_to_occlude, list):
+        logger.warning("Function encountered a TypeError for input parameter landmarks_to_occlude. "
+                       "Message: parameter landmarks_to_occlude expects a list.")
         raise TypeError("Occlude_face_region: parameter landmarks_to_occlude expects a list.")
-    if not isinstance(landmarks_to_occlude[0], list):
-        raise ValueError("Occlude_face_region: landmarks_to_occlude must be a list of lists")
+    for val in landmarks_to_occlude:
+            if not isinstance(val, list):
+                logger.warning("Function encountered a TypeError for input parameter landmarks_to_occlude. "
+                               "Message: parameter landmarks_to_occlude expects a list of list.")
+                raise TypeError("Occlude_face_region: landmarks_to_occlude must be a list of lists")
     
     if not isinstance(occlusion_fill, int):
+        logger.warning("Function encountered a TypeError for input parameter occlusion_fill. "
+                       "Message: invalid type for parameter occlusion_fill, expected int.")
         raise TypeError("Occlude_face_region: parameter occlusion_fill must be of type int.")
     elif occlusion_fill not in [OCCLUSION_FILL_BLACK, OCCLUSION_FILL_MEAN, OCCLUSION_FILL_BAR]:
+        logger.warning("Function encountered a ValueError for input parameter occlusion_fill. "
+                       f"Message: {occlusion_fill} is not a valid option for parameter occlusion_fill.")
         raise ValueError("Occlude_face_region: parameter occlusion_fill must be one of OCCLUSION_FILL_BLACK, OCCLUSION_FILL_MEAN or OCCLUSION_FILL_BAR.")
     if occlusion_fill == OCCLUSION_FILL_BAR:
         print("\nWARNING: OCCLUSION_FILL_BAR is only compatible with BOTH_EYES_PATH, LIPS_PATH and NOSE_PATH. While the function will occlude"
               + " other paths without error, you may get unexpected behaviour or results.\n")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Occlude_face_region: parameter with_sub_dirs must be of type bool.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Occlude_face_region: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float value in the range [0,1].")
         raise ValueError("Occlude_face_region: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Occlude_face_region: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float value in the range [0,1].")
         raise ValueError("Occlude_face_region: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+
+    logger.info("Now entering function occlude_face_region().")
+    landmark_names_str = "landmarks_to_occlude = ["
+
+    for i in range(len(landmarks_to_occlude)):
+        landmark_name = get_variable_name(landmarks_to_occlude[i], globals())
+
+        if i != (len(landmarks_to_occlude) - 1):
+            landmark_names_str += f"{landmark_name}, "
+        else:
+            landmark_names_str += f"{landmark_name}]"
+    
+    occlusion_fill_type = get_variable_name(occlusion_fill, globals())
+
+    logger.info(f"Input parameters: {landmark_names_str}, occlusion_fill = {occlusion_fill_type}.")
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, "
+                f"min_tracking_confidence = {min_tracking_confidence}.")
     
     # Defining the mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = static_image_mode, min_detection_confidence = min_detection_confidence,
@@ -748,14 +866,20 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
     
+    logger.info(f"Function has read {len(files_to_process)} file(s) from input directory {input_dir}.")
+    
     if not os.path.exists(output_dir + "\\Occluded"):
         os.mkdir(output_dir + "\\Occluded")
-    output_dir = output_dir + "\\Occluded"
+        output_dir = output_dir + "\\Occluded"
+        logger.info(f"Created output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Occluded"
 
     for file in files_to_process:
 
         # Initialize capture and writer objects
         filename, extension = os.path.splitext(os.path.basename(file))
+        dir_file_path = output_dir + f"\\{filename}_occluded{extension}"
         codec = None
 
         # Using the file extension to sniff video codec or image container for images
@@ -775,7 +899,10 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Occlude_face_region: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type. " 
+                             "Function exiting with status 1. Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                    "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
 
         capture = None
@@ -787,7 +914,10 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Occlude_face_region: Error opening video file.")
+                logger.error("Function encountered an error while attempting to initialize cv2.VideoCapture() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function encountered an error while attempting instantiating cv2.VideoCapture() object. "
+                                   f"File {file} may be corrupt or encoded in an invalid format.")
                 sys.exit(1)
 
             size = (int(capture.get(3)), int(capture.get(4)))
@@ -795,7 +925,10 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
             result = cv.VideoWriter(output_dir + "\\" + filename + "_occluded" + extension,
                                     cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Occlude_face_region: Error opening VideoWriter object.")
+                logger.error("Function encountered an error while attempting to initialize cv2.VideoWriter() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error(f"Function encountered an error while attempting to initialize cv2.VideoWriter() object. "
+                                   f"Check that {dir_file_path} is a valid path to a file in your system.")
                 sys.exit(1)
 
         while True:
@@ -820,7 +953,8 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
             else:
                 if static_image_mode:
-                    print("Occlude_face_region: face mesh detection error.")
+                    debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process().")
+                    logger.error("Face mesh detection error, function exiting with status 1.")
                     sys.exit(1)
                 else: 
                     continue
@@ -1254,8 +1388,11 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                 result.write(frame)
 
         if not static_image_mode:
+            logger.info(f"Function execution completed successfully. View outputted file at {output_dir}.")
             capture.release()
             result.release()
+        else:
+            logger.info(f"Function execution completed successfully. View outputted file(s) at {output_dir}.")
 
 def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gaussian", k_size:int = 15, with_sub_dirs:bool = False, 
                      min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
@@ -1306,43 +1443,85 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
 
     # Performing checks on function parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Blur_face_region: invalid type for parameter input_dir.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path to a directory, or the directory does not exist.")
         raise OSError("Blur_face_region: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Blur_face_region: parameter output_dir must be a str.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory, or the directory does not exist.")
         raise OSError("Blur_face_region: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered a ValueError for input parameter output_dir. "
+                       "Message: output_dir must be a valid path to a directory.")
         raise ValueError("Blur_face_region: output_dir must be a valid path to a directory.")
     
     if isinstance(blur_method, str):
-        if blur_method not in ["average", "Average", "gaussian", "Gaussian", "median", "Median"]:
+        if str.lower(blur_method) not in ["average", "gaussian", "median"]:
+            logger.warning("Function encountered a ValueError for input parameter blur_method. "
+                           "Message: unrecognized value for parameter blur_method.")
             raise ValueError("Blur_face_region: Unrecognised value for parameter blur_method.")
     elif isinstance(blur_method, int):
         if blur_method not in [BLUR_METHOD_AVERAGE, BLUR_METHOD_GAUSSIAN, BLUR_METHOD_MEDIAN]:
+            logger.warning("Function encountered a ValueError for input parameter blur_method. "
+                           "Message: unrecognized value for parameter blur_method.")
             raise ValueError("Blur_face_region: Unrecognised value for parameter blur_method.")
     else:
+        logger.warning("Function encountered a TypeError for input parameter blur_method. "
+                       "Message: Invalid type for parameter blur_method, expected int or str.")
         raise TypeError("Blur_face_region: Incompatable type for parameter blur_method.")
     
     if not isinstance(k_size, int):
+        logger.warning("Function encountered a TypeError for input parameter k_size. "
+                       "Message: invalid type for parameter k_size, expected int.")
         raise TypeError("Blur_face_region: parameter k_size must be of type int.")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Blur_face_region: parameter with_sub_dirs must be of type bool.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Blur_face_region: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float value in the range [0,1].")
         raise ValueError("Blur_face_region: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Blur_face_region: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float value in the range [0,1].")
         raise ValueError("Blur_face_region: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+
+    logger.info("Now entering function blur_face_region().")
+
+    if isinstance(blur_method, str):
+        logger.info(f"Input parameters: blur_method = {blur_method}, k_size = {k_size}.")
+    else:
+        blur_method_name = get_variable_name(blur_method, globals())
+        logger.info(f"Input parameters: blur_method = {blur_method_name}, k_size = {k_size}.")
+
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, "
+                f"min_tracking_confidence = {min_tracking_confidence}.")
+
     
     # Defining the mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = static_image_mode, min_detection_confidence = min_detection_confidence,
@@ -1358,16 +1537,22 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
         files_to_process = [os.path.join(path, file) 
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
+        
+    logger.info(f"Function has read {len(files_to_process)} file(s) from input directory {input_dir}.")
     
     if not os.path.exists(output_dir + "\\Blurred"):
         os.mkdir(output_dir + "\\Blurred")
-    output_dir = output_dir + "\\Blurred"
+        output_dir = output_dir + "\\Blurred"
+        logger.info(f"Created output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Blurred"
 
     for file in files_to_process:
 
         # Initialize capture and writer objects
         filename, extension = os.path.splitext(os.path.basename(file))
         codec = None
+        dir_file_path = output_dir + f"\\{filename}_blurred{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -1386,7 +1571,10 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Blur_face_region: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type. " 
+                             "Function exiting with status 1. Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                    "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
 
         capture = None
@@ -1395,7 +1583,10 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Blur_face_region: Error opening video file.")
+                logger.error("Function has encountered an error attempting to initialize cv.VideoCapture() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to initialize cv.VideoCapture() object. "
+                                   f"File {file} may be corrupt or encoded in an invalid format.")
                 sys.exit(1)
 
             size = (int(capture.get(3)), int(capture.get(4)))
@@ -1403,7 +1594,10 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
             result = cv.VideoWriter(output_dir + "\\" + filename + "_blurred" + extension,
                                     cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Blur_face_region: Error opening VideoWriter object.")
+                logger.error("Function encountered an error while attempting to initialize cv2.VideoWriter() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error(f"Function encountered an error while attempting to initialize cv2.VideoWriter() object. "
+                                   f"Check that {dir_file_path} is a valid path to a file in your system.")
                 sys.exit(1)
 
         while True:
@@ -1426,12 +1620,12 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            else:
-                if static_image_mode:
-                    print("Blur_face_region: face mesh detection error.")
-                    sys.exit(1)
-                else: 
-                    continue
+            elif static_image_mode:
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                sys.exit(1)
+            else: 
+                continue
 
             face_outline_coords = []
             # face oval screen coordinates
@@ -1473,7 +1667,8 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
                     frame = np.where(masked_frame == 255, frame_blurred, frame)
                 
                 case _:
-                    print("Blur_face_region: Unrecognised value for parameter blur_method.")
+                    debug_logger.error("Function encountered a ValueError after parameter checks. "
+                                       "Parameter type and value checks may not be performing as intended.")
                     sys.exit(1)
                     
 
@@ -1486,6 +1681,8 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
         if not static_image_mode:
             capture.release()
             result.release()
+        
+        logger.info(f"Function execution completed successfully. View outputted file(s) at {output_dir}.")
 
 def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate", pixel_size:int = 32, noise_prob:float = 0.5,
                 rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, mask_type:int | None = None, 
@@ -1538,6 +1735,10 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
     Raises
     ------
 
+    TypeError: Given invalid parameter typings.
+    OSError: Given invalid paths for parameters input_dir or output_dir.
+    ValueError: Given an unrecognized noise_method or mask_type.
+
     """
     
     singleFile = False
@@ -1545,62 +1746,120 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
 
     # Type and value checking input parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Apply_noise: input_dir must be a path string.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path to a directory, or the directory does not exist.")
         raise OSError("Apply_noise: input_dir is not a valid path.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Apply_noise: output_dir must be a path string.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory, or the directory does not exist.")
         raise OSError("Apply_noise: output_dir is not a valid path.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory, or the directory does not exist.")
         raise OSError("Apply_noise: output_dir must be a path string to a directory.")
     
     if not isinstance(noise_method, int):
         if not isinstance(noise_method, str):
+            logger.warning("Function has encountered a TypeError for input parameter noise_method. " 
+                           "Message: invalid type for parameter noise_method, expected int or str.")
             raise TypeError("Apply_noise: parameter noise_method must be either int or str.")
         elif str.lower(noise_method) not in ["salt and pepper", "pixelate", "gaussian"]:
+            logger.warning("Function encountered a ValueError for input parameter noise_method. "
+                           "Message: unrecognized value for parameter noise_method.")
             raise ValueError("Apply_noise: parameter noise method must be one of 'salt and pepper', 'pixelate' or 'gaussian'.")
     elif noise_method not in [NOISE_METHOD_SALT_AND_PEPPER, NOISE_METHOD_PIXELATE, NOISE_METHOD_GAUSSIAN]:
-        raise ValueError("Apply_noise: parameter noise method must be one of 'salt and pepper', 'pixelate' or 'gaussian'.")
+        logger.warning("Function encountered a ValueError for input parameter noise_method. "
+                           "Message: unrecognized value for parameter noise_method.")
+        raise ValueError("Apply_noise: parameter noise_method must be one of 'salt and pepper', 'pixelate' or 'gaussian'.")
     
     if not isinstance(pixel_size, int):
+        logger.warning("Function encountered a TypeError for input parameter pixel_size. "
+                       "Message: invalid type for parameter pixel_size, expected int.")
         raise TypeError("Apply_noise: parameter pixel_size expects an integer.")
     
     if not isinstance(noise_prob, float):
+        logger.warning("Function encountered a TypeError for input parameter noise_prob. "
+                       "Message: invalid type for parameter noise_prob, expected float.")
         raise TypeError("Apply_noise: parameter noise_prob expects a float.")
     elif noise_prob < 0 or noise_prob > 1:
+        logger.warning("Function encountered a ValueError for input parameter noise_prob. "
+                       "Message: parameter noise_prob must be a float in the range [0,1].")
         raise ValueError("Apply_noise: parameter noise_prob must lie in the range [0,1].")
     
     if rand_seed is not None:
         if not isinstance(rand_seed, int):
+            logger.warning("Function encountered a TypeError for input parameter rand_seed. "
+                       "Message: invalid type for parameter rand_seed, expected int.")
             raise TypeError("Apply_noise: parameter rand_seed expects an integer.")
     
     if not isinstance(mean, float):
+        logger.warning("Function encountered a TypeError for input parameter mean. "
+                       "Message: invalid type for parameter mean, expected float.")
         raise TypeError("Apply_noise: parameter mean expects a float.")
     
     if not isinstance(standard_dev, float):
+        logger.warning("Function encountered a TypeError for input parameter standard_dev. "
+                       "Message: invalid type for parameter standard_dev, expected float.")
         raise TypeError("Apply_noise: parameter standard_dev expects a float.")
 
     if not isinstance(mask_type, int):
+        logger.warning("Function encountered a TypeError for input parameter mask_type. "
+                       "Message: invalid type for parameter mask_type, expected int.")
         raise TypeError("Apply_noise: parameter mask_type expects an integer.")
     elif mask_type not in MASK_OPTIONS:
-        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within pyfameutils.MASK_OPTIONS.")
+        logger.warning("Function encountered a ValueError for input parameter mask_type. "
+                       "Message: unrecognized mask_type. See pyfame.pyfame_utils.MASK_OPTIONS.")
+        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within pyfame_utils.MASK_OPTIONS.")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Apply_noise: parameter with_sub_dirs expects a boolean.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Apply_noise: parameter min_detection_confidence expects a float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: parameter min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Apply_noise: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Apply_noise: parameter min_tracking_confidence expects a float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: parameter min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Apply_noise: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+
+    logger.info("Now entering function apply_noise().")
+    if isinstance(noise_method, str):
+        mask_type_name = get_variable_name(mask_type, globals())
+        logger.info(f"Input parameters: noise_method = {noise_method}, pixel_size = {pixel_size}, noise_prob = {noise_prob}, "
+                    f"rand_seed = {rand_seed}, mean = {mean}, standard_dev = {standard_dev}, mask_type = {mask_type_name}.")
+    else:
+        noise_method_name = get_variable_name(noise_method, globals())
+        mask_type_name = get_variable_name(mask_type, globals())
+        logger.info(f"Input parameters: noise_method = {noise_method_name}, pixel_size = {pixel_size}, noise_prob = {noise_prob}, "
+                    f"rand_seed = {rand_seed}, mean = {mean}, standard_dev = {standard_dev}, mask_type = {mask_type_name}.")
+
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, "
+                f"min_tracking_confidence = {min_tracking_confidence}.")
     
     def mask_frame(frame: cv.typing.MatLike, mask_type: int) -> cv.typing.MatLike:
 
@@ -1616,7 +1875,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     x,y = int(lm.x * iw), int(lm.y * ih)
                     landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
         else:
-            print("Mask_face_region: Face mesh detection error.")
+            logger.error("Face mesh detection error, function exiting with status 1.")
+            debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
             sys.exit(1)
 
         match mask_type:
@@ -2020,7 +2280,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                 return masked_frame
             
             case _:
-                print("Mask_face_region: Undefined facial mask, please specify one of FACE_SKIN_ISOLATION, FACE_OVAL, FACE_OVAL_TIGHT.")
+                logger.warning("Function has encountered an undefined mask_type during execution, system exiting with status 1. "
+                               "Ensure that input parameter checks are functioning as expected.")
                 sys.exit(1)
             
     # Defining the mediapipe facemesh task
@@ -2038,11 +2299,16 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         files_to_process = [os.path.join(path, file) 
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
+        
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
     
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Noise_Added"):
         os.mkdir(output_dir + "\\Noise_Added")
-    output_dir = output_dir + "\\Noise_Added"
+        output_dir = output_dir + "\\Noise_Added"
+        logger.info(f"Function created output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Noise_Added"
     
     for file in files_to_process:
             
@@ -2051,6 +2317,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         codec = None
         capture = None
         result = None
+        dir_file_path = output_dir + f"\\{filename}_noise_added{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -2069,13 +2336,19 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Apply_noise: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                    "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
         
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Apply_noise: Error opening video file.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                                   f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
                 sys.exit(1)
             
             size = (int(capture.get(3)), int(capture.get(4)))
@@ -2083,7 +2356,10 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
             result = cv.VideoWriter(output_dir + "\\" + filename + "_noise_added" + extension,
                                     cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Apply_noise: Error opening VideoWriter object.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                                   f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
                 sys.exit(1)
 
         # Main Processing loop for video files (will only iterate once over images)
@@ -2107,6 +2383,10 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            elif static_image_mode:
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                sys.exit(1)
             else:
                 continue
             
@@ -2172,7 +2452,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                         output_frame = np.where(img_mask == 255, output_frame, frame)
 
                 case _:
-                    print("Apply_noise: incompatible value for parameter noise_method.")
+                    logger.warning("Function has encountered an unrecognized value for parameter noise_method during execution, "
+                                   "exiting with status 1. Input parameter checks may not be functioning as expected.")
                     sys.exit(1)
 
             if not static_image_mode:
@@ -2180,13 +2461,17 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
             else:
                 success = cv.imwrite(output_dir + "\\" + filename + "_noise_added" + extension, output_frame)
                 if not success:
-                    print("Apply_noise: Cv2 imwrite error.")
+                    logger.error("Function has encountered an error attempting to call cv2.imwrite(), exiting with status 1.")
+                    debug_logger.error("Function has encountered an error attempting to call cv2.imwrite() to directory "
+                                       f"{dir_file_path}. Please ensure the output directory path is a valid path in your current working directory tree.")
                     sys.exit(1)
                 break
-
+        
         if not static_image_mode:
             capture.release()
             result.release()
+    
+        logger.info(f"Function execution completed successfully. View outputted file(s) at {output_dir}.")
 
 def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, scramble_method:int = HIGH_LEVEL_GRID_SCRAMBLE, rand_seed:int|None = None, grid_scramble_threshold:int = 2,
                     grid_square_size:int = 40, with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
@@ -2246,44 +2531,82 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
 
     # Performing checks on input parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Facial_scramble: parameter input_dir expects a string.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid system path string.")
         raise OSError("Facial_scramble: input_dir must be a valid pathstring to a file or directory.")
     elif os.path.isfile(input_dir):
         single_file = True
 
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Facial_scramble: parameter output_dir expects a string.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid system path string.")
         raise OSError("Facial_scramble: output_dir must be a valid pathstring to a file or directory.")
     
     if not isinstance(out_grayscale, bool):
+        logger.warning("Function encountered a TypeError for input parameter out_grayscale. "
+                       "Message: invalid type for parameter out_grayscale, expected bool.")
         raise TypeError("Facial_scramble: parameter out_grayscale expects a boolean.")
     
     if not isinstance(scramble_method, int):
+        logger.warning("Function encountered a TypeError for input parameter scramble_method. "
+                       "Message: invalid type for parameter scramble_method, expected int.")
         raise TypeError("Facial_scramble: parameter shuffle_method expects an integer.")
     elif scramble_method not in [27, 28, 29, 30]:
-        raise ValueError("Facial_scramble: parameter shuffle_method must be one of RANDOM_SHUFFLE or RANDOM_GRID_SHUFFLE.")
+        logger.warning("Function encountered a ValueError for input parameter scramble_method. "
+                       "Message: unrecognized value for parameter scramble_method, please see pyfame_utils for the full list of accepted values.")
+        raise ValueError("Facial_scramble: parameter shuffle_method must be one of LOW_LEVEL_GRID_SCRAMBLE, "
+                         "HIGH_LEVEL_GRID_SCRAMBLE or LANDMARK_SCRAMBLE.")
     
     if rand_seed != None:
         if not isinstance(rand_seed, int):
+            logger.warning("Function encountered a TypeError for input parameter rand_seed. "
+                           "Message: invalid type for parameter rand_seed, expected int.")
             raise TypeError("Facial_scramble: parameter rand_seed expects an integer.")
     
     if not isinstance(grid_scramble_threshold, int):
+        logger.warning("Function encountered a TypeError for input parameter grid_scramble_threshold. "
+                       "Message: invalid type for parameter grid_scramble_threshold, expected int.")
         raise TypeError("Facial_scramble: parameter grid_scramble_threshold expects an integer")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Facial_scramble: parameter with_sub_dirs expects a boolean.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Facial_scramble: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Facial_scramble: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Facial_scramble: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Facial_scramble: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+    logger.info("Now entering function facial_scramble().")
+
+    scramble_method_name = get_variable_name(scramble_method, globals())
+    logger.info(f"Input parameters: out_grayscale = {out_grayscale}, scramble_method = {scramble_method_name}, rand_seed = {rand_seed}, "
+                f"grid_scramble_threshold = {grid_scramble_threshold}, grid_square_size = {grid_square_size}, with_sub_dirs = {with_sub_dirs}.")
+    
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
     
     # Defining the mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = static_image_mode, min_detection_confidence = min_detection_confidence,
@@ -2301,10 +2624,15 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
     
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
+
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Scrambled"):
         os.mkdir(output_dir + "\\Scrambled")
-    output_dir = output_dir + "\\Scrambled"
+        output_dir = output_dir + "\\Scrambled"
+        logger.info(f"Function created new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Scrambled"
 
     for file in files_to_process:
             
@@ -2318,6 +2646,7 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
         rot_angles = None
         x_displacements = None
         rng = None
+        dir_file_path = output_dir + f"\\{filename}_scrambled{extension}"
 
         if rand_seed != None:
             rng = np.random.default_rng(rand_seed)
@@ -2341,14 +2670,20 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Facial_scramble: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                    "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
-        
+
         # Initialise videoCapture and videoWriter objects
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Facial_scramble: Error opening video file.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                            "Function exiting with status 1.")
+                debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                                f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
                 sys.exit(1)
             
             size = (int(capture.get(3)), int(capture.get(4)))
@@ -2361,12 +2696,18 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                                     cv.VideoWriter.fourcc(*codec), 30, size, isColor=True)
                 
             if not result.isOpened():
-                print("Facial_scramble: Error opening VideoWriter object.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                            "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                                f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
                 sys.exit(1)
             
             success, frame = capture.read()
             if not success:
-                print("Facial_scramble: Error reading in initial frame.")
+                logger.error(f"Function has encountered an error attempting to read a frame, file may be corrupt. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to read in a frame from file "
+                                   f"{file}. file may be corrupt or incorrectly encoded.")
                 sys.exit(1)
         else:
             frame = cv.imread(file)
@@ -2384,6 +2725,10 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            elif static_image_mode:
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                sys.exit(1)
             else:
                 continue
 
@@ -2744,6 +3089,12 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                         
                         # Clone the landmark onto the original face in its new position
                         output_frame = cv.seamlessClone(landmark, output_frame, lm_mask, (cx, cy), cv.NORMAL_CLONE)
+                case _:
+                    logger.error("Function has encountered an unrecognized value for parameter scramble_method during execution. "
+                                 "Function exiting with status 1.")
+                    debug_logger.error("Function has encountered an unrecognized value for parameter scramble_method during execution. "
+                                       "Input parameter checks may not be performing as expected.")
+                    sys.exit(1)
 
             if not static_image_mode:
                 if out_grayscale == True:
@@ -2759,13 +3110,17 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
 
                 success = cv.imwrite(output_dir + "\\" + filename + "_scrambled" + extension, output_frame)
                 if not success:
-                    print("Facial_scramble: cv2 imwrite error.")
+                    logger.error("Function has encountered an error attempting to call cv2.imwrite(), exiting with status 1.")
+                    debug_logger.error("Function has encountered an error attempting to call cv2.imwrite() to directory "
+                                       f"{dir_file_path}. Please ensure that this path is a valid path in your current working directory tree.")
                     sys.exit(1)
                 break
         
         if not static_image_mode:
             capture.release()
             result.release()
+        
+        logger.info(f"Function execution completed successfully, view outputted file(s) at {output_dir}.")
 
 def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[list] = [FACE_OVAL_PATH], point_density:float = 0.5, 
                         show_history:bool = False, history_mode:int = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_color:tuple[int] = (0,0,255),
@@ -2818,75 +3173,150 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
         A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
         FaceMesh constructor.
     '''
-    
+
     single_file = False
 
     # Perform checks on input parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Point_light_display: parameter input_dir expects a string.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path string to a directory or file.")
         raise OSError("Point_light_display: parameter input_dir is required to be a valid pathstring.")
     if os.path.isfile(input_dir):
         single_file = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Point_light_display: parameter output_dir expects a string.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path string to a directory.")
         raise OSError("Point_light_display: parameter output_dir is required to be a valid path.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path string to a directory.")
         raise OSError("Point_light_display: parameter output_dir must be a path string to a directory.")
     
     if not isinstance(landmark_regions, list):
-        raise TypeError("Point_light_display: parameter landmark_points expects a list of list.")
+        logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
+                       "Message: invalid type for parameter landmark_regions, expected list.")
+        raise TypeError("Point_light_display: parameter landmark_regions expects a list of list.")
     elif len(landmark_regions) == 0:
-        raise ValueError("Point_light_display: parameter landmark_points cannot be an empty list.")
-    elif not isinstance(landmark_regions[0], list):
-        raise TypeError("Point_light_display: parameter landmark_points expects a list of list.")
+        logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                       "Message: landmark_regions cannot be an empty list.")
+        raise ValueError("Point_light_display: parameter landmark_regions cannot be an empty list.")
+    for val in landmark_regions:
+        if not isinstance(val, list):
+            logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
+                    "Message: invalid type for parameter landmark_regions, expected list of list.")
+            raise TypeError("Point_light_display: parameter landmark_regions expects a list of list.")
     
     if not isinstance(point_density, float):
+        logger.warning("Function encountered a TypeError for input parameter point_density. "
+                       "Message: invalid type for parameter point_density, expected float.")
         raise TypeError("Point_light_display: parameter point_density expects a float.")
     elif point_density < 0 or point_density > 1:
+        logger.warning("Function encountered a ValueError for input parameter point_density. "
+                       "Message: point_density must be a float in the range [0,1].")
         raise ValueError("Point_light_display: parameter point_density must be in the range [0,1].")
     
     if not isinstance(show_history, bool):
+        logger.warning("Function encountered a TypeError for input parameter show_history. "
+                       "Message: invalid type for parameter show_history, expected bool.")
         raise TypeError("Point_light_display: parameter show_history must be a boolean.")
 
     if not isinstance(history_mode, int):
+        logger.warning("Function encountered a TypeError for input parameter history_mode. "
+                       "Message: invalid type for parameter history_mode, expected int.")
         raise TypeError("Point_light_display: parameter history_mode must be an integer.")
     elif history_mode not in [SHOW_HISTORY_ORIGIN, SHOW_HISTORY_RELATIVE]:
+        logger.warning("Function encountered a ValueError for input parameter history_mode. "
+                       "Message: unrecognized value for parameter history_mode, please see pyfame_utils for a full list of accepted values.")
         raise ValueError("Point_light_display: parameter history_mode must be one of SHOW_HISTORY_ORIGIN or SHOW_HISTORY_RELATIVE.")
     
     if not isinstance(history_window_msec, int):
+        logger.warning("Function encountered a TypeError for input parameter history_window_msec. "
+                       "Message: invalid type for parameter history_window_msec, expected int.")
         raise TypeError("Point_light_display: parameter history_window_msec must be an integer.")
     elif history_window_msec < 0:
         show_history = False
     
     if not isinstance(point_color, tuple):
+        logger.warning("Function encountered a TypeError for input parameter point_color. "
+                       "Message: invalid type for parameter point_color, expected tuple[int].")
         raise TypeError("Point_light_display: parameter point_color must be of type tuple.")
     elif len(point_color) < 3:
+        logger.warning("Function encountered a ValueError for input parameter point_color. "
+                       "Message: point_color must be a length 3 tuple of integers.")
         raise ValueError("Point_light_display: parameter point_color expects a length 3 tuple of integers.")
-    elif not isinstance(point_color[0], int):
-        raise ValueError("Point_light_display: parameter point_color expects a length 3 tuple of integers.")
+    for val in point_color:
+        if not isinstance(val, int):
+            logger.warning("Function encountered a ValueError for input parameter point_color. "
+                            "Message: point_color must be a length 3 tuple of integers.")
+            raise ValueError("Point_light_display: parameter point_color expects a length 3 tuple of integers.")
     
     if not isinstance(history_color, tuple):
+        logger.warning("Function encountered a TypeError for input parameter history_color. "
+                       "Message: invalid type for parameter history_color, expected tuple[int].")
         raise TypeError("Point_light_display: parameter history_color must be of type tuple.")
     elif len(history_color) < 3:
+        logger.warning("Function encountered a ValueError for input parameter history_color. "
+                       "Message: history_color must be a length 3 tuple of integers.")
         raise ValueError("Point_light_display: parameter history_color expects a length 3 tuple of integers.")
-    elif not isinstance(history_color[0], int):
-        raise ValueError("Point_light_display: parameter history_color expects a length 3 tuple of integers.")
+    for val in history_color:
+        if not isinstance(val, int):
+            logger.warning("Function encountered a ValueError for input parameter history_color. "
+                            "Message: history_color must be a length 3 tuple of integers.")
+            raise ValueError("Point_light_display: parameter history_color expects a length 3 tuple of integers.")
 
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Point_light_display: parameter with_sub_dirs must be a boolean.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Point_light_display: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Point_light_display: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Point_light_display: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Point_light_display: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+    logger.info("Now entering function point_light_display().")
+
+    landmark_region_names = "Input parameters: landmark_regions = ["
+
+    for i in range(len(landmark_regions)):
+        lm_region = landmark_regions[i]
+        region_name = get_variable_name(lm_region, globals())
+
+        if i == len(landmark_regions) - 1:
+            landmark_region_names += f"{region_name}]"
+        else:
+            landmark_region_names += f"{region_name}, "
+    
+    hist_mode_name = get_variable_name(history_mode, globals())
+
+    logger.info(f"{landmark_region_names}, point_density = {point_density}, show_history = {show_history}, "
+                f"history_mode = {hist_mode_name}, history_window_msec = {history_window_msec}, history_color = {history_color}, "
+                f"point_color = {point_color}, with_sub_dirs = {with_sub_dirs}.")
+    
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
     
     # Defining the mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, min_detection_confidence = min_detection_confidence,
@@ -2903,11 +3333,16 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
         files_to_process = [os.path.join(path, file) 
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
+        
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
     
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\PLD"):
         os.mkdir(output_dir + "\\PLD")
-    output_dir = output_dir + "\\PLD"
+        output_dir = output_dir + "\\PLD"
+        logger.info(f"Function created new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\PLD"
 
     for file in files_to_process:
 
@@ -2916,6 +3351,7 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
         codec = None
         capture = None
         result = None
+        dir_file_path = output_dir + f"\\{filename}_pld{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -2931,20 +3367,29 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Point_light_display: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                    "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
         
         capture = cv.VideoCapture(file)
         if not capture.isOpened():
-            print("Point_light_display: Error opening video file.")
+            logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                        "Function exiting with status 1.")
+            debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                            f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
             sys.exit(1)
         
         size = (int(capture.get(3)), int(capture.get(4)))
 
-        result = cv.VideoWriter(output_dir + "\\" + filename + "_point_light_display" + extension,
+        result = cv.VideoWriter(output_dir + "\\" + filename + "_pld" + extension,
                                 cv.VideoWriter.fourcc(*codec), 30, size)
         if not result.isOpened():
-            print("Point_light_display: Error opening VideoWriter object.")
+            logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                        "Function exiting with status 1.")
+            debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                            f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
             sys.exit(1)
         
         # Persistent variables for processing loop
@@ -2954,7 +3399,10 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
 
         success, frame = capture.read()
         if not success:
-            print("Point_light_display: Error reading in initial frame.")
+            logger.error(f"Function has encountered an error attempting to read a frame, file may be corrupt. "
+                         "Function exiting with status 1.")
+            debug_logger.error("Function has encountered an error attempting to read in a frame from file "
+                               f"{file}. file may be corrupt or incorrectly encoded.")
             sys.exit(1)
 
         mask = np.zeros_like(frame, dtype=np.uint8)
@@ -3343,7 +3791,8 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
                     break 
             
             counter += 1
-            
+        
+        logger.info(f"Function completed execution successfully, view outputted file(s) at {output_dir}.")
         capture.release()
         result.release()
 
@@ -3436,23 +3885,37 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
     single_file = False
 
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Get_optical_flow: parameter input_dir expects a string.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path in your current working tree.")
         raise OSError("Get_optical_flow: parameter input_dir is required to be a valid pathstring.")
     if os.path.isfile(input_dir):
         single_file = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Get_optical_flow: parameter output_dir expects a string.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Get_optical_flow: parameter output_dir is required to be a valid path.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise OSError("Get_optical_flow: parameter output_dir must be a path string to a directory.")
     
     if not isinstance(optical_flow_type, int):
         if not isinstance(optical_flow_type, str):
+            logger.warning("Function encountered a TypeError for input parameter optical_flow_type. "
+                           "Message: invalid type for parameter optical_flow_type, expected str or int.")
             raise TypeError("Get_optical_flow: parameter optical_flow_type expects a string or integer.")
         elif str.lower(optical_flow_type) not in ["sparse", "dense"]:
+            logger.warning("Function encountered a ValueError for input parameter optical_flow_type. "
+                           "Message: unrecognized value for parameter optical_flow_type, see pyfame_utils for a full list of options.")
             raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of 'sparse' or 'dense'.")
         else:
             if str.lower(optical_flow_type) == "sparse":
@@ -3460,82 +3923,150 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
             elif str.lower(optical_flow_type) == "dense":
                 optical_flow_type = DENSE_OPTICAL_FLOW
     elif optical_flow_type not in [SPARSE_OPTICAL_FLOW, DENSE_OPTICAL_FLOW]:
+        logger.warning("Function encountered a ValueError for input parameter optical_flow_type. "
+                       "Message: unrecognized value for parameter optical_flow_type, see pyfame_utils for a full list of options.")
         raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of SPARSE_OPTICAL_FLOW or DENSE_OPTICAL_FLOW.")
     
     if landmarks_to_track != None:
         if not isinstance(landmarks_to_track, list):
+            logger.warning("Function encountered a TypeError for input parameter landmarks_to_track. "
+                           "Message: invalid type for parameter landmarks_to_track, expected list[int].")
             raise TypeError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
-        elif not isinstance(landmarks_to_track[0], int):
-            raise TypeError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
+        for val in landmarks_to_track:
+            if not isinstance(val, int):
+                logger.warning("Function encountered a TypeError for input parameter landmarks_to_track. "
+                               "Message: invalid type for parameter landmarks_to_track, expected list[int].")
+                raise TypeError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
     
     if not isinstance(max_corners, int):
+        logger.warning("Function encountered a TypeError for input parameter max_corners. "
+                       "Message: invalid type for parameter max_corners, expected int.")
         raise TypeError("Get_optical_flow: parameter max_corners must be an integer.")
     
     if not isinstance(corner_quality_lvl, float):
+        logger.warning("Function encountered a TypeError for input parameter corner_quality_lvl. "
+                       "Message: invalid type for parameter corner_quality_lvl, expected float.")
         raise TypeError("Get_optical_flow: parameter corner_quality_lvl must be a float.")
     elif corner_quality_lvl > 1.0 or corner_quality_lvl < 0.0:
+        logger.warning("Function encountered a ValueError for input parameter corner_quality_lvl. "
+                       "Message: corner_quality_lvl must be a float in the range [0,1].")
         raise ValueError("Get_optical_flow: parameter corner_quality_lvl must be a float in the range [0,1].")
     
     if not isinstance(min_corner_distance, int):
+        logger.warning("Function encountered a TypeError for input parameter min_corner_distance. "
+                       "Message: invalid type for parameter min_corner_distance, expected int.")
         raise TypeError("Get_optical_flow: parameter min_corner_distance must be an integer.")
     
     if not isinstance(block_size, int):
+        logger.warning("Function encountered a TypeError for input parameter block_size. "
+                       "Message: invalid type for parameter block_size, expected int.")
         raise TypeError("Get_optical_flow: parameter block_size must be an integer.")
     
     if not isinstance(win_size, tuple):
+        logger.warning("Function encountered a TypeError for input parameter win_size. "
+                        "Message: invalid type for parameter win_size, expected tuple[int].")
         raise TypeError("Get_optical_flow: parameter win_size must be a tuple of integers.")
     elif not isinstance(win_size[0], int) or not isinstance(win_size[1], int):
-        raise ValueError("Get_optical_flow: parameter win_size must be a tuple of integers.")
+        logger.warning("Function encountered a TypeError for input parameter win_size. "
+                       "Message: invalid type for parameter win_size, expected tuple[int].")
+        raise TypeError("Get_optical_flow: parameter win_size must be a tuple of integers.")
     
     if not isinstance(max_pyr_lvl, int):
+        logger.warning("Function encountered a TypeError for input parameter max_pyr_lvl. "
+                       "Message: invalid type for parameter max_pyr_lvl, expected int.")
         raise TypeError("Get_optical_flow: parameter max_pyr_lvl must be an integer.")
     
     if not isinstance(pyr_scale, float):
+        logger.warning("Function encountered a TypeError for input parameter pyr_scale. "
+                       "Message: invalid type for parameter pyr_scale, expected float.")
         raise TypeError("Get_optical_flow: parameter pyr_scale must be a float.")
     elif pyr_scale >= 1.0 or pyr_scale < 0.0:
+        logger.warning("Function encountered a ValueError for input parameter pyr_scale. "
+                       "Message: pyr_scale must be a float in the range [0,1].")
         raise ValueError("Get_optical_flow: parameter pyr_scale must be a float in the range [0,1).")
     
     if not isinstance(max_lk_iter, int):
+        logger.warning("Function encountered a TypeError for input parameter max_lk_iter. "
+                       "Message: invalid type for parameter max_lk_iter, expected int.")
         raise TypeError("Get_optical_flow: parameter max_lk_iter must be an integer.")
     
     if not isinstance(lk_accuracy_thresh, float):
+        logger.warning("Function encountered a TypeError for input parameter lk_accuracy_thresh. "
+                       "Message: invalid type for parameter lk_accuracy_thresh, expected float.")
         raise TypeError("Get_optical_flow: parameter lk_accuracy_thresh must be a float.")
     elif lk_accuracy_thresh > 1.0 or lk_accuracy_thresh < 0.0:
+        logger.warning("Function encountered a ValueError for input parameter lk_accuracy_thresh. "
+                       "Message: lk_accuracy_thresh must be a float in the range [0,1].")
         raise ValueError("Get_optical_flow: parameter lk_accuracy_thresh must be a float in the range [0,1].")
     
     if not isinstance(poly_sigma, float):
+        logger.warning("Function encountered a TypeError for input parameter poly_sigma. "
+                       "Message: invalid type for parameter poly_sigma, expected float.")
         raise TypeError("Get_optical_flow: parameter poly_sigma must be a float.")
     
     if not isinstance(point_color, tuple):
+        logger.warning("Function encountered a TypeError for input parameter point_color. "
+                       "Message: invalid type for parameter point_color, expected tuple[int].")
         raise TypeError("Get_optical_flow: parameter point_color must be a tuple of integers.")
-    else:
-        for val in point_color:
-            if not isinstance(val, int):
-                raise ValueError("Get_optical_flow: parameter point color must be a tuple of integers.")
+    for val in point_color:
+        if not isinstance(val, int):
+            logger.warning("Function encountered a TypeError for input parameter point_color. "
+                           "Message: invalid type for parameter point_color, expected tuple[int].")
+            raise TypeError("Get_optical_flow: parameter point color must be a tuple of integers.")
     
     if not isinstance(point_radius, int):
+        logger.warning("Function encountered a TypeError for input parameter point_radius. "
+                       "Message: invalid type for parameter point_radius, expected int.")
         raise TypeError("Get_optical_flow: parameter point_radius must be an integer.")
 
     if vector_color != None:
         if not isinstance(vector_color, tuple):
+            logger.warning("Function encountered a TypeError for input parameter vector_color. "
+                           "Message: invalid type for parameter vector_color, expected tuple[int].")
             raise TypeError("Get_optical_flow: parameter vector_color must be a tuple of integers.")
-        else:
-            for val in vector_color:
-                if not isinstance(val, int):
-                    raise ValueError("Get_optical_flow: parameter vector_color must be a tuple of integers.")
+        for val in vector_color:
+            if not isinstance(val, int):
+                logger.warning("Function encountered a TypeError for input parameter vector_color. "
+                               "Message: invalid type for parameter vector_color, expected tuple[int].")
+                raise ValueError("Get_optical_flow: parameter vector_color must be a tuple of integers.")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Get_optical_flow: parameter with_sub_dirs must be a boolean.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Get_optical_flow: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Get_optical_flow: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Get_optical_flow: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Get_optical_flow: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+    logger.info("Now entering function get_optical_flow().")
+    oft_name = None
+
+    if isinstance(optical_flow_type, str):
+        oft_name = optical_flow_type
+    else:
+        oft_name = get_variable_name(optical_flow_type, globals())
+    
+    logger.info(f"Input parameters: optical_flow_type = {oft_name}, landmarks_to_track = {landmarks_to_track}, max_corners = {max_corners}, "
+                f"corner_quality_lvl = {corner_quality_lvl}, min_corner_distance = {min_corner_distance}, block_size = {block_size}, win_size = {win_size}")
+    logger.info(f"Input parameters continued... max_pyr_level = {max_pyr_lvl}, pyr_scale = {pyr_scale}, max_lk_iter = {max_lk_iter}, lk_accuracy_thresh = {lk_accuracy_thresh}, "
+                f"poly_sigma = {poly_sigma}, point_color = {point_color}, point_radius = {point_radius}, vector_color = {vector_color}, with_sub_dirs = {with_sub_dirs}.")
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
     
     # Defining the mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, min_detection_confidence = min_detection_confidence,
@@ -3553,10 +4084,15 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
     
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
+    
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Optical_Flow"):
         os.mkdir(output_dir + "\\Optical_Flow")
-    output_dir = output_dir + "\\Optical_Flow"
+        output_dir = output_dir + "\\Optical_Flow"
+        logger.info(f"Function created new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Optical_Flow"
 
     for file in files_to_process:
 
@@ -3566,6 +4102,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         capture = None
         result = None
         csv = None
+        dir_file_path = output_dir + f"\\{filename}_optical_flow{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -3578,12 +4115,18 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Get_optical_flow: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                   "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
         
         capture = cv.VideoCapture(file)
         if not capture.isOpened():
-            print("Get_optical_flow: Error opening video file.")
+            logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                         "Function exiting with status 1.")
+            debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                               f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
             sys.exit(1)
         
         size = (int(capture.get(3)), int(capture.get(4)))
@@ -3591,7 +4134,10 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         result = cv.VideoWriter(output_dir + "\\" + filename + "_optical_flow" + extension,
                                 cv.VideoWriter.fourcc(*codec), 30, size)
         if not result.isOpened():
-            print("Get_optical_flow: Error opening VideoWriter object.")
+            logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                         "Function exiting with status 1.")
+            debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                               f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
             sys.exit(1)
         
         if optical_flow_type == SPARSE_OPTICAL_FLOW:
@@ -3667,11 +4213,10 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                         init_points = np.array([[lm.get('x'), lm.get('y')] for lm in landmark_screen_coords if lm.get('id') in landmarks_to_track], dtype=np.float32)
                         init_points = init_points.reshape(-1,1,2)
                     else:
-                        init_points = cv.goodFeaturesToTrack(gray_frame, max_corners, corner_quality_lvl, min_corner_distance, block_size, mask=face_mask)
+                        init_points = cv.goodFeaturesToTrack(old_gray, max_corners, corner_quality_lvl, min_corner_distance, block_size, mask=face_mask)
                 elif optical_flow_type == DENSE_OPTICAL_FLOW:
                     hsv = np.zeros_like(frame)
                     old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-
                     hsv[...,1] = 255
                 
             if counter > 1:
@@ -3744,6 +4289,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
 
                     old_gray = gray_frame.copy()
 
+        logger.info(f"Function execution completed successfully, view outputted file(s) at {output_dir}.")
         capture.release()
         result.release()
         csv.close()
@@ -3789,28 +4335,43 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
     
     # Global declarations and init
     singleFile = False
+    static_image_mode = False
 
     # Type and value checking input parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Extract_color_channel_means: input_dir must be a path string.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path in your current working tree.")
         raise OSError("Extract_color_channel_means: input_dir is not a valid path.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Extract_color_channel_means: output_dir must be a path string.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Extract_color_channel_means: output_dir is not a valid path.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise OSError("Extract_color_channel_means: output_dir must be a path string to a directory.")
     
-    if not isinstance(color_space, int):
-        if not isinstance(color_space, str):
-            raise TypeError("Extract_color_channel_means: color_space must be an int or str.")
-    if isinstance(color_space, str):
+    if isinstance(color_space, int):
+        if color_space not in COLOR_SPACES:
+            logger.warning("Function encountered a ValueError for input parameter color_space. "
+                           "Message: unrecognized value for parameter color_space, see pyfame_utils.COLOR_SPACES for a full list of options.")
+            raise ValueError("Extract_color_channel_means: unrecognized value for parameter color_space.")
+    elif isinstance(color_space, str):
         if str.lower(color_space) not in ["rgb", "hsv", "grayscale"]:
-            raise ValueError("Extract_color_channel_means: unspecified color space.")
+            logger.warning("Function encountered a ValueError for input parameter color_space. "
+                           "Message: unrecognized value for parameter color_space, see pyfame_utils.COLOR_SPACES for a full list of options.")
+            raise ValueError("Extract_color_channel_means: unrecognized value for parameter color_space.")
         else:
             if str.lower(color_space) == "rgb":
                 color_space = COLOR_SPACE_RGB
@@ -3818,30 +4379,49 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                 color_space = COLOR_SPACE_HSV
             if str.lower(color_space) == "grayscale":
                 color_space = COLOR_SPACE_GRAYSCALE
-
-    if isinstance(color_space, int):
-        if color_space not in [COLOR_SPACE_RGB, COLOR_SPACE_HSV, COLOR_SPACE_GRAYSCALE]:
-            raise ValueError("Extract_color_channel_means: unspecified color space.")
+    else:
+        logger.warning("Function encountered a TypeError for input parameter color_space. "
+                       "Message: invalid type for parameter color_space, expected int or str.")
+        raise TypeError("Extract_color_channel_means: color_space must be an int or str.")
     
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Extract_color_channel_means: with_sub_dirs must be a boolean.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Extract_color_channel_means: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Extract_color_channel_means: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Extract_color_channel_means: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Extract_color_channel_means: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+    logger.info("Now entering function extract_face_color_means().")
+    
+    if isinstance(color_space, str):
+        logger.info(f"Input parameters: color_space: {color_space}, with_sub_dirs = {with_sub_dirs}.")
+    else:
+        cs_name = get_variable_name(color_space, globals())
+        logger.info(f"Input parameters: color_space: {cs_name}, with_sub_dirs = {with_sub_dirs}.")
+    
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
     
     # Defining mediapipe facemesh task
     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                 min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
     files_to_process = []
-    capture = None
-    csv = None
 
     # Creating a list of file path strings
     if singleFile:
@@ -3853,37 +4433,95 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
     
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
+    
     # Create an output directory for the csv files
     if not os.path.isdir(output_dir + "\\Color_Channel_Means"):
         os.mkdir(output_dir + "\\Color_Channel_Means")
-    output_dir = output_dir + "\\Color_Channel_Means"
+        output_dir = output_dir + "\\Color_Channel_Means"
+        logger.info(f"Function created a new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Color_Channel_Means"
     
     for file in files_to_process:
 
         # Initialize capture and writer objects
         filename, extension = os.path.splitext(os.path.basename(file))
-        capture = cv.VideoCapture(file)
-        if not capture.isOpened():
-            print("Extract_color_channel_means: Error opening videoCapture object.")
-            sys.exit(1)
-        
-        # Writing the column headers to csv
-        if color_space == COLOR_SPACE_RGB:
-            csv = open(output_dir + "\\" + filename + "_RGB.csv", "w")
-            csv.write("Timestamp,Mean_Red,Mean_Green,Mean_Blue,Cheeks_Red,Cheeks_Green,Cheeks_Blue," +
-                      "Nose_Red,Nose_Green,Nose_Blue,Chin_Red,Chin_Green,Chin_Blue\n")
-        elif color_space == COLOR_SPACE_HSV:
-            csv = open(output_dir + "\\" + filename + "_HSV.csv", "w")
-            csv.write("Timestamp,Mean_Hue,Mean_Sat,Mean_Value,Cheeks_Hue,Cheeks_Sat,Cheeks_Value," + 
-                      "Nose_Hue,Nose_Sat,Nose_Value,Chin_Hue,Chin_Sat,Chin_Value\n")
-        elif color_space == COLOR_SPACE_GRAYSCALE:
-            csv = open(output_dir + "\\" + filename + "_GRAYSCALE.csv", "w")
-            csv.write("Timestamp,Mean_Value,Cheeks_Value,Nose_Value,Chin_Value\n")
+        capture = None
+        csv = None
+        dir_file_path = output_dir
+
+        # Using the file extension to sniff video codec or image container for images
+        match extension:
+            case ".mp4":
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".mov":
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case ".png" | ".jpg" | ".jpeg" | ".bmp":
+                static_image_mode = True
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
+                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+            case _:
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                   "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
+                sys.exit(1)
+
+        if not static_image_mode:
+            capture = cv.VideoCapture(file)
+            if not capture.isOpened():
+                logger.error("Function has encountered an error attempting to initialize cv.VideoCapture() object, exiting with status 1.")
+                debug_logger.error("Function has enountered an error attempting to initialize cv.VideoCapture() object "
+                                   f"with file {file}. File may be corrupt or incorrectly encoded.")
+                sys.exit(1)
+            
+            # Writing the column headers to csv
+            if color_space == COLOR_SPACE_RGB:
+                dir_file_path += f"\\{filename}_RGB.csv"
+                csv = open(output_dir + "\\" + filename + "_RGB.csv", "w")
+                csv.write("Timestamp,Mean_Red,Mean_Green,Mean_Blue,Cheeks_Red,Cheeks_Green,Cheeks_Blue," +
+                        "Nose_Red,Nose_Green,Nose_Blue,Chin_Red,Chin_Green,Chin_Blue\n")
+            elif color_space == COLOR_SPACE_HSV:
+                dir_file_path += f"\\{filename}_HSV.csv"
+                csv = open(output_dir + "\\" + filename + "_HSV.csv", "w")
+                csv.write("Timestamp,Mean_Hue,Mean_Sat,Mean_Value,Cheeks_Hue,Cheeks_Sat,Cheeks_Value," + 
+                        "Nose_Hue,Nose_Sat,Nose_Value,Chin_Hue,Chin_Sat,Chin_Value\n")
+            elif color_space == COLOR_SPACE_GRAYSCALE:
+                dir_file_path += f"\\{filename}_GRAYSCALE.csv"
+                csv = open(output_dir + "\\" + filename + "_GRAYSCALE.csv", "w")
+                csv.write("Timestamp,Mean_Value,Cheeks_Value,Nose_Value,Chin_Value\n")
+        else:
+            # Writing the column headers to csv
+            if color_space == COLOR_SPACE_RGB:
+                dir_file_path += f"\\{filename}_RGB.csv"
+                csv = open(output_dir + "\\" + filename + "_RGB.csv", "w")
+                csv.write("Mean_Red,Mean_Green,Mean_Blue,Cheeks_Red,Cheeks_Green,Cheeks_Blue," +
+                        "Nose_Red,Nose_Green,Nose_Blue,Chin_Red,Chin_Green,Chin_Blue\n")
+            elif color_space == COLOR_SPACE_HSV:
+                dir_file_path += f"\\{filename}_HSV.csv"
+                csv = open(output_dir + "\\" + filename + "_HSV.csv", "w")
+                csv.write("Mean_Hue,Mean_Sat,Mean_Value,Cheeks_Hue,Cheeks_Sat,Cheeks_Value," + 
+                        "Nose_Hue,Nose_Sat,Nose_Value,Chin_Hue,Chin_Sat,Chin_Value\n")
+            elif color_space == COLOR_SPACE_GRAYSCALE:
+                dir_file_path += f"\\{filename}_GRAYSCALE.csv"
+                csv = open(output_dir + "\\" + filename + "_GRAYSCALE.csv", "w")
+                csv.write("Mean_Value,Cheeks_Value,Nose_Value,Chin_Value\n")
     
     while True:
-        success, frame = capture.read()
-        if not success:
-            break
+        if not static_image_mode:
+            success, frame = capture.read()
+            if not success:
+                break
+        else:
+            frame = cv.imread(file)
+            if frame is None:
+                logger.error("Function has encountered an error attempting to call cv.imread(), exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to call cv.imread() with filepath "
+                                   f"{file}. File may be corrupt or incorrectly encoded.")
+                sys.exit(1)
 
         face_mesh_results = face_mesh.process(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
         landmark_screen_coords = []
@@ -3896,7 +4534,11 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                     ih, iw, ic = frame.shape
                     x,y = int(lm.x * iw), int(lm.y * ih)
                     landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-        else:
+        elif static_image_mode:
+            debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process().")
+            logger.error("Face mesh detection error, function exiting with status 1.")
+            sys.exit(1)
+        else: 
             continue
         
         # Concave Polygons
@@ -4030,56 +4672,201 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
         bin_chin_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
         bin_chin_mask[chin_mask] = 255
 
-        if color_space == COLOR_SPACE_RGB:
-            # Extracting the color channel means
-            blue, green, red, *_ = cv.mean(frame, bin_fo_mask)
-            b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, bin_cheeks_mask)
-            b_nose, g_nose, r_nose, *_ = cv.mean(frame, bin_nose_mask)
-            b_chin, g_chin, r_chin, *_ = cv.mean(frame, bin_chin_mask)
+        if not static_image_mode: 
+            if color_space == COLOR_SPACE_RGB:
+                # Extracting the color channel means
+                blue, green, red, *_ = cv.mean(frame, bin_fo_mask)
+                b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, bin_cheeks_mask)
+                b_nose, g_nose, r_nose, *_ = cv.mean(frame, bin_nose_mask)
+                b_chin, g_chin, r_chin, *_ = cv.mean(frame, bin_chin_mask)
 
-            # Get the current video timestamp 
-            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)/1000
+                # Get the current video timestamp 
+                timestamp = capture.get(cv.CAP_PROP_POS_MSEC)/1000
 
-            csv.write(f"{timestamp:.5f},{red:.5f},{green:.5f},{blue:.5f}," +
-                      f"{r_cheeks:.5f},{g_cheeks:.5f},{b_cheeks:.5f}," + 
-                      f"{r_nose:.5f},{g_nose:.5f},{b_nose:.5f}," + 
-                      f"{r_chin:.5f},{g_chin:.5f},{b_chin:.5f}\n")
+                csv.write(f"{timestamp:.5f},{red:.5f},{green:.5f},{blue:.5f}," +
+                        f"{r_cheeks:.5f},{g_cheeks:.5f},{b_cheeks:.5f}," + 
+                        f"{r_nose:.5f},{g_nose:.5f},{b_nose:.5f}," + 
+                        f"{r_chin:.5f},{g_chin:.5f},{b_chin:.5f}\n")
 
-        elif color_space == COLOR_SPACE_HSV:
-            # Extracting the color channel means
-            hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_fo_mask)
-            h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_cheeks_mask)
-            h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_nose_mask)
-            h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_chin_mask)
+            elif color_space == COLOR_SPACE_HSV:
+                # Extracting the color channel means
+                hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_fo_mask)
+                h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_cheeks_mask)
+                h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_nose_mask)
+                h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_chin_mask)
 
-            # Get the current video timestamp
-            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)/1000
+                # Get the current video timestamp
+                timestamp = capture.get(cv.CAP_PROP_POS_MSEC)/1000
 
-            csv.write(f"{timestamp:.5f},{hue:.5f},{sat:.5f},{val:.5f}," +
-                      f"{h_cheeks:.5f},{s_cheeks:.5f},{v_cheeks:.5f}," +
-                      f"{h_nose:.5f},{s_nose:.5f},{v_nose:.5f}," + 
-                      f"{h_chin:.5f},{s_chin:.5f},{v_chin:.5f}\n")
-        
-        elif color_space == COLOR_SPACE_GRAYSCALE:
-            # Extracting the color channel means
-            val, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_fo_mask)
-            v_cheeks, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_cheeks_mask)
-            v_nose, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_nose_mask)
-            v_chin, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_chin_mask)
+                csv.write(f"{timestamp:.5f},{hue:.5f},{sat:.5f},{val:.5f}," +
+                        f"{h_cheeks:.5f},{s_cheeks:.5f},{v_cheeks:.5f}," +
+                        f"{h_nose:.5f},{s_nose:.5f},{v_nose:.5f}," + 
+                        f"{h_chin:.5f},{s_chin:.5f},{v_chin:.5f}\n")
+            
+            elif color_space == COLOR_SPACE_GRAYSCALE:
+                # Extracting the color channel means
+                val, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_fo_mask)
+                v_cheeks, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_cheeks_mask)
+                v_nose, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_nose_mask)
+                v_chin, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_chin_mask)
 
-            # Get the current video timestamp
-            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)/1000
+                # Get the current video timestamp
+                timestamp = capture.get(cv.CAP_PROP_POS_MSEC)/1000
 
-            csv.write(f"{timestamp:.5f},{val:.5f},{v_cheeks:.5f},{v_nose:.5f},{v_chin:.5f}\n")
+                csv.write(f"{timestamp:.5f},{val:.5f},{v_cheeks:.5f},{v_nose:.5f},{v_chin:.5f}\n")
+        else:
+            if color_space == COLOR_SPACE_RGB:
+                # Extracting the color channel means
+                blue, green, red, *_ = cv.mean(frame, bin_fo_mask)
+                b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, bin_cheeks_mask)
+                b_nose, g_nose, r_nose, *_ = cv.mean(frame, bin_nose_mask)
+                b_chin, g_chin, r_chin, *_ = cv.mean(frame, bin_chin_mask)
+
+                csv.write(f"{red:.5f},{green:.5f},{blue:.5f}," +
+                        f"{r_cheeks:.5f},{g_cheeks:.5f},{b_cheeks:.5f}," + 
+                        f"{r_nose:.5f},{g_nose:.5f},{b_nose:.5f}," + 
+                        f"{r_chin:.5f},{g_chin:.5f},{b_chin:.5f}\n")
+
+            elif color_space == COLOR_SPACE_HSV:
+                # Extracting the color channel means
+                hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_fo_mask)
+                h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_cheeks_mask)
+                h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_nose_mask)
+                h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_chin_mask)
+
+                csv.write(f"{hue:.5f},{sat:.5f},{val:.5f}," +
+                        f"{h_cheeks:.5f},{s_cheeks:.5f},{v_cheeks:.5f}," +
+                        f"{h_nose:.5f},{s_nose:.5f},{v_nose:.5f}," + 
+                        f"{h_chin:.5f},{s_chin:.5f},{v_chin:.5f}\n")
+            
+            elif color_space == COLOR_SPACE_GRAYSCALE:
+                # Extracting the color channel means
+                val, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_fo_mask)
+                v_cheeks, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_cheeks_mask)
+                v_nose, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_nose_mask)
+                v_chin, *_ = cv.mean(cv.cvtColor(frame, color_space), bin_chin_mask)
+
+                csv.write(f"{val:.5f},{v_cheeks:.5f},{v_nose:.5f},{v_chin:.5f}\n")
+            
+            break
     
-    capture.release()
+    if not static_image_mode:
+        capture.release()
     csv.close()
+    logger.info(f"Function execution completed successfully, view outputted file(s) at {dir_file_path}.")
 
-def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFLE_FRAME_ORDER, rand_seed:int|None = None, block_order:list[int]|None = None, 
-                        block_size:int = 30, with_sub_dirs:bool = False) -> None:
-    """For each video file contained within input_dir, randomly shuffles the frame order by shuffling blocks of frames. Block size is determined by
-    input parameter block_size. After shuffling the block order, the function writes the processed file to output_dir. If non-random shuffling is required, 
-    block ordering can be provided as a list of integers to the input parameter block_order. When block_order is provided, the block size is automatically computed.
+def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, rand_seed:int|None = None, block_duration:int = 1000) -> tuple:
+    """ This function takes a given file path and shuffling method, and returns a tuple containing the block_order array and the block size parameter used
+    in shuffle_frame_order(). The output of generate_shuffled_block_array can be directly fed into shuffle_frame_order as the block_order parameter.
+
+    Parameters
+    ----------
+
+    file_path: str
+        A path string to a video file in your current working directory tree.
+
+    shuffle_method: int
+        An integer flag indicating the shuffling method used. For a full list of options please see pyfame_utils.
+
+    rand_seed: int | None
+        A seed to numpy's random number generator.
+    
+    block_duration: int
+        The precise time duration in milliseconds of each block of frames.
+
+    Raises
+    ------
+
+    OSError: given invalid input file paths.
+    TypeError: given invalid parameter types.
+    ValueError: given unrecognized values for input parameters.
+    """ 
+
+    logger.info("Now entering function generate_shuffled_block_array().")
+
+    # Input parameter checks
+    if not isinstance(file_path, str):
+        logger.warning("Function encountered a TypeError for input parameter file_path. "
+                       "Message: invalid type for parameter file_path, expected str.")
+        raise TypeError("Generate_shuffled_block_array: invalid type for parameter file_path.")
+    elif not os.path.exists(file_path):
+        logger.warning("Function encountered an OSError for input parameter file_path. "
+                       "Message: file_path is not a valid path in your current working tree.")
+        raise OSError("Generate_shuffled_block_array: file_path is not a valid path, or path does not exist.")
+    elif not os.path.isfile(file_path):
+        logger.warning("Function encountered a ValueError for input parameter file_path. "
+                       "Message: file_path is not a valid path to a file in your current working tree.")
+        raise ValueError("Generate_shuffled_block_array: file_path must be a valid path to a video file.")
+    
+    if not isinstance(shuffle_method, int):
+        logger.warning("Function encountered a TypeError for input parameter shuffle_method. "
+                       "Message: invalid type for parameter shuffle_method, expected int.")
+        raise TypeError("Generate_shuffled_block_array: parameter running_mode must be an integer.")
+    # add valueError check
+
+    if rand_seed != None:
+        if not isinstance(rand_seed, int):
+            logger.warning("Function encountered a TypeError for input parameter rand_seed. "
+                       "Message: invalid type for parameter rand_seed, expected int.")
+            raise TypeError("Generate_shuffled_block_array: parameter rand_seed must be an integer.")
+    
+    if not isinstance(block_duration, int):
+        logger.warning("Function encountered a TypeError for input parameter block_duration. "
+                       "Message: invalid type for parameter block_duration, expected int.")
+        raise TypeError("Generate_shuffled_block_array: parameter block_size must be an integer")
+    
+    # Logging input parameters
+    shuffle_method_name = get_variable_name(shuffle_method, globals())
+    logger.info(f"Input Parameters: file_path = {file_path}, shuffle_method = {shuffle_method_name}, rand_seed = {rand_seed}, "
+                f"block_duration = {block_duration}.")
+
+    # Initialize videocapture object
+    capture = cv.VideoCapture(file_path)
+    if not capture.isOpened():
+        logger.error("Function has encountered an error attempting to initialize cv.VideoCapture() object, exiting with status 1.")
+        debug_logger.error("Function has enountered an error attempting to initialize cv.VideoCapture() object "
+                           f"with file {file_path}. File may be corrupt or incorrectly encoded.")
+        sys.exit(1)
+    
+    # Initialize numpy random number generator
+    rng = None
+    if rand_seed != None:
+        rng = np.random.default_rng(seed=rand_seed)
+    else:
+        rng = np.random.default_rng()
+
+    # Retrieve relevant capture properties to compute block_size
+    num_frames = capture.get(cv.CAP_PROP_FRAME_COUNT)
+    fps = capture.get(cv.CAP_PROP_FPS)
+    video_duration = (num_frames/fps) * 1000
+    num_blocks = (video_duration / block_duration)
+    block_size = int(num_frames//num_blocks)
+
+    num_blocks = int(np.ceil(num_blocks))
+    block_order = []
+
+    for i in range(num_blocks):
+        block_order.append(i)
+
+    match shuffle_method:
+        case 34:
+            rng.shuffle(block_order)
+
+        case 35:
+            block_order = rng.choice(block_order, size=num_blocks, replace=True)
+        
+        case 36:
+            block_order.reverse()
+
+    logger.info(f"Function execution completed, returning ({block_order}, {block_size}).")
+    return (block_order, block_size)
+
+def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, rand_seed:int|None = None, block_order:tuple|None = None, 
+                        block_duration:int = 1000, drop_last_block:bool = True, with_sub_dirs:bool = False) -> None:
+    """For each video file contained within input_dir, randomly shuffles the frame order by shuffling blocks of frames. Use utility function generate_shuffled_block_array()
+    to pre-generate the block_order list. The output of generate_shuffled_block_array() can be directly passed as the value of input parameter block_order. Alternatively, 
+    simply specify the shuffle_method of choice and the block_duration, and shuffle_frame_order() will invoke generate_shuffled_block_array() internally. After shuffling the 
+    block order, the function writes the processed file to output_dir. 
     
     Parameters
     ----------
@@ -4089,18 +4876,21 @@ def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFL
     output_dir: str
         A path string to the directory where outputted video files will be saved.
 
-    running_mode: int
+    shuffle_method: int
         An integer flag indicating the functions running mode. One of SHUFFLE_FRAME_ORDER or REVERSE_FRAME_ORDER.
     
     rand_seed: int
         The seed number provided to the numpy random generator instance.
     
-    block_order: list of int
-        A zero-indexed list providing the sequence order of frame-blocks to be written out. If None, output order will be random.
-        For example, a 4-block block_order list would look something like [1,0,3,2].
+    block_order: tuple or None
+        A tuple (as output of generate_shuffled_block_array()) containing a (list, int), where the list is the block ordering
+        and the integer specifies the number of frames per block. If None, the tuple contents will be computed internally.
 
-    block_size: int
-        The number of frames in each block that will be randomly shuffled.
+    block_duration: int
+        The time duration (in milliseconds) of each block of frames.
+
+    drop_last_block: bool
+        A boolean flag indicating if the uneven block of remaining frames should be dropped from the output.
     
     with_sub_dirs: bool
         A boolean flag indicating if the input directory contains subdirectories.
@@ -4112,42 +4902,79 @@ def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFL
     OSError: given invalid file paths to input_dir or output_dir.
     """
 
+    logger.info("Now entering function shuffle_frame_order().")
+
     single_file = False
     rng = None
 
     # Performing checks on function parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Shuffle_frame_order: invalid type for parameter input_dir.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path in your current working tree.")
         raise OSError("Shuffle_frame_order: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         single_file = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Shuffle_frame_order: parameter output_dir must be a str.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Shuffle_frame_order: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise ValueError("Shuffle_frame_order: output_dir must be a valid path to a directory.")
     
-    if not isinstance(running_mode, int):
+    if not isinstance(shuffle_method, int):
+        logger.warning("Function encountered a TypeError for input parameter shuffle_method. "
+                       "Message: invalid type for parameter shuffle_method, expected int.")
         raise TypeError("Shuffle_frame_order: parameter running_mode must be an integer.")
+    # add valueerror check
 
     if rand_seed != None:
         if not isinstance(rand_seed, int):
+            logger.warning("Function encountered a TypeError for input parameter rand_seed. "
+                       "Message: invalid type for parameter rand_seed, expected int.")
             raise TypeError("Shuffle_frame_order: parameter rand_seed must be an integer.")
     
-    if not isinstance(block_size, int):
+    if not isinstance(block_duration, int):
+        logger.warning("Function encountered a TypeError for input parameter block_duration. "
+                       "Message: invalid type for parameter block_duration, expected int.")
         raise TypeError("Shuffle_frame_order: parameter block_size must be an integer")
     
     if block_order != None:
         if not isinstance(block_order, list):
+            logger.warning("Function encountered a TypeError for input parameter block_order. "
+                           "Message: invalid type for parameter block_order, expected list.")
             raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
-        elif not isinstance(block_order[-1], int):
-            raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
+        
+        for i in block_order:
+            if not isinstance(i, int):
+                logger.warning("Function encountered a TypeError for input parameter block_order. "
+                               "Message: invalid type for parameter block_order, expected list[int].")
+                raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
     
+    if not isinstance(drop_last_block, bool):
+        logger.warning("Function Encountered a TypeError for input parameter drop_last_block. "
+                       "Message: invalid type for parameter drop_last_block, expected bool.")
+        raise TypeError("Shuffle_frame_order: parameter drop_last_block must be a bool.")
+
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function Encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Shuffle_frame_order: parameter with_sub_dirs must be a bool.")
+    
+    # Logging input parameters
+    shuffle_method_name = get_variable_name(shuffle_method, globals())
+    logger.info(f"Input Parameters: shuffle_method = {shuffle_method_name}, rand_seed = {rand_seed}, block_order = {block_order}, "
+                f"block_duration = {block_duration}, drop_last_block = {drop_last_block}, with_sub_dirs = {with_sub_dirs}.")
     
     # Creating a list of file path strings to iterate through when processing
     files_to_process = []
@@ -4160,11 +4987,16 @@ def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFL
         files_to_process = [os.path.join(path, file) 
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
+        
+    logger.info(f"Function has read in {len(files_to_process)} files from input directory {input_dir}.")
     
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Frame_Shuffle"):
         os.mkdir(output_dir + "\\Frame_Shuffle")
-    output_dir = output_dir + "\\Frame_Shuffle"
+        output_dir = output_dir + "\\Frame_Shuffle"
+        logger.info(f"Function created new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Frame_Shuffle"
 
     if rand_seed == None:
         rng = np.random.default_rng()
@@ -4178,6 +5010,8 @@ def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFL
         codec = None
         capture = None
         result = None
+        block_size = None
+        dir_file_path = output_dir + f"{filename}_frame_shuffled{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -4186,12 +5020,18 @@ def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFL
             case ".mov":
                 codec = "MP4V"
             case _:
-                print("Shuffle_frame_order: Incompatible video file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                   "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
       
         capture = cv.VideoCapture(file)
         if not capture.isOpened():
-            print("Shuffle_frame_order: Error opening video file.")
+            logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                         "Function exiting with status 1.")
+            debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                               f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
             sys.exit(1)
         
         size = (int(capture.get(3)), int(capture.get(4)))
@@ -4199,67 +5039,203 @@ def shuffle_frame_order(input_dir:str, output_dir:str, running_mode:int = SHUFFL
         result = cv.VideoWriter(output_dir + "\\" + filename + "_frame_shuffled" + extension,
                                 cv.VideoWriter.fourcc(*codec), 30, size)
         if not result.isOpened():
-            print("Shuffle_frame_order: Error opening VideoWriter object.")
+            logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                         "Function exiting with status 1.")
+            debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                               f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
             sys.exit(1)
 
-        if block_order != None:
-            block_size = int(capture.get(cv.CAP_PROP_FRAME_COUNT)//len(block_order)) + 1
+        if block_order is None:
+            block_order, block_size = generate_shuffled_block_array(file, shuffle_method, rand_seed, block_duration)
+        else:
+            block_order, block_size = block_order
+        
+        match shuffle_method:
+            case 34 | 35 | 36:
+                shuffled_frames = {}
+                counter = 0
+                cur_block = []
 
-        if running_mode == SHUFFLE_FRAME_ORDER:
-            shuffled_frames = {}
-            counter = 0
-            cur_block = []
-
-            # Read in and store all frames
-            while ret := capture.read():
-                success, frame = ret
-                if success:
-                    cur_block.append(frame)
-                    if len(cur_block) == block_size:
+                # Read in and store all frames
+                while ret := capture.read():
+                    success, frame = ret
+                    if success:
+                        cur_block.append(frame)
+                        if len(cur_block) == block_size:
+                            shuffled_frames.update({counter:cur_block.copy()})
+                            cur_block = []
+                            counter += 1
+                    elif len(cur_block) > 0:
                         shuffled_frames.update({counter:cur_block.copy()})
-                        cur_block = []
-                        counter += 1
-                elif len(cur_block) > 0:
-                    shuffled_frames.update({counter:cur_block})
-                    break
+                        break
+                    else:
+                        break
+                
+                if drop_last_block:
+                    key = len(shuffled_frames) - 1 
+                    shuffled_frames.pop(key)
 
-            original_keys = list(shuffled_frames.keys())
-            shuffled_keys = rng.permutation(original_keys.copy())
-            ref_dict = shuffled_frames.copy()
+                    largest_key_idx = block_order.index(max(block_order))
+                    del block_order[largest_key_idx]
 
-            if block_order == None:
-                for old_key,new_key in zip(original_keys,shuffled_keys):
-                    new_block = ref_dict[new_key]
-                    shuffled_frames.update({old_key:new_block})
-            else:
+                original_keys = list(shuffled_frames.keys())
+                ref_dict = shuffled_frames.copy()
+
                 for old_key,new_key in zip(original_keys,block_order):
                     new_block = ref_dict[new_key]
                     shuffled_frames.update({old_key:new_block})
-
-            for key in original_keys:
-                block = shuffled_frames.get(key)
-                for out_frame in block:
-                    result.write(out_frame)
-
-        elif running_mode == REVERSE_FRAME_ORDER:
-            shuffled_frames = {}
-            counter = 0
-
-            # Read in and store all frames
-            while ret := capture.read():
-                success, frame = ret
-                if success:
-                    shuffled_frames.update({counter:frame})
-                    counter += 1
-                else:
-                    break
+                    
+                for key in original_keys:
+                    block = shuffled_frames.get(key)
+                    for out_frame in block:
+                        result.write(out_frame)
             
-            for key in range(len(shuffled_frames)-1, -1, -1):
-                out_frame = shuffled_frames.get(key)
-                result.write(out_frame)
+            case 37:
+                shuffled_frames = {}
+                counter = 0
+                cur_block = []
+
+                # Read in and store all frames
+                while ret := capture.read():
+                    success, frame = ret
+                    if success:
+                        cur_block.append(frame)
+                        if len(cur_block) == block_size:
+                            shuffled_frames.update({counter:cur_block.copy()})
+                            cur_block = []
+                            counter += 1
+                    elif len(cur_block) > 0:
+                        shuffled_frames.update({counter:cur_block.copy()})
+                        break
+                    else:
+                        break
+                
+                if drop_last_block:
+                    key = len(shuffled_frames) - 1 
+                    shuffled_frames.pop(key)
+                
+                original_keys = list(shuffled_frames.keys())
+
+                # Perform right cyclic shift
+                for key in original_keys:
+                    block = shuffled_frames.get(key)
+                    new_block = [block[-1]] + block[:-1]
+                    shuffled_frames.update({key:new_block})
+                
+                for key in original_keys:
+                    block = shuffled_frames.get(key)
+                    for out_frame in block:
+                        result.write(out_frame)
+            
+            case 38:
+                shuffled_frames = {}
+                counter = 0
+                cur_block = []
+
+                # Read in and store all frames
+                while ret := capture.read():
+                    success, frame = ret
+                    if success:
+                        cur_block.append(frame)
+                        if len(cur_block) == block_size:
+                            shuffled_frames.update({counter:cur_block.copy()})
+                            cur_block = []
+                            counter += 1
+                    elif len(cur_block) > 0:
+                        shuffled_frames.update({counter:cur_block.copy()})
+                        break
+                    else:
+                        break
+                
+                if drop_last_block:
+                    key = len(shuffled_frames) - 1 
+                    shuffled_frames.pop(key)
+                
+                original_keys = list(shuffled_frames.keys())
+                # Perform left cyclic shift
+                for key in original_keys:
+                    block = shuffled_frames.get(key)
+                    new_block = block[1:] + [block[0]]
+                    shuffled_frames.update({key:new_block})
+                    
+                for key in original_keys:
+                    block = shuffled_frames.get(key)
+                    for out_frame in block:
+                        result.write(out_frame)
+            
+            case 39:
+                shuffled_frames = {}
+                counter = 0
+                cur_block = []
+
+                # Read in and store all frames
+                while ret := capture.read():
+                    success, frame = ret
+                    if success:
+                        cur_block.append(frame)
+                        if len(cur_block) == block_size:
+                            shuffled_frames.update({counter:cur_block.copy()})
+                            cur_block = []
+                            counter += 1
+                    elif len(cur_block) > 0:
+                        shuffled_frames.update({counter:cur_block.copy()})
+                        break
+                    else:
+                        break
+                
+                if drop_last_block:
+                    key = len(shuffled_frames) - 1 
+                    shuffled_frames.pop(key)
+                
+                shuffled_palindrome_frames = {}
+                original_keys = list(shuffled_frames.keys())
+                counter = 0
+
+                # Perform palindrome stutter
+                for key in original_keys:
+                    block = shuffled_frames.get(key)
+                    rev_block = block[::-1]
+                    shuffled_palindrome_frames.update({counter:block})
+                    shuffled_palindrome_frames.update({counter+1:rev_block})
+                    counter += 2
+                
+                palindrome_keys = list(shuffled_palindrome_frames.keys())
+                for key in palindrome_keys:
+                    block = shuffled_palindrome_frames.get(key)
+                    for out_frame in block:
+                        result.write(out_frame)
+
+            case 40:
+                shuffled_frames = {}
+                counter = 0
+                cur_block = []
+
+                # Read in and store all frames
+                while ret := capture.read():
+                    success, frame = ret
+                    if success:
+                        cur_block.append(frame)
+                        if len(cur_block) == block_size:
+                            shuffled_frames.update({counter:cur_block.copy()})
+                            cur_block = []
+                            counter += 1
+                    elif len(cur_block) > 0:
+                        shuffled_frames.update({counter:cur_block.copy()})
+                        break
+                    else:
+                        break
+
+                shuffled_frames.pop(len(shuffled_frames)-1)
+
+                # perform interleaving of frames
+                interleaved_frames = list(itertools.chain(*zip(*(shuffled_frames.values()))))
+
+                for frame in interleaved_frames:
+                    result.write(frame)
         
         capture.release()
         result.release()
+        logger.info(f"Function execution completed successfully, view outputted file(s) at {dir_file_path}.")
         
         
 def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude: float = 8.0, timing_func:Callable[...,float] = sigmoid, 
@@ -4318,6 +5294,8 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
     ValueError:
         If provided timing_func does not return a normalised float value.
     """
+
+    logger.info("Now entering function face_color_shift().")
 
     singleFile = False
     static_image_mode = False
@@ -4386,52 +5364,108 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
     
     # Performing checks on function parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Face_color_shift: invalid type for parameter input_dir.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path in your current working tree.")
         raise OSError("Face_color_shift: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Face_color_shift: parameter output_dir must be a str.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Face_color_shift: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered a ValueError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise ValueError("Face_color_shift: output_dir must be a valid path to a directory.")
     
     if not isinstance(onset_t, float):
+        logger.warning("Function encountered a TypeError for input parameter onset_t. "
+                       "Message: invalid type for parameter onset_t, expected float.")
         raise TypeError("Face_color_shift: parameter onset_t must be a float.")
     if not isinstance(offset_t, float):
+        logger.warning("Function encountered a TypeError for input parameter offset_t. "
+                       "Message: invalid type for parameter offset_t, expected float.")
         raise TypeError("Face_color_shift: parameter offset_t must be a float.")
     if not isinstance(shift_magnitude, float):
+        logger.warning("Function encountered a TypeError for input parameter shift_magnitude. "
+                       "Message: invalid type for parameter shift_magnitude, expected float.")
         raise TypeError("Face_color_shift: parameter shift_magnitude must be a float.")
 
     if isinstance(shift_color, str):
         if str.lower(shift_color) not in ["red", "green", "blue", "yellow"]:
+            logger.warning("Function encountered a ValueError for input parameter shift_color. "
+                           "Message: unrecognized value for parameter shift_color, see pyfame_utils for a full list of accepted options.")
             raise ValueError("Face_color_shift: shift_color must be one of: red, green, blue, yellow.")
     elif isinstance(shift_color, int):
         if shift_color not in [COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW]:
+            logger.warning("Function encountered a ValueError for input parameter shift_color. "
+                           "Message: unrecognized value for parameter shift_color, see pyfame_utils for a full list of accepted options.")
             raise ValueError("Face_color_shift: shift_color must be one of: red, green, blue, yellow.")
     else:
+        logger.warning("Function encountered a TypeError for input parameter shift_color. "
+                       "Message: invalid type for parameter shift_color, expected int or str.")
         raise TypeError("Face_color_shift: shift_color must be of type str or int.")
 
     if not isinstance(landmark_regions, list):
+        logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
+                       "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_color_shift: parameter landmarks_to_color expects a list.")
-    if not isinstance(landmark_regions[0], list) and not isinstance(landmark_regions[0], tuple):
-        raise ValueError("Face_color_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
+    for val in landmark_regions:
+        if not isinstance(val, list) or not isinstance(val, tuple):
+            logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                           "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
+            raise ValueError("Face_color_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
 
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Face_color_shift: parameter with_sub_dirs must be of type bool.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Face_color_shift: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Face_color_shift: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Face_color_shift: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Face_color_shift: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+    shift_color_name = ""
+    if isinstance(shift_color, str):
+        shift_color_name = shift_color
+    else:
+        shift_color_name = get_variable_name(shift_color, globals())
+
+    landmark_names = "["
+    for i in range(len(landmark_regions)):
+        cur_name = get_variable_name(landmark_regions[i], globals())
+        if i == len(landmark_regions) - 1:
+            landmark_names += f"{cur_name}]"
+        else:
+            landmark_names += f"{cur_name}, "
+
+    logger.info(f"Input parameters: onset_t = {onset_t}, offset_t = {offset_t}, shift_magnitude = {shift_magnitude}, "
+                f"shift_color = {shift_color_name}, landmark_regions = {landmark_names}, with_sub_dirs = {with_sub_dirs}.")
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
 
     # Creating a list of file path strings to iterate through when processing
     files_to_process = []
@@ -4445,10 +5479,15 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
     
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
+    
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Color_Shifted"):
         os.mkdir(output_dir + "\\Color_Shifted")
-    output_dir = output_dir + "\\Color_Shifted"
+        output_dir = output_dir + "\\Color_Shifted"
+        logger.info(f"Function created a new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Color_Shifted"
     
     for file in files_to_process:
             
@@ -4458,6 +5497,7 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         capture = None
         result = None
         cap_duration = None
+        dir_file_path = output_dir + f"{filename}_color_shifted{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -4476,13 +5516,19 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Face_color_shift: Incompatible video or image file type. Please see utils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                   "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
         
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Face_color_shift: Error opening video file.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                                   f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
                 sys.exit(1)
             
             size = (int(capture.get(3)), int(capture.get(4)))
@@ -4490,7 +5536,10 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
             result = cv.VideoWriter(output_dir + "\\" + filename + "_color_shifted" + extension,
                                     cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Face_color_shift: Error opening VideoWriter object.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                                   f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
                 sys.exit(1)
             
             # Getting the video duration for weight calculations
@@ -4524,6 +5573,10 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            elif static_image_mode:
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                sys.exit(1)
             else:
                 continue
             
@@ -4843,13 +5896,17 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                 success = cv.imwrite(output_dir + "\\" + filename + "_color_shifted" + extension, frame_coloured)
 
                 if not success:
-                    print("Face_color_shift: cv2.imwrite error.")
+                    logger.warning("Function has encountered an error attempting to call cv2.imwrite(), exiting with status 1.")
+                    debug_logger.warning("Function has encountered an error attempting to call cv2.imwrite() to "
+                                         f"output directory {dir_file_path}. Please ensure that this directory path is a valid path in your current working tree.")
                     sys.exit(1)
                 break
 
         if not static_image_mode:
             capture.release()
             result.release()
+        
+        logger.info(f"Function execution completed successfully, view outputted files at {dir_file_path}.")
 
 def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude:float = -8.0, 
                           timing_func:Callable[..., float] = sigmoid, landmark_regions:list[list[tuple]] | list[tuple] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
@@ -4910,43 +5967,87 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
     
     # Performing checks on function parameters
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Face_saturation_shift: invalid type for parameter input_dir.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path in your current working tree.")
         raise OSError("Face_saturation_shift: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Face_saturation_shift: parameter output_dir must be a str.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Face_saturation_shift: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered a ValueError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise ValueError("Face_saturation_shift: output_dir must be a valid path to a directory.")
     
     if not isinstance(onset_t, float):
+        logger.warning("Function encountered a TypeError for input parameter onset_t. "
+                       "Message: invalid type for parameter onset_t, expected float.")
         raise TypeError("Face_saturation_shift: parameter onset_t must be a float.")
     if not isinstance(offset_t, float):
+        logger.warning("Function encountered a TypeError for input parameter offset_t. "
+                       "Message: invalid type for parameter offset_t, expected float.")
         raise TypeError("Face_saturation_shift: parameter offset_t must be a float.")
     if not isinstance(shift_magnitude, float):
+        logger.warning("Function encountered a TypeError for input parameter shift_magnitude. "
+                       "Message: invalid type for parameter shift_magnitude, expected float.")
         raise TypeError("Face_saturation_shift: parameter shift_magnitude must be a float.")
 
     if not isinstance(landmark_regions, list):
-        raise TypeError("Face_saturation_shift: parameter landmark_regions expects a list.")
-    if not isinstance(landmark_regions[0], list) and not isinstance(landmark_regions[0], tuple):
-        raise ValueError("Face_saturation_shift: landmark_regions may either be a list of lists, or a singular list of tuples.")
+        logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
+                       "Message: invalid type for parameter landmark_regions, expected list.")
+        raise TypeError("Face_saturation_shift: parameter landmarks_to_color expects a list.")
+    for val in landmark_regions:
+        if not isinstance(val, list) or not isinstance(val, tuple):
+            logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                           "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
+            raise ValueError("Face_saturation_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
 
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Face_saturation_shift: parameter with_sub_dirs must be of type bool.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Face_saturation_shift: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Face_saturation_shift: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Face_saturation_shift: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Face_saturation_shift: parameter min_tracking_confidence must be in the range [0,1].")
+    
+    # Logging input parameters
+    landmark_names = "["
+    for i in range(len(landmark_regions)):
+        cur_name = get_variable_name(landmark_regions[i], globals())
+        if i == len(landmark_regions) - 1:
+            landmark_names += f"{cur_name}]"
+        else:
+            landmark_names += f"{cur_name}, "
+
+    logger.info(f"Input parameters: onset_t = {onset_t}, offset_t = {offset_t}, shift_magnitude = {shift_magnitude}, "
+                f"landmark_regions = {landmark_names}, with_sub_dirs = {with_sub_dirs}.")
+    logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
     
     # Creating a list of file path strings to iterate through when processing
     files_to_process = []
@@ -4960,10 +6061,15 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                             for path, dirs, files in os.walk(input_dir, topdown=True) 
                             for file in files]
     
+    logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
+    
     # Creating named output directories for video output
     if not os.path.isdir(output_dir + "\\Sat_Shifted"):
         os.mkdir(output_dir + "\\Sat_Shifted")
-    output_dir = output_dir + "\\Sat_Shifted"
+        output_dir = output_dir + "\\Sat_Shifted"
+        logger.info(f"Function created a new output directory {output_dir}.")
+    else:
+        output_dir = output_dir + "\\Sat_Shifted"
     
     for file in files_to_process:
             
@@ -4973,6 +6079,7 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         capture = None
         result = None
         cap_duration = None
+        dir_file_path = output_dir + f"{filename}_sat_shifted{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -4991,13 +6098,19 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Face_saturation_shift: Incompatible video or image file type. Please see psyfaceutils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                   "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
         
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Face_saturation_shift: Error opening video file.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                                   f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
                 sys.exit(1)
             
             size = (int(capture.get(3)), int(capture.get(4)))
@@ -5005,7 +6118,10 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
             result = cv.VideoWriter(output_dir + "\\" + filename + "_sat_shifted" + extension,
                                     cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Face_saturation_shift: Error opening VideoWriter object.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                                   f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
                 sys.exit(1)
             
             # Getting the video duration for weight calculations
@@ -5038,6 +6154,10 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            elif static_image_mode:
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                sys.exit(1)
             else:
                 continue
             
@@ -5377,7 +6497,9 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                 success = cv.imwrite(output_dir + "\\" + filename + "_sat_shifted" + extension, img_bgr)
 
                 if not success:
-                    print("Face_saturation_shift: cv2.imwrite error.")
+                    logger.warning("Function has encountered an error attempting to call cv2.imwrite(), exiting with status 1.")
+                    debug_logger.warning("Function has encountered an error attempting to call cv2.imwrite() to "
+                                         f"output directory {dir_file_path}. Please ensure that this directory path is a valid path in your current working tree.")
                     sys.exit(1)
 
                 break
@@ -5385,6 +6507,8 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         if not static_image_mode:
             capture.release()
             result.release()
+
+        logger.info(f"Function execution completed successfully, view outputted files at {dir_file_path}.")
 
 def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude:int = 20, 
                         timing_func:Callable[..., float] = sigmoid, landmark_regions:list[list[tuple]] | list[tuple] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
@@ -5441,47 +6565,79 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
 
     singleFile = False
     static_image_mode = False
-    
+
     # Performing checks on function parameters
+    
     if not isinstance(input_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter input_dir. "
+                       "Message: invalid type for parameter input_dir, expected str.")
         raise TypeError("Face_brightness_shift: invalid type for parameter input_dir.")
     elif not os.path.exists(input_dir):
+        logger.warning("Function encountered an OSError for input parameter input_dir. "
+                       "Message: input_dir is not a valid path in your current working tree.")
         raise OSError("Face_brightness_shift: input directory path is not a valid path, or the directory does not exist.")
     elif os.path.isfile(input_dir):
         singleFile = True
     
     if not isinstance(output_dir, str):
+        logger.warning("Function encountered a TypeError for input parameter output_dir. "
+                       "Message: invalid type for parameter output_dir, expected str.")
         raise TypeError("Face_brightness_shift: parameter output_dir must be a str.")
     elif not os.path.exists(output_dir):
+        logger.warning("Function encountered an OSError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Face_brightness_shift: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered a ValueError for input parameter output_dir. "
+                       "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise ValueError("Face_brightness_shift: output_dir must be a valid path to a directory.")
     
     if not isinstance(onset_t, float):
+        logger.warning("Function encountered a TypeError for input parameter onset_t. "
+                       "Message: invalid type for parameter onset_t, expected float.")
         raise TypeError("Face_brightness_shift: parameter onset_t must be a float.")
     if not isinstance(offset_t, float):
+        logger.warning("Function encountered a TypeError for input parameter offset_t. "
+                       "Message: invalid type for parameter offset_t, expected float.")
         raise TypeError("Face_brightness_shift: parameter offset_t must be a float.")
-    if not isinstance(shift_magnitude, int):
-        raise TypeError("Face_brightness_shift: parameter shift_magnitude must be an int.")
-    
+    if not isinstance(shift_magnitude, float):
+        logger.warning("Function encountered a TypeError for input parameter shift_magnitude. "
+                       "Message: invalid type for parameter shift_magnitude, expected float.")
+        raise TypeError("Face_brightness_shift: parameter shift_magnitude must be a float.")
+
     if not isinstance(landmark_regions, list):
-        raise TypeError("Face_saturation_shift: parameter landmark_regions expects a list.")
-    if not isinstance(landmark_regions[0], list) and not isinstance(landmark_regions[0], tuple):
-        raise ValueError("Face_saturation_shift: landmark_regions may either be a list of lists, or a singular list of tuples.")
+        logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
+                       "Message: invalid type for parameter landmark_regions, expected list.")
+        raise TypeError("Face_brightness_shift: parameter landmarks_to_color expects a list.")
+    for val in landmark_regions:
+        if not isinstance(val, list) or not isinstance(val, tuple):
+            logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                           "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
+            raise ValueError("Face_brightness_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
 
     if not isinstance(with_sub_dirs, bool):
+        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
+                       "Message: invalid type for parameter with_sub_dirs, expected bool.")
         raise TypeError("Face_brightness_shift: parameter with_sub_dirs must be of type bool.")
     
     if not isinstance(min_detection_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_detection_confidence. "
+                       "Message: invalid type for parameter min_detection_confidence, expected float.")
         raise TypeError("Face_brightness_shift: parameter min_detection_confidence must be of type float.")
     elif min_detection_confidence < 0 or min_detection_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_detection_confidence. "
+                       "Message: min_detection_confidence must be a float in the range [0,1].")
         raise ValueError("Face_brightness_shift: parameter min_detection_confidence must be in the range [0,1].")
     
     if not isinstance(min_tracking_confidence, float):
+        logger.warning("Function encountered a TypeError for input parameter min_tracking_confidence. "
+                       "Message: invalid type for parameter min_tracking_confidence, expected float.")
         raise TypeError("Face_brightness_shift: parameter min_tracking_confidence must be of type float.")
     elif min_tracking_confidence < 0 or min_tracking_confidence > 1:
+        logger.warning("Function encountered a ValueError for input parameter min_tracking_confidence. "
+                       "Message: min_tracking_confidence must be a float in the range [0,1].")
         raise ValueError("Face_brightness_shift: parameter min_tracking_confidence must be in the range [0,1].")
-    
+      
     # Creating a list of file path strings to iterate through when processing
     files_to_process = []
 
@@ -5507,6 +6663,7 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         capture = None
         result = None
         cap_duration = None
+        dir_file_path = output_dir + f"{filename}_bright_shifted{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -5525,21 +6682,30 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
-                print("Face_brightness_shift: Incompatible video or image file type. Please see psyfaceutils.transcode_video_to_mp4().")
+                logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
+                             "Please see pyfameutils.transcode_video_to_mp4().")
+                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
+                                   "Consider using different input file formats, or transcoding video files with pyfameutils.transcode_video_to_mp4().")
                 sys.exit(1)
         
         if not static_image_mode:
             capture = cv.VideoCapture(file)
             if not capture.isOpened():
-                print("Face_brightness_shift: Error opening video file.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoCapture() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encounterd an error attempting to initialize cv2.VideoCapture() object "
+                                   f"with file {file}. The file may be corrupt or encoded into an unparseable file type.")
                 sys.exit(1)
             
             size = (int(capture.get(3)), int(capture.get(4)))
 
-            result = cv.VideoWriter(output_dir + "\\" + filename + "_light_shifted" + extension,
+            result = cv.VideoWriter(output_dir + "\\" + filename + "_bright_shifted" + extension,
                                     cv.VideoWriter.fourcc(*codec), 30, size)
             if not result.isOpened():
-                print("Face_brightness_shift: Error opening VideoWriter object.")
+                logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                             "Function exiting with status 1.")
+                debug_logger.error("Function has encountered an error attempting to initialize cv2.VideoWriter() object. "
+                                   f"Please ensure that {dir_file_path} is a valid path in your current working directory tree.")
                 sys.exit(1)
             
             # Getting the video duration for weight calculations
@@ -5572,6 +6738,10 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+            elif static_image_mode:
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                sys.exit(1)
             else:
                 continue
             
@@ -5904,7 +7074,9 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                 success = cv.imwrite(output_dir + "\\" + filename + "_brightened" + extension, img_brightened)
 
                 if not success:
-                    print("Face_brightness_shift: cv2.imwrite error.")
+                    logger.warning("Function has encountered an error attempting to call cv2.imwrite(), exiting with status 1.")
+                    debug_logger.warning("Function has encountered an error attempting to call cv2.imwrite() to "
+                                         f"output directory {dir_file_path}. Please ensure that this directory path is a valid path in your current working tree.")
                     sys.exit(1)
 
                 break
@@ -5912,3 +7084,5 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         if not static_image_mode:
             capture.release()
             result.release()
+        
+        logger.info(f"Function execution completed successfully, view outputted files at {dir_file_path}.")

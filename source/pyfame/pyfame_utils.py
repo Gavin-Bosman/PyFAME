@@ -137,7 +137,7 @@ NOISE_METHOD_PIXELATE = 18
 NOISE_METHOD_SALT_AND_PEPPER = 19
 NOISE_METHOD_GAUSSIAN = 20
 
-# Shuffling methods
+# Facial Scrambling methods
 LOW_LEVEL_GRID_SCRAMBLE = 27
 HIGH_LEVEL_GRID_SCRAMBLE = 28
 LANDMARK_SCRAMBLE = 29
@@ -150,9 +150,30 @@ DENSE_OPTICAL_FLOW = 31
 SHOW_HISTORY_ORIGIN = 32
 SHOW_HISTORY_RELATIVE = 33
 
-# Frame Shuffle Modes
-SHUFFLE_FRAME_ORDER = 34
-REVERSE_FRAME_ORDER = 35
+# Frame Shuffle methods
+FRAME_SHUFFLE_RANDOM = 34
+FRAME_SHUFFLE_RANDOM_W_REPLACEMENT = 35
+FRAME_SHUFFLE_REVERSE = 36
+FRAME_SHUFFLE_RIGHT_CYCLIC_SHIFT = 37
+FRAME_SHUFFLE_LEFT_CYCLIC_SHIFT = 38
+FRAME_SHUFFLE_PALINDROME = 39
+FRAME_SHUFFLE_INTERLEAVE = 40
+
+def get_variable_name(variable, namespace) -> str:
+    """ Takes in a variable and a namespace (one of locals() or globals()), and returns the variables defined name in the 
+        relevant scope.
+
+        parameters
+        ----------
+
+        variable: any
+            Any defined variable.
+        
+        namespace: function
+            One of locals() or globals(), defines which scope for the function to look at when searching for the variables name.
+    """
+
+    return [name for name, value in namespace.items() if value is variable][0]
 
 def calculate_rot_angle(slope1:float, slope2:float = 0):
         angle = abs((slope2-slope1) / (1 + slope1*slope2))
