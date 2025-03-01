@@ -23,12 +23,6 @@ out_dir = ".\<your output directory>"
 pf.occlude_face_region(input_dir = in_dir, output_dir = out_dir, landmarks_to_occlude = BOTH_EYES_PATH, occlusion_fill = OCCLUSION_FILL_BAR)
 ```
 
-### Before
-![Unprocessed Image](images/actor_05.png)
-
-### After
-![Occluded Image](images/actor_05_occluded_bar.png)
-
 ## Underlying Model
 
 MediaPipe's Face Mesh task provides automated detection of 468 unique facial landmarks. By accessing the x-y screen coordinates of these landmarks, many complex image and video operations can be performed. 
