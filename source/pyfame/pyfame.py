@@ -37,8 +37,8 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
         A path string of the directory where processed videos will be written to.
 
     mask_type: int
-        An integer indicating the type of mask to apply to the input videos. For a full list of mask options please see
-        pyfameutils.MASK_OPTIONS.
+        An integer indicating the type of mask to apply to the input videos. For a full list of mask options please see 
+        pyfame_utils.display_face_mask_options().
 
     with_sub_dirs: bool
         Indicates if the input directory contains subfolders.
@@ -154,7 +154,7 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                     re_screen_coords.append((target.get('x'),target.get('y')))
 
                 # lips screen coordinates
-                for cur_source, cur_target in LIPS_PATH:
+                for cur_source, cur_target in MOUTH_PATH:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -286,7 +286,7 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                 lips_screen_coords = []
 
                 # Lips screen coordinates
-                for cur_source, cur_target in LIPS_PATH:
+                for cur_source, cur_target in MOUTH_PATH:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -469,7 +469,7 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                     nose_screen_coords.append((target.get('x'),target.get('y')))
 
                 # lips screen coordinates
-                for cur_source, cur_target in LIPS_PATH:
+                for cur_source, cur_target in MOUTH_PATH:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -503,7 +503,7 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
             
             case _:
                 logger.warning("Undefined mask_type, Function exiting with status 1. "
-                            "Please see pyfameutils.py for a full list of predefined mask_types.")
+                            "Please see pyfame_utils.display_face_mask_options() for a full list of predefined mask_types.")
                 sys.exit(1)
             
     # Type and value checks for function parameters
@@ -527,10 +527,14 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
                        "Message: input_dir is not a valid path, or the directory does not exist.")
         raise OSError("Mask_face_region: output directory path is not a valid path, or the directory does not exist.")
     
+    if not isinstance(mask_type, int):
+        logger.warning("Function encountered a TypeError for input parameter mask_type. "
+                       "Message: invalid type for parameter mask_type, expected int.")
+        raise TypeError("Mask_face_region: parameter mask_type must be an integer.")
     if mask_type not in MASK_OPTIONS:
         logger.warning("Function encountered a ValueError for input parameter mask_type. "
-                       "Message: mask_type must be one of the predefined constants defined by pyfameutils.MASK_OPTIONS.")
-        raise ValueError("Mask_face_region: mask_type must be one of the predefined constants defined within pyfameutils.MASK_OPTIONS")
+                       "Message: mask_type must be one of the predefined constants values outlined in pyfame_utils.display_face_mask_options().")
+        raise ValueError("Mask_face_region: mask_type must be one of the predefined constants defined in pyfame_utils.display_face_mask_options()")
     
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a ValueError for input parameter with_sub_dirs. "
@@ -699,11 +703,12 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
 
     landmarks_to_occlude: list of list
         A list of facial landmark paths, either created by the user using utils.create_path(), or selected from the 
-        predefined set of facial landmark paths.
+        predefined set of facial landmark paths. To see the full list of predefined landmark paths, please see 
+        pyfame_utils.display_all_landmark_paths().
     
     occlusion_fill: int
         An integer flag indicating the fill method of the occluded landmark regions. One of OCCLUSION_FILL_BLACK or 
-        OCCLUSION_FILL_MEAN.
+        OCCLUSION_FILL_MEAN. For a full list of available options please see pyfame_utils.display_occlusion_fill_options().
     
     with_sub_dirs: bool
         A boolean flag indicating if the input directory contains subfolders.
@@ -803,10 +808,11 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
         raise TypeError("Occlude_face_region: parameter occlusion_fill must be of type int.")
     elif occlusion_fill not in [OCCLUSION_FILL_BLACK, OCCLUSION_FILL_MEAN, OCCLUSION_FILL_BAR]:
         logger.warning("Function encountered a ValueError for input parameter occlusion_fill. "
-                       f"Message: {occlusion_fill} is not a valid option for parameter occlusion_fill.")
+                       f"Message: {occlusion_fill} is not a valid option for parameter occlusion_fill. "
+                       "Please see pyfame_utils.display_occlusion_fill_options().")
         raise ValueError("Occlude_face_region: parameter occlusion_fill must be one of OCCLUSION_FILL_BLACK, OCCLUSION_FILL_MEAN or OCCLUSION_FILL_BAR.")
     if occlusion_fill == OCCLUSION_FILL_BAR:
-        print("\nWARNING: OCCLUSION_FILL_BAR is only compatible with BOTH_EYES_PATH, LIPS_PATH and NOSE_PATH. While the function will occlude"
+        print("\nWARNING: OCCLUSION_FILL_BAR is only compatible with BOTH_EYES_PATH, MOUTH_PATH and NOSE_PATH. While the function will occlude"
               + " other paths without error, you may get unexpected behaviour or results.\n")
     
     if not isinstance(with_sub_dirs, bool):
@@ -1242,7 +1248,7 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                             re_screen_coords.append((target.get('x'),target.get('y')))
 
                         # Lips screen coordinates
-                        for cur_source, cur_target in LIPS_TIGHT_PATH:
+                        for cur_source, cur_target in LIPS_PATH:
                             source = landmark_screen_coords[cur_source]
                             target = landmark_screen_coords[cur_target]
                             lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -1700,7 +1706,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         A path string to a directory where outputted csv files will be written to.
 
     noise_method: str or int
-        Either an integer flag, or string literal specifying the noise method of choice. 
+        Either an integer flag, or string literal specifying the noise method of choice. For the full list of 
+        available options, please see pyfame_utils.display_noise_method_options().
 
     pixel_size: int
         The pixel scale applied when pixelating the output file.
@@ -1740,7 +1747,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
     ValueError: Given an unrecognized noise_method or mask_type.
 
     """
-    
+
+    logger.info("Now entering function apply_noise().")
     singleFile = False
     static_image_mode = False
 
@@ -1777,11 +1785,11 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         elif str.lower(noise_method) not in ["salt and pepper", "pixelate", "gaussian"]:
             logger.warning("Function encountered a ValueError for input parameter noise_method. "
                            "Message: unrecognized value for parameter noise_method.")
-            raise ValueError("Apply_noise: parameter noise method must be one of 'salt and pepper', 'pixelate' or 'gaussian'.")
+            raise ValueError("Apply_noise: unrecognized value, please see pyfame_utils.display_noise_method_options() for the full list of accepted values.")
     elif noise_method not in [NOISE_METHOD_SALT_AND_PEPPER, NOISE_METHOD_PIXELATE, NOISE_METHOD_GAUSSIAN]:
         logger.warning("Function encountered a ValueError for input parameter noise_method. "
                            "Message: unrecognized value for parameter noise_method.")
-        raise ValueError("Apply_noise: parameter noise_method must be one of 'salt and pepper', 'pixelate' or 'gaussian'.")
+        raise ValueError("Apply_noise: unrecognized value, please see pyfame_utils.display_noise_method_options() for the full list of accepted values.")
     
     if not isinstance(pixel_size, int):
         logger.warning("Function encountered a TypeError for input parameter pixel_size. "
@@ -1819,8 +1827,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         raise TypeError("Apply_noise: parameter mask_type expects an integer.")
     elif mask_type not in MASK_OPTIONS:
         logger.warning("Function encountered a ValueError for input parameter mask_type. "
-                       "Message: unrecognized mask_type. See pyfame.pyfame_utils.MASK_OPTIONS.")
-        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within pyfame_utils.MASK_OPTIONS.")
+                       "Message: unrecognized mask_type. See pyfame_utils.display_face_mask_options().")
+        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within pyfame_utils.display_face_mask_options().")
     
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -1846,8 +1854,6 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         raise ValueError("Apply_noise: parameter min_tracking_confidence must be in the range [0,1].")
     
     # Logging input parameters
-
-    logger.info("Now entering function apply_noise().")
     if isinstance(noise_method, str):
         mask_type_name = get_variable_name(mask_type, globals())
         logger.info(f"Input parameters: noise_method = {noise_method}, pixel_size = {pixel_size}, noise_prob = {noise_prob}, "
@@ -1941,7 +1947,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     re_screen_coords.append((target.get('x'),target.get('y')))
 
                 # lips screen coordinates
-                for cur_source, cur_target in LIPS_PATH:
+                for cur_source, cur_target in MOUTH_PATH:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -2070,7 +2076,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                 lips_screen_coords = []
 
                 # Lips screen coordinates
-                for cur_source, cur_target in LIPS_PATH:
+                for cur_source, cur_target in MOUTH_PATH:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -2248,7 +2254,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     nose_screen_coords.append((target.get('x'),target.get('y')))
 
                 # lips screen coordinates
-                for cur_source, cur_target in LIPS_PATH:
+                for cur_source, cur_target in MOUTH_PATH:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -2559,11 +2565,12 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
         logger.warning("Function encountered a TypeError for input parameter scramble_method. "
                        "Message: invalid type for parameter scramble_method, expected int.")
         raise TypeError("Facial_scramble: parameter shuffle_method expects an integer.")
-    elif scramble_method not in [27, 28, 29, 30]:
+    elif scramble_method not in [27, 28, 29]:
         logger.warning("Function encountered a ValueError for input parameter scramble_method. "
-                       "Message: unrecognized value for parameter scramble_method, please see pyfame_utils for the full list of accepted values.")
-        raise ValueError("Facial_scramble: parameter shuffle_method must be one of LOW_LEVEL_GRID_SCRAMBLE, "
-                         "HIGH_LEVEL_GRID_SCRAMBLE or LANDMARK_SCRAMBLE.")
+                       "Message: unrecognized value for parameter scramble_method, please see pyfame_utils.display_scramble_method_options() " 
+                       "for the full list of accepted values.")
+        raise ValueError("Facial_scramble: Unrecognized value for parameter scramble_method "
+                         "Please see pyfame_utils.display_scramble_method_options() for the full list of accepted values.")
     
     if rand_seed != None:
         if not isinstance(rand_seed, int):
@@ -2998,7 +3005,7 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                         nose_screen_coords.append((target.get('x'), target.get('y')))
                     
                     # Lips screen coordinates
-                    for cur_source, cur_target in LIPS_PATH:
+                    for cur_source, cur_target in MOUTH_PATH:
                         source = landmark_screen_coords[cur_source]
                         target = landmark_screen_coords[cur_target]
                         lips_screen_coords.append((source.get('x'), source.get('y')))
@@ -3235,7 +3242,8 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
         raise TypeError("Point_light_display: parameter history_mode must be an integer.")
     elif history_mode not in [SHOW_HISTORY_ORIGIN, SHOW_HISTORY_RELATIVE]:
         logger.warning("Function encountered a ValueError for input parameter history_mode. "
-                       "Message: unrecognized value for parameter history_mode, please see pyfame_utils for a full list of accepted values.")
+                       "Message: unrecognized value for parameter history_mode, please see pyfame_utils.display_history_mode_options() "
+                       "for a full list of accepted values.")
         raise ValueError("Point_light_display: parameter history_mode must be one of SHOW_HISTORY_ORIGIN or SHOW_HISTORY_RELATIVE.")
     
     if not isinstance(history_window_msec, int):
@@ -3622,7 +3630,7 @@ def point_light_display(input_dir:str, output_dir:str, landmark_regions:list[lis
                                 re_screen_coords.append((target.get('x'),target.get('y')))
 
                             # Lips screen coordinates
-                            for cur_source, cur_target in LIPS_PATH:
+                            for cur_source, cur_target in MOUTH_PATH:
                                 source = landmark_screen_coords[cur_source]
                                 target = landmark_screen_coords[cur_target]
                                 lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -3915,7 +3923,8 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
             raise TypeError("Get_optical_flow: parameter optical_flow_type expects a string or integer.")
         elif str.lower(optical_flow_type) not in ["sparse", "dense"]:
             logger.warning("Function encountered a ValueError for input parameter optical_flow_type. "
-                           "Message: unrecognized value for parameter optical_flow_type, see pyfame_utils for a full list of options.")
+                           "Message: unrecognized value for parameter optical_flow_type, please see pyfame_utils."
+                           "display_optical_flow_options() for a full list of accepted values.")
             raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of 'sparse' or 'dense'.")
         else:
             if str.lower(optical_flow_type) == "sparse":
@@ -3924,7 +3933,8 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                 optical_flow_type = DENSE_OPTICAL_FLOW
     elif optical_flow_type not in [SPARSE_OPTICAL_FLOW, DENSE_OPTICAL_FLOW]:
         logger.warning("Function encountered a ValueError for input parameter optical_flow_type. "
-                       "Message: unrecognized value for parameter optical_flow_type, see pyfame_utils for a full list of options.")
+                       "Message: unrecognized value for parameter optical_flow_type, please see pyfame_utils."
+                       "display_optical_flow_options() for a full list of accepted values.")
         raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of SPARSE_OPTICAL_FLOW or DENSE_OPTICAL_FLOW.")
     
     if landmarks_to_track != None:
@@ -4365,12 +4375,14 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
     if isinstance(color_space, int):
         if color_space not in COLOR_SPACES:
             logger.warning("Function encountered a ValueError for input parameter color_space. "
-                           "Message: unrecognized value for parameter color_space, see pyfame_utils.COLOR_SPACES for a full list of options.")
+                           "Message: unrecognized value for parameter color_space, see pyfame_utils.display_color_space_options() "
+                           "for a full list of accepted values.")
             raise ValueError("Extract_color_channel_means: unrecognized value for parameter color_space.")
     elif isinstance(color_space, str):
         if str.lower(color_space) not in ["rgb", "hsv", "grayscale"]:
             logger.warning("Function encountered a ValueError for input parameter color_space. "
-                           "Message: unrecognized value for parameter color_space, see pyfame_utils.COLOR_SPACES for a full list of options.")
+                           "Message: unrecognized value for parameter color_space, see pyfame_utils.display_color_space_options() "
+                           "for a full list of accepted values.")
             raise ValueError("Extract_color_channel_means: unrecognized value for parameter color_space.")
         else:
             if str.lower(color_space) == "rgb":
@@ -4628,7 +4640,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
             nose_screen_coords.append((target.get('x'),target.get('y')))
 
         # Right Eye screen coordinates
-        for cur_source, cur_target in LIPS_PATH:
+        for cur_source, cur_target in MOUTH_PATH:
             source = landmark_screen_coords[cur_source]
             target = landmark_screen_coords[cur_target]
             lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -4766,7 +4778,8 @@ def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUF
         A path string to a video file in your current working directory tree.
 
     shuffle_method: int
-        An integer flag indicating the shuffling method used. For a full list of options please see pyfame_utils.
+        An integer flag indicating the shuffling method used. For a full list of available options please see 
+        pyfame_utils.display_shuffle_method_options().
 
     rand_seed: int | None
         A seed to numpy's random number generator.
@@ -4802,7 +4815,11 @@ def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUF
         logger.warning("Function encountered a TypeError for input parameter shuffle_method. "
                        "Message: invalid type for parameter shuffle_method, expected int.")
         raise TypeError("Generate_shuffled_block_array: parameter running_mode must be an integer.")
-    # add valueError check
+    if shuffle_method not in SHUFFLE_METHODS:
+        logger.warning("Function has encountered a ValueError for input parameter shuffle_method. "
+                       "Message: unrecognized value for parameter shuffle_method. For a full list of "
+                       "accepted values, please see pyfame_utils.display_shuffle_method_options().")
+        raise ValueError("Shuffle_frame_order: unrecognized value for parameter shuffle_method.")
 
     if rand_seed != None:
         if not isinstance(rand_seed, int):
@@ -4877,7 +4894,8 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         A path string to the directory where outputted video files will be saved.
 
     shuffle_method: int
-        An integer flag indicating the functions running mode. One of SHUFFLE_FRAME_ORDER or REVERSE_FRAME_ORDER.
+        An integer flag indicating the functions running mode. For a full list of available options,
+        please see pyfame_utils.display_shuffle_method_options().
     
     rand_seed: int
         The seed number provided to the numpy random generator instance.
@@ -4936,7 +4954,11 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         logger.warning("Function encountered a TypeError for input parameter shuffle_method. "
                        "Message: invalid type for parameter shuffle_method, expected int.")
         raise TypeError("Shuffle_frame_order: parameter running_mode must be an integer.")
-    # add valueerror check
+    if shuffle_method not in SHUFFLE_METHODS:
+        logger.warning("Function has encountered a ValueError for input parameter shuffle_method. "
+                       "Message: unrecognized value for parameter shuffle_method. For a full list of "
+                       "accepted values, please see pyfame_utils.display_shuffle_method_options().")
+        raise ValueError("Shuffle_frame_order: unrecognized value for parameter shuffle_method.")
 
     if rand_seed != None:
         if not isinstance(rand_seed, int):
@@ -5011,7 +5033,7 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         capture = None
         result = None
         block_size = None
-        dir_file_path = output_dir + f"{filename}_frame_shuffled{extension}"
+        dir_file_path = output_dir + f"\\{filename}_frame_shuffled{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -5238,7 +5260,7 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         logger.info(f"Function execution completed successfully, view outputted file(s) at {dir_file_path}.")
         
         
-def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude: float = 8.0, timing_func:Callable[...,float] = sigmoid, 
+def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude: float = 8.0, timing_func:Callable[...,float] = linear, 
                      shift_color:str|int = COLOR_RED, landmark_regions:list[list[tuple]] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
                      min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs) -> None: 
     """For each image or video file contained in input_dir, the function applies a weighted color shift to the face region, 
@@ -5266,12 +5288,15 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
     
     timingFunc: Function() -> float
         Any function that takes at least one input float (time), and returns a float.
+        For the full list of available timing functions, please see pyfame_utils.display_timing_function_options().
 
     shift_color: str, int
-        Either a string literal specifying the color of choice, or a predefined integer constant.
+        Either a string literal specifying the color of choice, or a predefined integer constant. For a full list of 
+        available predefined values, please see pyfame_utils.display_shift_color_options().
     
     landmark_regions: list of list, list of tuple
-        A list of one or more landmark paths, specifying the region in which the colouring will take place.
+        A list of one or more landmark paths, specifying the region in which the colouring will take place. 
+        For the full list of predefined landmark paths, please see pyfame_utils.display_all_landmark_paths().
     
     with_sub_dirs: bool
         A boolean flag indicating whether the input directory contains nested directories.
@@ -5322,7 +5347,8 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
             The maximum units to shift a* (red-green) or b* (blue-yellow) of the Lab* color space.
         
         shift_color: str, int
-            An integer or string literal specifying which color will be applied to the input image.
+            An integer or string literal specifying which color will be applied to the input image. For a full list of
+            predifined options, please see pyfame_utils.display_shift_color_options().
                 
         Raises
         ------
@@ -5403,12 +5429,14 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
     if isinstance(shift_color, str):
         if str.lower(shift_color) not in ["red", "green", "blue", "yellow"]:
             logger.warning("Function encountered a ValueError for input parameter shift_color. "
-                           "Message: unrecognized value for parameter shift_color, see pyfame_utils for a full list of accepted options.")
+                           "Message: unrecognized value for parameter shift_color, please see "
+                           "pyfame_utils.display_shift_color_options() for a full list of accepted values.")
             raise ValueError("Face_color_shift: shift_color must be one of: red, green, blue, yellow.")
     elif isinstance(shift_color, int):
         if shift_color not in [COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW]:
             logger.warning("Function encountered a ValueError for input parameter shift_color. "
-                           "Message: unrecognized value for parameter shift_color, see pyfame_utils for a full list of accepted options.")
+                           "Message: unrecognized value for parameter shift_color, please see "
+                           "pyfame_utils.display_shift_color_options() for a full list of accepted values.")
             raise ValueError("Face_color_shift: shift_color must be one of: red, green, blue, yellow.")
     else:
         logger.warning("Function encountered a TypeError for input parameter shift_color. "
@@ -5420,10 +5448,10 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                        "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_color_shift: parameter landmarks_to_color expects a list.")
     for val in landmark_regions:
-        if not isinstance(val, list) or not isinstance(val, tuple):
+        if not isinstance(val, list) and not isinstance(val, tuple):
             logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
                            "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
-            raise ValueError("Face_color_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
+            raise ValueError("Face_color_shift: landmark_regions may either be a list of lists, or a singular list of tuples.")
 
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -5497,7 +5525,7 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         capture = None
         result = None
         cap_duration = None
-        dir_file_path = output_dir + f"{filename}_color_shifted{extension}"
+        dir_file_path = output_dir + f"\\{filename}_color_shifted{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -5548,7 +5576,7 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
             cap_duration = float(frame_count)/float(fps)
 
             if offset_t == 0.0:
-                offset_t = cap_duration // 1
+                offset_t = cap_duration - 1.0
             
             timing_kwargs = dict({"end":offset_t}, **kwargs)
 
@@ -5782,7 +5810,7 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                             re_screen_coords.append((target.get('x'),target.get('y')))
 
                         # Lips screen coordinates
-                        for cur_source, cur_target in LIPS_TIGHT_PATH:
+                        for cur_source, cur_target in LIPS_PATH:
                             source = landmark_screen_coords[cur_source]
                             target = landmark_screen_coords[cur_target]
                             lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -5936,9 +5964,11 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
     
     timingFunc: Function() -> float
         Any function that takes at least one input float (time), and returns a float.
+        For the full list of available timing functions, please see pyfame_utils.display_timing_function_options().
     
     landmark_regions: list of list, list of tuple
         A list of one or more landmark paths, specifying the region in which the colouring will take place.
+        For the full list of predefined landmark paths, please see pyfame_utils.display_all_landmark_paths().
     
     with_sub_dirs: bool
         A boolean flag indicating whether the input directory contains nested directories.
@@ -6008,7 +6038,7 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                        "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_saturation_shift: parameter landmarks_to_color expects a list.")
     for val in landmark_regions:
-        if not isinstance(val, list) or not isinstance(val, tuple):
+        if not isinstance(val, list) and not isinstance(val, tuple):
             logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
                            "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
             raise ValueError("Face_saturation_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
@@ -6079,7 +6109,7 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         capture = None
         result = None
         cap_duration = None
-        dir_file_path = output_dir + f"{filename}_sat_shifted{extension}"
+        dir_file_path = output_dir + f"\\{filename}_sat_shifted{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -6130,7 +6160,7 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
             cap_duration = float(frame_count)/float(fps)
 
             if offset_t == 0.0:
-                offset_t = cap_duration // 1
+                offset_t = cap_duration - 1.0
 
             timing_kwargs = dict({"end":offset_t}, **kwargs)
 
@@ -6362,7 +6392,7 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                             re_screen_coords.append((target.get('x'),target.get('y')))
 
                         # Lips screen coordinates
-                        for cur_source, cur_target in LIPS_TIGHT_PATH:
+                        for cur_source, cur_target in LIPS_PATH:
                             source = landmark_screen_coords[cur_source]
                             target = landmark_screen_coords[cur_target]
                             lips_screen_coords.append((source.get('x'),source.get('y')))
@@ -6537,9 +6567,11 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
     
     timingFunc: Function() -> float
         Any function that takes at least one input float (time), and returns a float.
+        For the full list of available timing functions, please see pyfame_utils.display_timing_function_options().
     
     landmark_regions: list of list, list of tuple
         A list of one or more landmark paths, specifying the region in which the colouring will take place.
+        For the full list of predefined landmark paths, please see pyfame_utils.display_all_landmark_paths().
     
     with_sub_dirs: bool
         A boolean flag indicating whether the input directory contains nested directories.
@@ -6610,7 +6642,7 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                        "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_brightness_shift: parameter landmarks_to_color expects a list.")
     for val in landmark_regions:
-        if not isinstance(val, list) or not isinstance(val, tuple):
+        if not isinstance(val, list) and not isinstance(val, tuple):
             logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
                            "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
             raise ValueError("Face_brightness_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
@@ -6663,7 +6695,7 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         capture = None
         result = None
         cap_duration = None
-        dir_file_path = output_dir + f"{filename}_bright_shifted{extension}"
+        dir_file_path = output_dir + f"\\{filename}_bright_shifted{extension}"
 
         # Using the file extension to sniff video codec or image container for images
         match extension:
@@ -6714,7 +6746,7 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
             cap_duration = float(frame_count)/float(fps)
 
             if offset_t == 0.0:
-                offset_t = cap_duration // 1
+                offset_t = cap_duration - 1.0
             
             timing_kwargs = dict({"end":offset_t}, **kwargs)
             
@@ -6946,7 +6978,7 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                             re_screen_coords.append((target.get('x'),target.get('y')))
 
                         # Lips screen coordinates
-                        for cur_source, cur_target in LIPS_TIGHT_PATH:
+                        for cur_source, cur_target in LIPS_PATH:
                             source = landmark_screen_coords[cur_source]
                             target = landmark_screen_coords[cur_target]
                             lips_screen_coords.append((source.get('x'),source.get('y')))

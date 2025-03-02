@@ -8,7 +8,7 @@ in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\Video_Speech_Actors_01-24\\Video_Sp
 out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images"
 
 ##pf.mask_face_region(input_dir=in_dir, output_dir=out_dir, mask_type=FACE_OVAL_MASK, background_color=(34.5, 23.5))
-#pf.face_color_shift(input_dir=in_dir, output_dir=out_dir, shift_color="red", landmark_regions=[LEFT_CHEEK_PATH, CHIN_PATH], shift_magnitude=15.0)
+#pf.face_color_shift(input_dir=in_dir, output_dir=out_dir, shift_color="red", landmark_regions=[LEFT_CHEEK_PATH, CHIN_PATH], shift_magnitude=25.0)
 ##pf.occlude_face_region(in_dir, out_dir, [RIGHT_EYE_PATH, NOSE_PATH, LIPS_PATH], OCCLUSION_FILL_BLACK)
 ##pf.extract_face_color_means(in_dir, out_dir, color_space=COLOR_SPACE_HSV)
 #pf.face_brightness_shift(input_dir=in_dir, output_dir=out_dir, shift_magnitude=-30, landmark_regions=[HEMI_FACE_TOP_PATH])
@@ -17,13 +17,9 @@ out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images"
 ##pf.apply_noise(input_dir=in_dir, output_dir=out_dir, noise_method=NOISE_METHOD_PIXELATE, mask_type=FACE_OVAL_MASK)
 ##pf.facial_scramble(in_dir, out_dir, scramble_method=LANDMARK_SCRAMBLE, rand_seed=1334)
 ##pf.get_optical_flow(in_dir, out_dir, optical_flow_type=SPARSE_OPTICAL_FLOW, point_color=(125,0,255))
-pf.shuffle_frame_order(in_dir, out_dir, FRAME_SHUFFLE_RANDOM, block_duration=100)
+#pf.shuffle_frame_order(in_dir, out_dir, FRAME_SHUFFLE_RANDOM, block_duration=100)
 ##pf.point_light_display(in_dir, out_dir, point_density=1.0, landmark_regions=[LEFT_IRIS_PATH, RIGHT_IRIS_PATH, LIPS_PATH], show_history=True, history_mode=SHOW_HISTORY_ORIGIN)
-
-###TODO FINISH IMPLEMENTING GAUSSIAN TIMING FUNCTION
-###TODO add catch blocks around cv2 functions to catch errors for logging
-###TODO add print functions for parameter options to pyfame_utils
-
+display_timing_function_options()
 # Creating pyplot style grid of outputs
 
 fig = plt.figure(figsize=(5,5))
@@ -94,4 +90,4 @@ plt.imshow(im9)
 plt.axis('off')
 plt.title('Feature masking', fontsize=10)
 
-plt.show()
+#plt.show()

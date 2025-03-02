@@ -4,8 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 - v0.7... unit testing
+- v0.7... add masking to blur_face_region()
+- v0.7... expand timing function availability to blurring, occluding and noise
 - v0.8... full docsite reimplementation with vitepress
 - v1.0 gui preview prior to file processing
+
+## [0.7.1] 2025-02-27
+
+### Added
+
+- Display functions have been implemented for all of the predefined constants, defined within pyfame_utils.py. Users can now simply call `display_shuffle_method_options()` for example, and the constants names and literal values will be printed to the terminal. 
+- Normalised gaussian timing function has finally been implemented properly.
+
+### Changed
+
+- Function Docstrings and error messages have been made more comprehensive, and now reference display functions in pyfame_utils when encountering ValueErrors for input parameters.
+- Bug fixes to several parameter error checks implemented with parameter file-logging.
+
+### Removed
 
 ## [0.7.0] 2025-02-16
 

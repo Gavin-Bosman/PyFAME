@@ -18,8 +18,8 @@ RIGHT_IRIS_IDX = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 38
 
 NOSE_IDX = [168, 193, 122, 196, 174, 217, 209, 49, 129, 64, 98, 167, 164, 393, 327, 294, 278, 279, 429, 437, 
             399, 419, 351, 417, 168]
-LIPS_IDX = [164, 393, 391, 322, 410, 287, 273, 335, 406, 313, 18, 83, 182, 106, 43, 57, 186, 92, 165, 167, 164]
-LIPS_TIGHT_IDX = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 0, 37, 39, 40, 185, 61]
+MOUTH_IDX = [164, 393, 391, 322, 410, 287, 273, 335, 406, 313, 18, 83, 182, 106, 43, 57, 186, 92, 165, 167, 164]
+LIPS_IDX = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 0, 37, 39, 40, 185, 61]
 LEFT_CHEEK_IDX = [207, 187, 147, 123, 116, 111, 31, 228, 229, 230, 231, 232, 233, 188, 196, 174, 217, 209, 49, 203, 206, 207]
 RIGHT_CHEEK_IDX = [427, 411, 376, 352, 345, 340, 261, 448, 449, 450, 451, 452, 453, 412, 419, 399, 437, 429, 279, 423, 426, 427]
 CHIN_IDX = [43, 106, 182, 83, 18, 313, 406, 335, 273, 422, 430, 394, 379, 378, 400, 377, 152, 148, 176, 149, 150, 169, 210, 202, 43]
@@ -72,14 +72,32 @@ LEFT_IRIS_PATH = create_path(LEFT_IRIS_IDX)
 RIGHT_EYE_PATH = create_path(RIGHT_EYE_IDX)
 RIGHT_IRIS_PATH = create_path(RIGHT_IRIS_IDX)
 NOSE_PATH = create_path(NOSE_IDX)
+MOUTH_PATH = create_path(MOUTH_IDX)
 LIPS_PATH = create_path(LIPS_IDX)
-LIPS_TIGHT_PATH = create_path(LIPS_TIGHT_IDX)
 FACE_OVAL_PATH = create_path(FACE_OVAL_IDX)
 FACE_OVAL_TIGHT_PATH = create_path(FACE_OVAL_TIGHT_IDX)
 HEMI_FACE_TOP_PATH = create_path(HEMI_FACE_TOP_IDX)
 HEMI_FACE_BOTTOM_PATH = create_path(HEMI_FACE_BOTTOM_IDX)
 HEMI_FACE_LEFT_PATH = create_path(HEMI_FACE_LEFT_IDX)
 HEMI_FACE_RIGHT_PATH = create_path(HEMI_FACE_RIGHT_IDX)
+
+def display_convex_landmark_paths() -> None:
+    print(
+        "Predefined Convex Landmark Paths: \n"
+        "   - LEFT_EYE_PATH\n"
+        "   - LEFT_IRIS_PATH\n"
+        "   - RIGHT_EYE_PATH\n"
+        "   - RIGHT_IRIS_PATH\n"
+        "   - NOSE_PATH\n"
+        "   - MOUTH_PATH\n"
+        "   - LIPS_PATH\n"
+        "   - FACE_OVAL_PATH\n"
+        "   - FACE_OVAL_TIGHT_PATH\n"
+        "   - HEMI_FACE_TOP_PATH\n"
+        "   - HEMI_FACE_BOTTOM_PATH\n"
+        "   - HEMI_FACE_LEFT_PATH\n"
+        "   - HEMI_FACE_RIGHT_PATH\n"
+    )
 
 # The following landmark regions need to be partially computed in place, but paths have been created so they can still be 
 # passed to the facial manipulation family of functions. Landmarks below are concave polygons.
@@ -90,6 +108,45 @@ CHEEKS_NOSE_PATH = [(3,)]
 BOTH_EYES_PATH = [(4,)]
 FACE_SKIN_PATH = [(5,)]
 CHIN_PATH = [(6,)]
+
+def display_concave_landmark_paths() -> None:
+    print(
+        "Predefined Concave Landmark Paths: \n"
+        "   - CHEEKS_PATH\n"
+        "   - LEFT_CHEEK_PATH\n"
+        "   - RIGHT_CHEEK_PATH\n"
+        "   - CHEEKS_NOSE_PATH\n"
+        "   - BOTH_EYES_PATH\n"
+        "   - FACE_SKIN_PATH\n"
+        "   - CHIN_PATH\n"
+    )
+
+def display_all_landmark_paths() -> None:
+    print(
+        "Predefined Landmark Paths: \n"
+        "Convex paths:\n"
+        "   - LEFT_EYE_PATH\n"
+        "   - LEFT_IRIS_PATH\n"
+        "   - RIGHT_EYE_PATH\n"
+        "   - RIGHT_IRIS_PATH\n"
+        "   - NOSE_PATH\n"
+        "   - MOUTH_PATH\n"
+        "   - LIPS_PATH\n"
+        "   - FACE_OVAL_PATH\n"
+        "   - FACE_OVAL_TIGHT_PATH\n"
+        "   - HEMI_FACE_TOP_PATH\n"
+        "   - HEMI_FACE_BOTTOM_PATH\n"
+        "   - HEMI_FACE_LEFT_PATH\n"
+        "   - HEMI_FACE_RIGHT_PATH\n"
+        "Concave paths:\n"
+        "   - CHEEKS_PATH\n"
+        "   - LEFT_CHEEK_PATH\n"
+        "   - RIGHT_CHEEK_PATH\n"
+        "   - CHEEKS_NOSE_PATH\n"
+        "   - BOTH_EYES_PATH\n"
+        "   - FACE_SKIN_PATH\n"
+        "   - CHIN_PATH\n"
+    )
 
 # Masking options for mask_face_region
 FACE_OVAL_MASK = 1
@@ -105,50 +162,122 @@ EYES_NOSE_MOUTH_MASK = 14
 MASK_OPTIONS = [FACE_OVAL_MASK, FACE_SKIN_MASK, EYES_MASK, IRISES_MASK, LIPS_MASK, HEMI_FACE_LEFT_MASK,
                 HEMI_FACE_RIGHT_MASK, HEMI_FACE_BOTTOM_MASK, HEMI_FACE_TOP_MASK, EYES_NOSE_MOUTH_MASK]
 
+def display_face_mask_options() -> None:
+    print(
+        "Face Masking Method Options:\n"
+        "   - FACE_OVAL_MASK (literal [1])\n"
+        "   - FACE_SKIN_MASK (literal [2])\n"
+        "   - EYES_MASK (literal [3])\n"
+        "   - IRISES_MASK (literal [21])\n"
+        "   - LIPS_MASK (literal [22])\n"
+        "   - HEMI_FACE_LEFT_MASK (literal [23])\n"
+        "   - HEMI_FACE_RIGHT_MASK (literal [24])\n"
+        "   - HEMI_FACE_BOTTOM_MASK (literal [25])\n"
+        "   - HEMI_FACE_TOP_MASK (literal [26])\n"
+        "   - EYES_NOSE_MOUTH_MASK (literal [14])\n"
+    )
+
 # Compatible color spaces for extract_color_channel_means and face_color_shift
 COLOR_SPACE_RGB = cv.COLOR_BGR2RGB
 COLOR_SPACE_HSV = cv.COLOR_BGR2HSV_FULL
 COLOR_SPACE_GRAYSCALE = cv.COLOR_BGR2GRAY
 COLOR_SPACES = [COLOR_SPACE_RGB, COLOR_SPACE_HSV, COLOR_SPACE_GRAYSCALE]
 
+def display_color_space_options() -> None:
+    print(
+        "Color Space Options:\n"
+        "   - COLOR_SPACE_RGB\n"
+        "   - COLOR_SPACE_HSV\n"
+        "   - COLOR_SPACE_GRAYSCALE\n"
+    )
+
 COLOR_RED = 4
 COLOR_BLUE = 5
 COLOR_GREEN = 6
 COLOR_YELLOW = 7
 
-# Coloring regions
-REGION_FULL_FACE = 15
-REGION_CHEEKS = 16
-REGION_CHEEKS_NOSE = 17
-COLOR_REGION_OPTIONS = [REGION_FULL_FACE, REGION_CHEEKS, REGION_CHEEKS_NOSE]
+def display_shift_color_options() -> None:
+    print(
+        "Face Color Shift Coloring Options:\n"
+        "   - COLOR_RED (literal [4])\n"
+        "   - COLOR_BLUE (literal [5])\n"
+        "   - COLOR_GREEN (literal [6])\n"
+        "   - COLOR_YELLOW (literal [7])\n"
+    )
 
 # Fill options for occluded face regions
 OCCLUSION_FILL_BLACK = 8
 OCCLUSION_FILL_MEAN = 9
 OCCLUSION_FILL_BAR = 10
 
+def display_occlusion_fill_options() -> None:
+    print(
+        "Occlusion Fill Options:\n"
+        "   - OCCLUSION_FILL_BLACK (literal [8])\n"
+        "   - OCCLUSION_FILL_MEAN (literal [9])\n"
+        "   - OCCLUSION_FILL_BAR (literal [10])\n"
+    )
+
 # Blurring methods
 BLUR_METHOD_AVERAGE = 11
 BLUR_METHOD_GAUSSIAN = 12
 BLUR_METHOD_MEDIAN = 13
+
+def display_blur_method_options() -> None:
+    print(
+        "Blurring Method Options:\n"
+        "   - BLUR_METHOD_AVERAGE (literal [11])\n"
+        "   - BLUR_METHOD_GAUSSIAN (literal [12])\n"
+        "   - BLUR_METHOD_MEDIAN (literal [13])\n"
+    )
 
 # Noise methods
 NOISE_METHOD_PIXELATE = 18
 NOISE_METHOD_SALT_AND_PEPPER = 19
 NOISE_METHOD_GAUSSIAN = 20
 
+def display_noise_method_options() -> None:
+    print(
+        "Noise Method options:\n"
+        "   - NOISE_METHOD_PIXELATE (literal [18])\n"
+        "   - NOISE_METHOD_SALT_AND_PEPPER (literal [19])\n"
+        "   - NOISE_METHOD_GAUSSIAN (literal [20])\n"
+    )
+
 # Facial Scrambling methods
 LOW_LEVEL_GRID_SCRAMBLE = 27
 HIGH_LEVEL_GRID_SCRAMBLE = 28
 LANDMARK_SCRAMBLE = 29
 
+def display_scramble_method_options() -> None:
+    print(
+        "Facial Scramble Method Options:\n"
+        "   - LOW_LEVEL_GRID_SCRAMBLE (literal [27])\n"
+        "   - HIGH_LEVEL_GRID_SCRAMBLE (literal [28])\n"
+        "   - LANDMARK_SCRAMBLE (literal [29])\n"
+    )
+
 # Optical Flow types
 SPARSE_OPTICAL_FLOW = 30
 DENSE_OPTICAL_FLOW = 31
 
+def display_optical_flow_options() -> None:
+    print(
+        "Optical Flow Parameter Options:\n"
+        "   - SPARSE_OPTICAL_FLOW (literal [30])\n"
+        "   - DENSE_OPTICAL_FLOW (literal [31])\n"
+    )
+
 # Point Light Display History Modes
 SHOW_HISTORY_ORIGIN = 32
 SHOW_HISTORY_RELATIVE = 33
+
+def display_history_mode_options() -> None:
+    print(
+        "History Mode Options:\n"
+        "   - SHOW_HISTORY_ORIGIN (literal [32])\n"
+        "   - SHOW_HISTORY_RELATIVE (literal [33])\n"
+    )
 
 # Frame Shuffle methods
 FRAME_SHUFFLE_RANDOM = 34
@@ -158,6 +287,22 @@ FRAME_SHUFFLE_RIGHT_CYCLIC_SHIFT = 37
 FRAME_SHUFFLE_LEFT_CYCLIC_SHIFT = 38
 FRAME_SHUFFLE_PALINDROME = 39
 FRAME_SHUFFLE_INTERLEAVE = 40
+
+SHUFFLE_METHODS = [FRAME_SHUFFLE_RANDOM, FRAME_SHUFFLE_RANDOM_W_REPLACEMENT, FRAME_SHUFFLE_REVERSE, 
+                   FRAME_SHUFFLE_RIGHT_CYCLIC_SHIFT, FRAME_SHUFFLE_LEFT_CYCLIC_SHIFT, FRAME_SHUFFLE_PALINDROME,
+                   FRAME_SHUFFLE_INTERLEAVE]
+
+def display_shuffle_method_options() -> None:
+    print(
+        "Frame Shuffle Method Options:\n"
+        "   - FRAME_SHUFFLE_RANDOM (literal [34])\n"
+        "   - FRAME_SHUFFLE_RANDOM_W_REPLACEMENT (literal [35])\n"
+        "   - FRAME_SHUFFLE_REVERSE (literal [36])\n"
+        "   - FRAME_SHUFFLE_RIGHT_CYCLIC_SHIFT (literal [37])\n"
+        "   - FRAME_SHUFFLE_LEFT_CYCLIC_SHIFT (literal [38])\n"
+        "   - FRAME_SHUFFLE_PALINDROME (literal [39])\n"
+        "   - FRAME_SHUFFLE_INTERLEAVE (literal [40])\n"
+    )
 
 def get_variable_name(variable, namespace) -> str:
     """ Takes in a variable and a namespace (one of locals() or globals()), and returns the variables defined name in the 
@@ -420,6 +565,10 @@ def constant(t:float, **kwargs) -> float:
     return 1.0
 
 def sigmoid(t:float, **kwargs) -> float:
+    """ Returns the value of the sigmoid function evaluated at time t. If paramater k (scaling factor) is 
+    not provided in kwargs, it will be set to 1.
+
+    """
     k = 1
     if "k" in kwargs:
         k = kwargs["k"]
@@ -427,7 +576,7 @@ def sigmoid(t:float, **kwargs) -> float:
     return 1/(1 + np.exp(-k * t))
 
 def linear(t:float, **kwargs) -> float:
-    ''' Normalised linear timing function.
+    """ Normalised linear timing function.
 
     Parameters
     ----------
@@ -443,7 +592,8 @@ def linear(t:float, **kwargs) -> float:
     -------
 
     weight: float
-    '''
+    """
+
     start = 0.0
     if "start" in kwargs:
         start = kwargs["start"]
@@ -452,3 +602,53 @@ def linear(t:float, **kwargs) -> float:
     end = kwargs["end"]
 
     return (t-start) / (end-start)
+
+def gaussian(t:float, **kwargs) -> float:
+    """ Normalized gaussian timing function. Evaluates the gaussian function (with default mean:0.0, sd:1.0) at
+    the given timestamp t. Both the "mean" and "sigma" parameters can be passed as keyword arguments, however this may 
+    affect the normalization of the outputs.
+
+    Parameters 
+    ----------
+
+    t: float
+        The current timestamp of the video file being evaluated. 
+
+    Key-word Arguments
+    ------------------
+
+    mean: float
+        The mean or center of the gaussian distribution.
+    sigma: float
+        The standard deviation or spread of the gaussian distribution.
+    
+    returns
+    -------
+
+    weight: float
+        A normalised weight in the range [0,1].
+    """
+
+    mean = 0.0
+    sigma = 1.0
+
+    if "mean" in kwargs:
+        mean = kwargs["mean"]
+    if "sigma" in kwargs:
+        sigma = kwargs["sigma"]
+    
+    return np.exp(-((t - mean) ** 2) / (2 * sigma ** 2))
+
+def display_timing_function_options() -> None:
+    print(
+        "Available Timing Functions:\n"
+        "   constant(t:float) -> always returns 1.0\n\n"
+        "   linear(t:float, **kwargs) -> float in [0.0, 1.0]\n"
+        "       **kwargs:   'start' - The start of the linear output range (default is 0.0)\n"
+        "                   'end' - The end of the linear output range (default is vid_duration - 1.0)\n\n"
+        "   sigmoid(t:float, **kwargs) -> float in [0.0, 1.0]\n"
+        "       **kwargs:   'k' - The scaling factor of the sigmoid curve (default is 1.0)\n\n"
+        "   gaussian(t:float, **kwargs) -> float in [0.0, 1.0]\n"
+        "       **kwargs:   'mean' - The mean or center of the gaussian distribution (default is 0.0)\n"
+        "                   'sigma' - The distribution or spread of the gaussian distribution (default is 1.0)\n\n"
+    )

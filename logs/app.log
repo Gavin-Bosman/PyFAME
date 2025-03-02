@@ -22,3 +22,22 @@
 2025-03-01 15:27:40,168 - pyfame - INFO - pyfame.py:4820 - generate_shuffled_block_array - Input Parameters: file_path = C:\Users\gavin\Desktop\PyFAME\Video_Speech_Actors_01-24\Video_Speech_Actor_08\Actor_08\01-01-04-02-01-01-08.mp4, shuffle_method = FRAME_SHUFFLE_RANDOM, rand_seed = None, block_duration = 100.
 2025-03-01 15:27:40,225 - pyfame - INFO - pyfame.py:4861 - generate_shuffled_block_array - Function execution completed, returning ([10, 0, 36, 28, 23, 8, 25, 18, 13, 11, 14, 30, 16, 15, 34, 7, 27, 3, 9, 2, 6, 37, 20, 4, 19, 29, 5, 1, 26, 35, 12, 32, 17, 33, 24, 22, 31, 21], 2).
 2025-03-01 15:27:41,394 - pyfame - INFO - pyfame.py:5238 - shuffle_frame_order - Function execution completed successfully, view outputted file(s) at C:\Users\gavin\Desktop\PyFAME\images\Frame_Shuffle01-01-04-02-01-01-08_frame_shuffled.mp4.
+2025-03-02 14:34:19,023 - pyfame - INFO - pyfame.py:5298 - face_color_shift - Now entering function face_color_shift().
+2025-03-02 14:34:19,023 - pyfame - WARNING - pyfame.py:5424 - face_color_shift - Function encountered a ValueError for input parameter landmark_regions. Message: landmark_regions must either be a list[list[tuple]] or list[tuple].
+2025-03-02 14:36:13,822 - pyfame - INFO - pyfame.py:5298 - face_color_shift - Now entering function face_color_shift().
+2025-03-02 14:37:02,261 - pyfame - WARNING - pyfame.py:5424 - face_color_shift - Function encountered a ValueError for input parameter landmark_regions. Message: landmark_regions must either be a list[list[tuple]] or list[tuple].
+2025-03-02 14:37:51,885 - pyfame - INFO - pyfame.py:5298 - face_color_shift - Now entering function face_color_shift().
+2025-03-02 14:37:51,885 - pyfame - INFO - pyfame.py:5466 - face_color_shift - Input parameters: onset_t = 0.0, offset_t = 0.0, shift_magnitude = 15.0, shift_color = red, landmark_regions = [LEFT_CHEEK_PATH, CHIN_PATH], with_sub_dirs = False.
+2025-03-02 14:37:51,885 - pyfame - INFO - pyfame.py:5468 - face_color_shift - Mediapipe configurations: min_detection_confidence = 0.5, min_tracking_confidence = 0.5.
+2025-03-02 14:37:51,885 - pyfame - INFO - pyfame.py:5482 - face_color_shift - Function read in 1 files from input directory C:\Users\gavin\Desktop\PyFAME\Video_Speech_Actors_01-24\Video_Speech_Actor_08\Actor_08\01-01-04-02-01-01-08.mp4.
+2025-03-02 14:38:03,583 - pyfame - INFO - pyfame.py:5909 - face_color_shift - Function execution completed successfully, view outputted files at C:\Users\gavin\Desktop\PyFAME\images\Color_Shifted01-01-04-02-01-01-08_color_shifted.mp4.
+2025-03-02 14:45:13,557 - pyfame - INFO - pyfame.py:5298 - face_color_shift - Now entering function face_color_shift().
+2025-03-02 14:45:13,557 - pyfame - INFO - pyfame.py:5466 - face_color_shift - Input parameters: onset_t = 0.0, offset_t = 0.0, shift_magnitude = 25.0, shift_color = red, landmark_regions = [LEFT_CHEEK_PATH, CHIN_PATH], with_sub_dirs = False.
+2025-03-02 14:45:13,557 - pyfame - INFO - pyfame.py:5468 - face_color_shift - Mediapipe configurations: min_detection_confidence = 0.5, min_tracking_confidence = 0.5.
+2025-03-02 14:45:13,557 - pyfame - INFO - pyfame.py:5482 - face_color_shift - Function read in 1 files from input directory C:\Users\gavin\Desktop\PyFAME\Video_Speech_Actors_01-24\Video_Speech_Actor_08\Actor_08\01-01-04-02-01-01-08.mp4.
+2025-03-02 14:45:25,067 - pyfame - INFO - pyfame.py:5909 - face_color_shift - Function execution completed successfully, view outputted files at C:\Users\gavin\Desktop\PyFAME\images\Color_Shifted\01-01-04-02-01-01-08_color_shifted.mp4.
+2025-03-02 14:47:41,337 - pyfame - INFO - pyfame.py:5298 - face_color_shift - Now entering function face_color_shift().
+2025-03-02 14:47:41,337 - pyfame - INFO - pyfame.py:5466 - face_color_shift - Input parameters: onset_t = 0.0, offset_t = 0.0, shift_magnitude = 25.0, shift_color = red, landmark_regions = [LEFT_CHEEK_PATH, CHIN_PATH], with_sub_dirs = False.
+2025-03-02 14:47:41,354 - pyfame - INFO - pyfame.py:5468 - face_color_shift - Mediapipe configurations: min_detection_confidence = 0.5, min_tracking_confidence = 0.5.
+2025-03-02 14:47:41,354 - pyfame - INFO - pyfame.py:5482 - face_color_shift - Function read in 1 files from input directory C:\Users\gavin\Desktop\PyFAME\Video_Speech_Actors_01-24\Video_Speech_Actor_08\Actor_08\01-01-04-02-01-01-08.mp4.
+2025-03-02 14:47:54,369 - pyfame - INFO - pyfame.py:5909 - face_color_shift - Function execution completed successfully, view outputted files at C:\Users\gavin\Desktop\PyFAME\images\Color_Shifted\01-01-04-02-01-01-08_color_shifted.mp4.
