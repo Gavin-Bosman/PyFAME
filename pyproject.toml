@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyFAME"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
     { name="Gavin Bosman", email="gavin.bosman12@gmail.com" },
 ]

@@ -1,5 +1,5 @@
-Video_Song_Actors_01-24/
-Video_Speech_Actors_01-24/
+data/Video_Song_Actors_01-24/
+data/Video_Speech_Actors_01-24/
 __pycache__/
 source/__pycache__/
 Color_Shifted/
@@ -16,4 +16,5 @@ Color_Channel_Means/
 Noise_Added/
 Makefile
 make.bat
-source/OpenCV_References
+/OpenCV_References
+/processing_script.py

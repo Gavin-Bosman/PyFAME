@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - v0.8... full docsite reimplementation with vitepress
 - v1.0 gui preview prior to file processing
 
+- bug fixes with background_color parameter being read as int64 instead of uint8, causing corrupted file output.
+
 ## [0.7.1] 2025-02-27
 
 ### Added
