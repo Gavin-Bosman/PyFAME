@@ -17,4 +17,4 @@ Noise_Added/
 Makefile
 make.bat
 /OpenCV_References
-/processing_script.py
+pyfame/processing_script.py
