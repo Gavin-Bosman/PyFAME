@@ -122,7 +122,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
     elif not os.path.isdir(output_dir):
         logger.warning("Function encountered an OSError for input parameter output_dir. "
                        "Message: output_dir is not a valid path to a directory in your current working tree.")
-        raise OSError("Get_optical_flow: parameter output_dir must be a path string to a directory.")
+        raise ValueError("Get_optical_flow: parameter output_dir must be a path string to a directory.")
     
     if not isinstance(optical_flow_type, int):
         if not isinstance(optical_flow_type, str):
@@ -131,7 +131,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
             raise TypeError("Get_optical_flow: parameter optical_flow_type expects a string or integer.")
         elif str.lower(optical_flow_type) not in ["sparse", "dense"]:
             logger.warning("Function encountered a ValueError for input parameter optical_flow_type. "
-                           "Message: unrecognized value for parameter optical_flow_type, please see pyfame_utils."
+                           "Message: unrecognized value for parameter optical_flow_type, please see utils."
                            "display_optical_flow_options() for a full list of accepted values.")
             raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of 'sparse' or 'dense'.")
         else:
@@ -141,7 +141,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                 optical_flow_type = DENSE_OPTICAL_FLOW
     elif optical_flow_type not in [SPARSE_OPTICAL_FLOW, DENSE_OPTICAL_FLOW]:
         logger.warning("Function encountered a ValueError for input parameter optical_flow_type. "
-                       "Message: unrecognized value for parameter optical_flow_type, please see pyfame_utils."
+                       "Message: unrecognized value for parameter optical_flow_type, please see utils."
                        "display_optical_flow_options() for a full list of accepted values.")
         raise ValueError("Get_optical_flow: parameter optical_flow_type must be one of SPARSE_OPTICAL_FLOW or DENSE_OPTICAL_FLOW.")
     
@@ -154,7 +154,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
             if not isinstance(val, int):
                 logger.warning("Function encountered a TypeError for input parameter landmarks_to_track. "
                                "Message: invalid type for parameter landmarks_to_track, expected list[int].")
-                raise TypeError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
+                raise ValueError("Get_optical_flow: parameter landmarks_to_track must be a list of integers.")
     
     if not isinstance(max_corners, int):
         logger.warning("Function encountered a TypeError for input parameter max_corners. "
@@ -185,9 +185,9 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                         "Message: invalid type for parameter win_size, expected tuple[int].")
         raise TypeError("Get_optical_flow: parameter win_size must be a tuple of integers.")
     elif not isinstance(win_size[0], int) or not isinstance(win_size[1], int):
-        logger.warning("Function encountered a TypeError for input parameter win_size. "
-                       "Message: invalid type for parameter win_size, expected tuple[int].")
-        raise TypeError("Get_optical_flow: parameter win_size must be a tuple of integers.")
+        logger.warning("Function encountered a ValueError for input parameter win_size. "
+                       "Message: unrecognized value of parameter win_size, expected tuple[int].")
+        raise ValueError("Get_optical_flow: parameter win_size must be a tuple of integers.")
     
     if not isinstance(max_pyr_lvl, int):
         logger.warning("Function encountered a TypeError for input parameter max_pyr_lvl. "
@@ -228,9 +228,9 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         raise TypeError("Get_optical_flow: parameter point_color must be a tuple of integers.")
     for val in point_color:
         if not isinstance(val, int):
-            logger.warning("Function encountered a TypeError for input parameter point_color. "
-                           "Message: invalid type for parameter point_color, expected tuple[int].")
-            raise TypeError("Get_optical_flow: parameter point color must be a tuple of integers.")
+            logger.warning("Function encountered a ValueError for input parameter point_color. "
+                           "Message: Unrecognized value of parameter point_color, expected tuple[int].")
+            raise ValueError("Get_optical_flow: parameter point color must be a tuple of integers.")
     
     if not isinstance(point_radius, int):
         logger.warning("Function encountered a TypeError for input parameter point_radius. "
@@ -325,11 +325,11 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
@@ -400,7 +400,9 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
             else:
-                continue
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                raise FaceNotFoundError()
 
             fo_screen_coords = []
 
@@ -576,9 +578,9 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                        "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Extract_color_channel_means: output_dir is not a valid path.")
     elif not os.path.isdir(output_dir):
-        logger.warning("Function encountered an OSError for input parameter output_dir. "
+        logger.warning("Function encountered an ValueError for input parameter output_dir. "
                        "Message: output_dir is not a valid path to a directory in your current working tree.")
-        raise OSError("Extract_color_channel_means: output_dir must be a path string to a directory.")
+        raise ValueError("Extract_color_channel_means: output_dir must be a path string to a directory.")
     
     if isinstance(color_space, int):
         if color_space not in COLOR_SPACES:
@@ -754,12 +756,10 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                     ih, iw, ic = frame.shape
                     x,y = int(lm.x * iw), int(lm.y * ih)
                     landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-        elif static_image_mode:
+        else:
             debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process().")
             logger.error("Face mesh detection error, function exiting with status 1.")
             raise FaceNotFoundError()
-        else: 
-            continue
         
         # Concave Polygons
         lc_screen_coords = []

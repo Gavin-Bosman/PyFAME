@@ -3,7 +3,7 @@ from pyfame.core.exceptions import *
 from pyfame.core.occlusion import occlude_face_region
 
 def test_exception_handling():
-    in_dir_valid = "tests\\data\\01-02-01-01-01-01-01.mp4"
+    in_dir_valid = "tests\\data\\sample_video.mp4"
     in_dir_invalid = "tests\\data\\Videos\\Actor_01.mp4"
     out_dir_valid = "tests\\data\\outputs"
     out_dir_invalid = "tests\\images\\masked_videos"
@@ -54,6 +54,8 @@ def test_exception_handling():
     # Testing exceptions for input files with no face present
     with pytest.raises(FaceNotFoundError):
         occlude_face_region(input_dir="tests\\data\\no_face.png", output_dir=out_dir_valid)
+    with pytest.raises(FaceNotFoundError):
+        occlude_face_region(input_dir="tests\\data\\no_face.mp4", output_dir=out_dir_valid)
     
     # Testing exceptions for files encoded in an incompatible extension
     with pytest.raises(UnrecognizedExtensionError):

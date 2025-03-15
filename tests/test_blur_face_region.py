@@ -3,7 +3,7 @@ from pyfame.core.exceptions import *
 from pyfame.core.occlusion import blur_face_region
 
 def test_exception_handling():
-    in_dir_valid = "tests\\data\\01-02-01-01-01-01-01.mp4"
+    in_dir_valid = "tests\\data\\sample_video.mp4"
     in_dir_invalid = "tests\\data\\Videos\\Actor_01.mp4"
     out_dir_valid = "tests\\data\\outputs"
     out_dir_invalid = "tests\\images\\masked_videos"
@@ -22,7 +22,7 @@ def test_exception_handling():
     with pytest.raises(ValueError):
         blur_face_region(input_dir=in_dir_valid, output_dir=in_dir_valid)
     
-    # exception testing blur_method
+    # exception testing blur_method parameter
     with pytest.raises(TypeError):
         blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, blur_method=2.5)
     with pytest.raises(ValueError):
@@ -30,3 +30,31 @@ def test_exception_handling():
     with pytest.raises(ValueError):
         blur_face_region(input_dir=in_dir_valid, output_dir=in_dir_valid, blur_method=100)
     
+    # exception testing k_size parameter
+    with pytest.raises(TypeError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, k_size="test")
+    with pytest.raises(ValueError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, k_size=0)
+    
+    # exception testing with_sub_dirs parameter
+    with pytest.raises(TypeError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, with_sub_dirs=1)
+    
+    # exception testing mediapipe configuration parameters
+    with pytest.raises(TypeError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, min_detection_confidence=2)
+    with pytest.raises(ValueError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, min_detection_confidence=2.2)
+    
+    with pytest.raises(TypeError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, min_tracking_confidence=2)
+    with pytest.raises(ValueError):
+        blur_face_region(input_dir=in_dir_valid, output_dir=out_dir_valid, min_tracking_confidence=2.2)
+    
+    # Testing exceptions for input files with no face present
+    with pytest.raises(FaceNotFoundError):
+        blur_face_region(input_dir="tests\\data\\no_face.png", output_dir=out_dir_valid)
+    
+    # Testing exceptions for files encoded in an incompatible extension
+    with pytest.raises(UnrecognizedExtensionError):
+        blur_face_region(input_dir="tests\\data\\invalid_ext.webp", output_dir=out_dir_valid)

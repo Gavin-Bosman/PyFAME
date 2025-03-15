@@ -76,6 +76,10 @@ def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUF
         logger.warning("Function encountered a TypeError for input parameter block_duration. "
                        "Message: invalid type for parameter block_duration, expected int.")
         raise TypeError("Generate_shuffled_block_array: parameter block_size must be an integer")
+    elif block_duration < 34:
+        logger.warning("Function encountered a ValueError for input parameter block_duration. "
+                       "Message: block_duration must be greater than 34ms (the time duration of a single frame).")
+        raise ValueError("Generate_shuffled_block_array: parameter block_duration must be greater than 34ms (the time duration of a single frame).")
     
     # Logging input parameters
     shuffle_method_name = get_variable_name(shuffle_method, globals())
@@ -121,6 +125,7 @@ def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUF
             block_order.reverse()
 
     logger.info(f"Function execution completed, returning ({block_order}, {block_size}).")
+    capture.release()
     return (block_order, block_size)
 
 def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, rand_seed:int|None = None, block_order:tuple|None = None, 
@@ -191,7 +196,7 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
                        "Message: output_dir is not a valid path in your current working tree.")
         raise OSError("Shuffle_frame_order: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
-        logger.warning("Function encountered an OSError for input parameter output_dir. "
+        logger.warning("Function encountered a ValueError for input parameter output_dir. "
                        "Message: output_dir is not a valid path to a directory in your current working tree.")
         raise ValueError("Shuffle_frame_order: output_dir must be a valid path to a directory.")
     
@@ -215,18 +220,20 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         logger.warning("Function encountered a TypeError for input parameter block_duration. "
                        "Message: invalid type for parameter block_duration, expected int.")
         raise TypeError("Shuffle_frame_order: parameter block_size must be an integer")
+    elif block_duration < 34:
+        logger.warning("Function encountered a ValueError for input parameter block_duration. "
+                       "Message: block_duration must be greater than 34ms (the time duration of a single frame).")
+        raise ValueError("Shuffle_frame_order: parameter block_duration must be greater than 34ms (the time duration of a single frame).")
     
     if block_order != None:
-        if not isinstance(block_order, list):
+        if not isinstance(block_order, tuple):
             logger.warning("Function encountered a TypeError for input parameter block_order. "
-                           "Message: invalid type for parameter block_order, expected list.")
-            raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
-        
-        for i in block_order:
-            if not isinstance(i, int):
-                logger.warning("Function encountered a TypeError for input parameter block_order. "
-                               "Message: invalid type for parameter block_order, expected list[int].")
-                raise TypeError("Shuffle_frame_order: parameter block_order must be a zero-indexed list of integers.")
+                           "Message: invalid type for parameter block_order, expected tuple.")
+            raise TypeError("Shuffle_frame_order: parameter block_order must be a tuple(list, int).")
+        elif not isinstance(block_order[0], list) or not isinstance(block_order[1], int):
+            logger.warning("Function encountered a ValueError for input parameter block_order. "
+                           "Message: Unrecognized value of parameter block_order, expected a tuple of (list, int).")
+            raise ValueError("Shuffle_frame_order: parameter block_order must be a tuple of (list, int).")
     
     if not isinstance(drop_last_block, bool):
         logger.warning("Function Encountered a TypeError for input parameter drop_last_block. "
@@ -283,9 +290,9 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
             case _:
                 logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
                              "Please see pyfameutils.transcode_video_to_mp4().")

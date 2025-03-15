@@ -16,7 +16,7 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude: float = 8.0, timing_func:Callable[...,float] = linear, 
-                     shift_color:str|int = COLOR_RED, landmark_regions:list[list[tuple]] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
+                     shift_color:str|int = COLOR_RED, landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], with_sub_dirs:bool = False, 
                      min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs) -> None: 
     """For each image or video file contained in input_dir, the function applies a weighted color shift to the face region, 
     outputting each resulting file in output_dir. Weights are calculated using a passed timing function, that returns
@@ -172,10 +172,20 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         logger.warning("Function encountered a TypeError for input parameter onset_t. "
                        "Message: invalid type for parameter onset_t, expected float.")
         raise TypeError("Face_color_shift: parameter onset_t must be a float.")
+    elif onset_t < 0:
+        logger.warning("Function encountered a ValueError for input parameter onset_t. "
+                       "Message: onset_t must be a positive float value.")
+        raise ValueError("Face_color_shift: parameter onset_t must be a positive float.")
+    
     if not isinstance(offset_t, float):
         logger.warning("Function encountered a TypeError for input parameter offset_t. "
                        "Message: invalid type for parameter offset_t, expected float.")
         raise TypeError("Face_color_shift: parameter offset_t must be a float.")
+    elif offset_t < 0:
+        logger.warning("Function encountered a ValueError for input parameter offset_t. "
+                       "Message: offset_t must be a positive float value.")
+        raise ValueError("Face_color_shift: parameter offset_t must be a positive float.")
+
     if not isinstance(shift_magnitude, float):
         logger.warning("Function encountered a TypeError for input parameter shift_magnitude. "
                        "Message: invalid type for parameter shift_magnitude, expected float.")
@@ -185,7 +195,7 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         if str.lower(shift_color) not in ["red", "green", "blue", "yellow"]:
             logger.warning("Function encountered a ValueError for input parameter shift_color. "
                            "Message: unrecognized value for parameter shift_color, please see "
-                           "pyfame_utils.display_shift_color_options() for a full list of accepted values.")
+                           "utils.display_shift_color_options() for a full list of accepted values.")
             raise ValueError("Face_color_shift: shift_color must be one of: red, green, blue, yellow.")
     elif isinstance(shift_color, int):
         if shift_color not in [COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW]:
@@ -202,11 +212,15 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
                        "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_color_shift: parameter landmarks_to_color expects a list.")
+    elif len(landmark_regions) == 0:
+        logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                       "Message: landmark_regions cannot be an empty list.")
+        raise ValueError("Face_color_shift: parameter landmark_regions cannot be an empty list.")
     for val in landmark_regions:
-        if not isinstance(val, list) and not isinstance(val, tuple):
+        if not isinstance(val, list) or not isinstance(val[0], tuple):
             logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
-                           "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
-            raise ValueError("Face_color_shift: landmark_regions may either be a list of lists, or a singular list of tuples.")
+                           "Message: landmark_regions must either be a list[list[tuple]].")
+            raise TypeError("Face_color_shift: landmark_regions must be a list of list of tuple.")
 
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -285,12 +299,12 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -340,6 +354,12 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
             frame = None
             if static_image_mode:
                 frame = cv.imread(file)
+                if frame is None:
+                    logger.error("Function has encountered an error attempting to read in a file. "
+                                 f"Message: failed to read in file {file}.")
+                    debug_logger.error("Function has encountered an error attempting to call cv2.imread(file). "
+                                       f"Message: failed to read in file {file}. The file may be corrupt or incorrectly encoded.")
+                    raise FileReadError()
             else:
                 success, frame = capture.read()
                 if not success:
@@ -356,12 +376,10 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            elif static_image_mode:
+            else:
                 logger.error("Face mesh detection error, function exiting with status 1.")
                 debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
                 raise FaceNotFoundError()
-            else:
-                continue
             
             # Define an empty matlike in the shape of the frame, on which we will overlay our masks
             masked_frame = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
@@ -692,7 +710,7 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
         logger.info(f"Function execution completed successfully, view outputted files at {dir_file_path}.")
 
 def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude:float = -8.0, 
-                          timing_func:Callable[..., float] = sigmoid, landmark_regions:list[list[tuple]] | list[tuple] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
+                          timing_func:Callable[..., float] = linear, landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], with_sub_dirs:bool = False, 
                           min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs) -> None:
     """For each image or video file contained in input_dir, the function applies a weighted saturation shift to the face region, 
     outputting each processed file to output_dir. Weights are calculated using a passed timing function, that returns
@@ -779,10 +797,20 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         logger.warning("Function encountered a TypeError for input parameter onset_t. "
                        "Message: invalid type for parameter onset_t, expected float.")
         raise TypeError("Face_saturation_shift: parameter onset_t must be a float.")
+    elif onset_t < 0:
+        logger.warning("Function encountered a ValueError for input parameter onset_t. "
+                       "Message: onset_t must be a positive float value.")
+        raise ValueError("Face_saturation_shift: parameter onset_t must be a positive float.")
+    
     if not isinstance(offset_t, float):
         logger.warning("Function encountered a TypeError for input parameter offset_t. "
                        "Message: invalid type for parameter offset_t, expected float.")
         raise TypeError("Face_saturation_shift: parameter offset_t must be a float.")
+    elif offset_t < 0:
+        logger.warning("Function encountered a ValueError for input parameter offset_t. "
+                       "Message: offset_t must be a positive float value.")
+        raise ValueError("Face_saturation_shift: parameter offset_t must be a positive float.")
+
     if not isinstance(shift_magnitude, float):
         logger.warning("Function encountered a TypeError for input parameter shift_magnitude. "
                        "Message: invalid type for parameter shift_magnitude, expected float.")
@@ -792,11 +820,15 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
                        "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_saturation_shift: parameter landmarks_to_color expects a list.")
+    elif len(landmark_regions) == 0:
+        logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                       "Message: landmark_regions cannot be an empty list.")
+        raise ValueError("Face_saturation_shift: parameter landmark_regions cannot be an empty list.")
     for val in landmark_regions:
-        if not isinstance(val, list) and not isinstance(val, tuple):
+        if not isinstance(val, list) or not isinstance(val[0], tuple):
             logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
-                           "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
-            raise ValueError("Face_saturation_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
+                           "Message: landmark_regions must either be a list[list[tuple]].")
+            raise TypeError("Face_saturation_shift: landmarks_regions expects a list of list of tuple.")
 
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -869,12 +901,12 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -923,6 +955,11 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
             frame = None
             if static_image_mode:
                 frame = cv.imread(file)
+                if frame is None:
+                    logger.error("Function encountered an error attempting to call cv2.imread(file).")
+                    debug_logger.error("Function encountered an error attempting to call cv2.imread(file) "
+                                       f"over file {file}.")
+                    raise FileReadError()
             else:
                 success, frame = capture.read()
                 if not success:
@@ -939,12 +976,10 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            elif static_image_mode:
+            else:
                 logger.error("Face mesh detection error, function exiting with status 1.")
                 debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
                 raise FaceNotFoundError()
-            else:
-                continue
             
             masked_frame = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
 
@@ -1295,8 +1330,8 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
 
         logger.info(f"Function execution completed successfully, view outputted files at {dir_file_path}.")
 
-def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude:int = 20, 
-                        timing_func:Callable[..., float] = sigmoid, landmark_regions:list[list[tuple]] | list[tuple] = FACE_SKIN_PATH, with_sub_dirs:bool = False, 
+def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude:float = 20.0, 
+                        timing_func:Callable[..., float] = linear, landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], with_sub_dirs:bool = False, 
                         min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs) -> None:
     """For each image or video file contained in input_dir, the function applies a weighted brightness shift to the face region, 
     outputting each processed file to output_dir. Weights are calculated using a passed timing function, that returns a float in the normalised range [0,1].
@@ -1383,10 +1418,20 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         logger.warning("Function encountered a TypeError for input parameter onset_t. "
                        "Message: invalid type for parameter onset_t, expected float.")
         raise TypeError("Face_brightness_shift: parameter onset_t must be a float.")
+    elif onset_t < 0:
+        logger.warning("Function encountered a ValueError for input parameter onset_t. "
+                       "Message: onset_t must be a positive float value.")
+        raise ValueError("Face_brightness_shift: parameter onset_t must be a positive float.")
+    
     if not isinstance(offset_t, float):
         logger.warning("Function encountered a TypeError for input parameter offset_t. "
                        "Message: invalid type for parameter offset_t, expected float.")
         raise TypeError("Face_brightness_shift: parameter offset_t must be a float.")
+    elif offset_t < 0:
+        logger.warning("Function encountered a ValueError for input parameter offset_t. "
+                       "Message: offset_t must be a positive float value.")
+        raise ValueError("Face_brightness_shift: parameter offset_t must be a positive float.")
+
     if not isinstance(shift_magnitude, float):
         logger.warning("Function encountered a TypeError for input parameter shift_magnitude. "
                        "Message: invalid type for parameter shift_magnitude, expected float.")
@@ -1396,11 +1441,15 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
                        "Message: invalid type for parameter landmark_regions, expected list.")
         raise TypeError("Face_brightness_shift: parameter landmarks_to_color expects a list.")
+    elif len(landmark_regions) == 0:
+        logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
+                       "Message: landmark_regions cannot be an empty list.")
+        raise ValueError("Face_brightness_shift: parameter landmark_regions cannot be an empty list.")
     for val in landmark_regions:
-        if not isinstance(val, list) and not isinstance(val, tuple):
+        if not isinstance(val, list) or not isinstance(val[0], tuple):
             logger.warning("Function encountered a ValueError for input parameter landmark_regions. "
-                           "Message: landmark_regions must either be a list[list[tuple]] or list[tuple].")
-            raise ValueError("Face_brightness_shift: landmarks_to_color may either be a list of lists, or a singular list of tuples.")
+                           "Message: landmark_regions must be a list[list[tuple]].")
+            raise TypeError("Face_brightness_shift: landmarks_regions must be a list of list of tuple.")
 
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -1455,12 +1504,12 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -1509,6 +1558,11 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
             frame = None
             if static_image_mode:
                 frame = cv.imread(file)
+                if frame is None:
+                    logger.error("Function encountered an error attempting to call cv2.imread(file).")
+                    debug_logger.error("Function encountered an error attempting to call cv2.imread(file) "
+                                       f"over file {file}.")
+                    raise FileReadError()
             else:
                 success, frame = capture.read()
                 if not success:
@@ -1525,12 +1579,10 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            elif static_image_mode:
+            else:
                 logger.error("Face mesh detection error, function exiting with status 1.")
                 debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
                 raise FaceNotFoundError()
-            else:
-                continue
             
             masked_frame = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
 

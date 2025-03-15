@@ -611,12 +611,12 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -883,12 +883,12 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -950,12 +950,9 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
             else:
-                if static_image_mode:
-                    debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process().")
-                    logger.error("Face mesh detection error, function exiting with status 1.")
-                    raise FaceNotFoundError()
-                else: 
-                    continue
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process().")
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                raise FaceNotFoundError()
 
             masked_frame = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
 
@@ -1489,6 +1486,10 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
         logger.warning("Function encountered a TypeError for input parameter k_size. "
                        "Message: invalid type for parameter k_size, expected int.")
         raise TypeError("Blur_face_region: parameter k_size must be of type int.")
+    elif k_size < 1:
+        logger.warning("Function encountered a ValueError for input parameter k_size. "
+                       "Message: parameter k_size must be a positive integer (>0).")
+        raise ValueError("Blur_face_region: parameter k_size must be a positive integer.")
     
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -1561,12 +1562,12 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -1624,12 +1625,10 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            elif static_image_mode:
+            else:
                 logger.error("Face mesh detection error, function exiting with status 1.")
                 debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
                 raise FaceNotFoundError()
-            else: 
-                continue
 
             face_outline_coords = []
             # face oval screen coordinates
@@ -1695,7 +1694,7 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
         logger.info(f"Function execution completed successfully. View outputted file(s) at {output_dir}.")
 
 def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate", pixel_size:int = 32, noise_prob:float = 0.5,
-                rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, mask_type:int | None = None, 
+                rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, mask_type:int = FACE_OVAL_MASK, 
                 with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes an input image or video file, and applies the specified noise method to the image or each frame of the video. For
     noise_method `pixelate`, an output image size must be specified in order to resize the image/frame's pixels.
@@ -1779,7 +1778,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
     elif not os.path.isdir(output_dir):
         logger.warning("Function encountered an OSError for input parameter output_dir. "
                        "Message: output_dir is not a valid path to a directory, or the directory does not exist.")
-        raise OSError("Apply_noise: output_dir must be a path string to a directory.")
+        raise ValueError("Apply_noise: output_dir must be a path string to a directory.")
     
     if not isinstance(noise_method, int):
         if not isinstance(noise_method, str):
@@ -1789,16 +1788,20 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         elif str.lower(noise_method) not in ["salt and pepper", "pixelate", "gaussian"]:
             logger.warning("Function encountered a ValueError for input parameter noise_method. "
                            "Message: unrecognized value for parameter noise_method.")
-            raise ValueError("Apply_noise: unrecognized value, please see pyfame_utils.display_noise_method_options() for the full list of accepted values.")
+            raise ValueError("Apply_noise: unrecognized value, please see utils.display_noise_method_options() for the full list of accepted values.")
     elif noise_method not in [NOISE_METHOD_SALT_AND_PEPPER, NOISE_METHOD_PIXELATE, NOISE_METHOD_GAUSSIAN]:
         logger.warning("Function encountered a ValueError for input parameter noise_method. "
                            "Message: unrecognized value for parameter noise_method.")
-        raise ValueError("Apply_noise: unrecognized value, please see pyfame_utils.display_noise_method_options() for the full list of accepted values.")
+        raise ValueError("Apply_noise: unrecognized value, please see utils.display_noise_method_options() for the full list of accepted values.")
     
     if not isinstance(pixel_size, int):
         logger.warning("Function encountered a TypeError for input parameter pixel_size. "
                        "Message: invalid type for parameter pixel_size, expected int.")
         raise TypeError("Apply_noise: parameter pixel_size expects an integer.")
+    elif pixel_size < 1:
+        logger.warning("Function encountered a ValueError for input parameter pixel_size. "
+                       "Message: pixel_size must be a positive (>0) integer.")
+        raise ValueError("Apply_noise: parameter pixel_size must be a positive integer.")
     
     if not isinstance(noise_prob, float):
         logger.warning("Function encountered a TypeError for input parameter noise_prob. "
@@ -1831,8 +1834,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         raise TypeError("Apply_noise: parameter mask_type expects an integer.")
     elif mask_type not in MASK_OPTIONS:
         logger.warning("Function encountered a ValueError for input parameter mask_type. "
-                       "Message: unrecognized mask_type. See pyfame_utils.display_face_mask_options().")
-        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within pyfame_utils.display_face_mask_options().")
+                       "Message: unrecognized mask_type. See utils.display_face_mask_options().")
+        raise ValueError("Apply_noise: mask_type must be one of the predefined options specified within utils.display_face_mask_options().")
     
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
@@ -2076,7 +2079,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
 
                 return masked_frame
             
-            case 22: # Lips mask
+            case 22: # mouth mask
                 lips_screen_coords = []
 
                 # Lips screen coordinates
@@ -2332,12 +2335,12 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -2377,7 +2380,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
             frame = None
             if static_image_mode:
                 frame = cv.imread(file)
-                if frame == None:
+                if frame is None:
                     logger.error("Function has encountered an error attempting to read in a file. "
                                  f"Message: failed to read in file {file}.")
                     debug_logger.error("Function has encountered an error attempting to call cv2.imread(file). "
@@ -2399,12 +2402,10 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            elif static_image_mode:
+            else:
                 logger.error("Face mesh detection error, function exiting with status 1.")
                 debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
                 raise FaceNotFoundError()
-            else:
-                continue
             
             output_frame = frame.copy()
             if isinstance(noise_method, str):
@@ -2419,9 +2420,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     temp = cv.resize(frame, (w, h), None, 0, 0, cv.INTER_LINEAR)
                     output_frame = cv.resize(temp, (width, height), None, 0, 0, cv.INTER_NEAREST)
 
-                    if mask_type != None:
-                        img_mask = mask_frame(frame, mask_type)
-                        output_frame = np.where(img_mask == 255, output_frame, frame)
+                    img_mask = mask_frame(frame, mask_type)
+                    output_frame = np.where(img_mask == 255, output_frame, frame)
 
                 case 'salt and pepper' | 19:
                     # Divide prob in 2 for "salt" and "pepper"
@@ -2445,9 +2445,8 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     output_frame[pepper_mask] = [0,0,0]
                     output_frame[salt_mask] = [255,255,255]
 
-                    if mask_type != None:
-                        img_mask = mask_frame(frame, mask_type)
-                        output_frame = np.where(img_mask == 255, output_frame, frame)
+                    img_mask = mask_frame(frame, mask_type)
+                    output_frame = np.where(img_mask == 255, output_frame, frame)
                 
                 case 'gaussian' | 20:
                     var = standard_dev**2
@@ -2463,9 +2462,9 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     output_frame = random_noise(image=output_frame, mode='gaussian', rng=rng, mean=mean, var=var)
                     output_frame = img_as_ubyte(output_frame)
 
-                    if mask_type != None:
-                        img_mask = mask_frame(frame, mask_type)
-                        output_frame = np.where(img_mask == 255, output_frame, frame)
+                    
+                    img_mask = mask_frame(frame, mask_type)
+                    output_frame = np.where(img_mask == 255, output_frame, frame)
 
                 case _:
                     logger.warning("Function has encountered an unrecognized value for parameter noise_method during execution, "

@@ -3,13 +3,32 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- v0.7... unit testing
 - v0.7... add masking to blur_face_region()
 - v0.7... expand timing function availability to blurring, occluding and noise
+- v0.7... expanded functionality to extract_face_color_means()
 - v0.8... full docsite reimplementation with vitepress
 - v1.0 gui preview prior to file processing
 
-- bug fixes with background_color parameter being read as int64 instead of uint8, causing corrupted file output.
+## [0.7.2] 2025-03-10
+
+### Added
+
+- A full pytest test suite has been implemented, covering all of the main package functionality found in pyfame.core. The test suite automatically disables file logging when running tests (via conftest.py setting an env variable) as to not bloat up the log files.
+- `exceptions.py` has been implemented, containing several custom exceptions aimed at handling unrecognized file extensions, and image file IO errors.
+
+### Changed
+
+- Pyfames package structure has been completely reworked into a more readable and modular format. Previously, all of the packages main functions were in a top level file pyfame.py. Pyfame's package structure is now as follows:
+    - The top level package pyfame has two submodules `.core` and `.utils`
+        - `.core` contains the packages main functions, which have been divied up into `analysis.py`, `coloring.py`, `occlusion.py`, `point_light_display.py`, `scrambling.py` and `temporal_transforms.py`.
+        - all of the main functions are accessible via 'import pyfame.core'
+        - `.utils` contains the packages utility functions, predefined landmark regions and global constants all previously found in a top level `pyfame_utils.py`
+        - `.utils` has been divied up into `display_options.py`, `landmarks.py`, `predefined_constants.py` and `timing_functions.py`
+        - all of the utility funtions are accessible via 'import pyfame.utils'
+- `setup_logging()` has been moved to its own file `setup_logging.py` to avoid circular import errors. Additionally, the function now checks for an os.environ variable `PYTEST_RUNNING` prior to setting up the logging, in order to avoid writing file logs while running the test suite.
+- Testing exposed several bugs with input parameters being read in as an uncooperative integer type. There were multiple cases of integer input params being read in as int64 rather than uint8 as cv2 expects, which did not raise a TypeError but resulted in corrupt file outputs. This has been patched in `mask_face_region()`, `occlude_face_region()`, and `generate_point_light_display()`.
+
+### Removed
 
 ## [0.7.1] 2025-02-27
 

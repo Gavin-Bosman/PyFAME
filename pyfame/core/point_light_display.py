@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions:list[list] = [FACE_OVAL_PATH], point_density:float = 0.5, 
+def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions:list[list[tuple]] = [FACE_OVAL_PATH], point_density:float = 0.5, 
                         show_history:bool = False, history_mode:int = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_color:tuple[int] = (0,0,255),
                         point_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     '''Generates a point light display of the face region contained in the input image or video file. Points are either predefined mediapipe FaceMesh points, passed 
@@ -89,7 +89,7 @@ def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions
     elif not os.path.isdir(output_dir):
         logger.warning("Function encountered an OSError for input parameter output_dir. "
                        "Message: output_dir is not a valid path string to a directory.")
-        raise OSError("Point_light_display: parameter output_dir must be a path string to a directory.")
+        raise ValueError("Point_light_display: parameter output_dir must be a path string to a directory.")
     
     if not isinstance(landmark_regions, list):
         logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
@@ -100,10 +100,10 @@ def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions
                        "Message: landmark_regions cannot be an empty list.")
         raise ValueError("Point_light_display: parameter landmark_regions cannot be an empty list.")
     for val in landmark_regions:
-        if not isinstance(val, list):
+        if not isinstance(val, list) or not isinstance(val[0], tuple):
             logger.warning("Function encountered a TypeError for input parameter landmark_regions. "
-                    "Message: invalid type for parameter landmark_regions, expected list of list.")
-            raise TypeError("Point_light_display: parameter landmark_regions expects a list of list.")
+                    "Message: invalid type for parameter landmark_regions, expected list of list of tuple.")
+            raise TypeError("Point_light_display: parameter landmark_regions expects a list of list of tuple.")
     
     if not isinstance(point_density, float):
         logger.warning("Function encountered a TypeError for input parameter point_density. "
@@ -125,7 +125,7 @@ def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions
         raise TypeError("Point_light_display: parameter history_mode must be an integer.")
     elif history_mode not in [SHOW_HISTORY_ORIGIN, SHOW_HISTORY_RELATIVE]:
         logger.warning("Function encountered a ValueError for input parameter history_mode. "
-                       "Message: unrecognized value for parameter history_mode, please see pyfame_utils.display_history_mode_options() "
+                       "Message: unrecognized value for parameter history_mode, please see utils.display_history_mode_options() "
                        "for a full list of accepted values.")
         raise ValueError("Point_light_display: parameter history_mode must be one of SHOW_HISTORY_ORIGIN or SHOW_HISTORY_RELATIVE.")
     
@@ -247,15 +247,12 @@ def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
-                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
-            case ".jpg" | ".jpeg" | ".png" | ".bmp":
-                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = True, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case _:
                 logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
@@ -318,7 +315,9 @@ def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
             else:
-                continue
+                logger.error("Function encountered a FaceMesh detection error attempting to call FaceMesh.process().")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                raise FaceNotFoundError()
             
             if counter == 0:
                 for lm_path in landmark_regions:

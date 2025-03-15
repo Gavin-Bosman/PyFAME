@@ -1,4 +1,5 @@
-from .predefined_constants import COLOR_BLUE, COLOR_GREEN, COLOR_RED
+from .predefined_constants import *
+from .landmarks import *
 from pyfame.core.exceptions import FileReadError, FileWriteError
 from math import atan
 import numpy as np
@@ -25,7 +26,7 @@ def get_variable_name(variable, namespace) -> str:
             The assigned variable name at the given scope level (if any).
     """
 
-    return [name for name, value in namespace.items() if value is variable][0]
+    return [name for name, value in namespace.items() if value == variable][0]
 
 def calculate_rot_angle(slope1:float, slope2:float = 0.0):
     """ Given the current and previous slope, this function uses the arctan function to compute the angle delta 

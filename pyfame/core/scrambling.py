@@ -88,7 +88,11 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
     elif not os.path.exists(output_dir):
         logger.warning("Function encountered an OSError for input parameter output_dir. "
                        "Message: output_dir is not a valid system path string.")
-        raise OSError("Facial_scramble: output_dir must be a valid pathstring to a file or directory.")
+        raise OSError("Facial_scramble: output_dir must be a valid pathstring to a directory.")
+    elif not os.path.isdir(output_dir):
+        logger.warning("Function encountered an ValueError for input parameter output_dir. "
+                       "Message: output_dir is not a valid system path to a directory.")
+        raise ValueError("Facial_scramble: output_dir must be a valid pathstring to a directory.")
     
     if not isinstance(out_grayscale, bool):
         logger.warning("Function encountered a TypeError for input parameter out_grayscale. "
@@ -197,12 +201,12 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
             case ".mov":
-                codec = "MP4V"
+                codec = "mp4v"
                 static_image_mode = False
                 face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, static_image_mode = False, 
                             min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
@@ -252,6 +256,11 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                 raise FileReadError()
         else:
             frame = cv.imread(file)
+            if frame is None:
+                logger.error(f"Function has encountered an error attempting to read a frame, file may be corrupt")
+                debug_logger.error("Function has encountered an error attempting to read in a frame from file "
+                                   f"{file}. file may be corrupt or incorrectly encoded.")
+                raise FileReadError()
 
         if scramble_method != LANDMARK_SCRAMBLE:
             # Precomputing shuffled grid positions
@@ -266,12 +275,10 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                         ih, iw, ic = frame.shape
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
-            elif static_image_mode:
+            else:
                 logger.error("Face mesh detection error, function exiting with status 1.")
                 debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
                 raise FaceNotFoundError()
-            else:
-                continue
 
             fo_screen_coords = []
 
@@ -431,7 +438,9 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                         x,y = int(lm.x * iw), int(lm.y * ih)
                         landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
             else:
-                continue
+                logger.error("Face mesh detection error, function exiting with status 1.")
+                debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
+                raise FaceNotFoundError()
             
             output_frame = np.zeros((frame.shape[0], frame.shape[1], 3), dtype=np.uint8)
             
