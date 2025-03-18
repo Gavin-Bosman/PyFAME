@@ -19,3 +19,7 @@ make.bat
 /OpenCV_References
 pyfame/processing_script.py
 tests/data/outputs/.
+.pytest_cache
+.venv
+.tox
+.python-version

@@ -1,27 +1,47 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools<=72.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyFAME"
-version = "0.7.1"
+version = "0.7.2"
 authors = [
     { name="Gavin Bosman", email="gavin.bosman12@gmail.com" },
 ]
+description = "PyFAME: the Python Facial Analysis and Manipulation Environment"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+license = { file = "LICENSE.txt" }
+keywords = ["pyfame", "occlusion", "masking", "coloring", "colouring", "psychology"]
 dependencies = [
-    "opencv-python == 4.20.0.84",
-    "mediapipe == 0.10.21",
-    "pandas == 2.2.2",
-    "numpy == 2.0.0",
-    "scikit-image == 0.24.0"
+    "opencv-python >= 4.10.0.0",
+    "mediapipe >= 0.10.14",
+    "pandas >= 2.2.0",
+    "numpy <= 2.0.0",
+    "scikit-image >= 0.24.0",
+    "PyYAML <= 6.0"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Typing :: Typed",
 ]
 
 [project.urls]
 Homepage = "https://github.com/Gavin-Bosman/PyFAME"
 
 [tool.setuptools.packages.find]
-where = ["source"]
+where = ["src"]
 include = ["pyfame*"]
 exclude = ["processing_script.py"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]

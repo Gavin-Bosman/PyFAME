@@ -5,7 +5,7 @@ from .occlusion import mask_face_region, occlude_face_region, blur_face_region, 
 from .point_light_display import generate_point_light_display
 from .scrambling import facial_scramble
 from .temporal_transforms import shuffle_frame_order, generate_shuffled_block_array
-from pyfame.utils.setup_logging import setup_logging
+from ..utils.setup_logging import setup_logging
 
 __all__ = [
     "mask_face_region", "occlude_face_region", "blur_face_region", "apply_noise", 

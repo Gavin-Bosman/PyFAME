@@ -1,4 +1,50 @@
-![Tests](https://github.com/Gavin-Bosman/PyFAME/actions/workflows/tests.yml/badge.svg)
+Metadata-Version: 2.2
+Name: PyFAME
+Version: 0.7.2
+Summary: PyFAME: the Python Facial Analysis and Manipulation Environment
+Author-email: Gavin Bosman <gavin.bosman12@gmail.com>
+License: MIT License
+        
+        Copyright (c) [2024] [Gavin Bosman]
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+Project-URL: Homepage, https://github.com/Gavin-Bosman/PyFAME
+Keywords: pyfame,occlusion,masking,coloring,colouring,psychology
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Operating System :: OS Independent
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Development Status :: 4 - Beta
+Classifier: Natural Language :: English
+Classifier: Topic :: Scientific/Engineering :: Image Processing
+Classifier: Typing :: Typed
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE.txt
+Requires-Dist: opencv-python>=4.10.0.84
+Requires-Dist: mediapipe>=0.10.14
+Requires-Dist: pandas>=2.2.2
+Requires-Dist: numpy<=2.0.0
+Requires-Dist: scikit-image>=0.24.0
+Requires-Dist: PyYAML<=6.0.1
+
 # PyFAME: the Python Facial Analysis and Manipulation Environment
 PyFAME is a python package for dynamic region occlusion and skin colour modification of faces in video and images. Provides a range of tools for changing the colour of user-specified facial regions using industry-standard colour spaces (L*a*b, HSV, BGR), occlusion of user-defined facial regions (e.g., eyes, nose, mouth, hemi-face), and isolation of the head from background scene through video matting. Facial modifications can be further transitioned on and off through a range of timing functions (e.g., linear, sigmoid, Gaussian etc).
 
@@ -11,11 +57,9 @@ Here is an example of PyFAME performing pixel-level modifications to create new 
 
 Currently, there are no available tools for performing these types of pixel-level operations over videos. Existing research has commonly used general image editing tools (such as Photoshop). However, these tools apply changes to the entire image, causing noticeable background artifacts. PyFAME provides users the ability to selectively modify specific regions of the face, for both static images and videos. Our package also seamlessly integrates temporal functions into it's video processing, allowing users to specify how and when pixel-level operations will be applied.
 
-## A Quick Example: Facial Masking
+## A Quick Example: Facial Occlusion
 ```
-import pyfame.core as pf
-from pyfame.utils.predefined_constants import *
-from pyfame.utils.landmarks import *
+import pyfame as pf
 
 # For windows operating systems use "\\" to delimit your pathstrings
 # For linux or macos use "/" to delimit your pathstrings
@@ -23,7 +67,7 @@ in_dir = ".\<your input directory>"
 out_dir = ".\<your output directory>"
 
 # PyFAME provides an extensive list of predefined landmark paths, as well as several predefined occlusion types
-pf.mask_face_region(input_dir = in_dir, output_dir = out_dir, mask_type = FACE_OVAL_MASK, background_color = (0,0,0))
+pf.occlude_face_region(input_dir = in_dir, output_dir = out_dir, landmarks_to_occlude = BOTH_EYES_PATH, occlusion_fill = OCCLUSION_FILL_BAR)
 ```
 
 ## Underlying Model
