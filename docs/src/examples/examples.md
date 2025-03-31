@@ -1,6 +1,8 @@
 ---
 layout: doc
 title: Examples
+prev: false
+next: false
 ---
 
 ## Getting Started {#start}

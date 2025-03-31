@@ -1,6 +1,8 @@
 ---
 layout: doc
 title: API Reference
+prev: false
+next: false
 ---
 ## Facial Masking {#facial_masking}
 
