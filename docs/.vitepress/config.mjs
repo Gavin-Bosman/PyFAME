@@ -10,8 +10,9 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/reference/index' },
+      { text: 'Home', link: '/index' },
       { text: 'Reference', link: '/reference/reference' },
+      { text: 'Examples', link: '/examples/examples' },
       { text: 'Changelog', link: '/extras/changelog'}
     ],
 
@@ -31,14 +32,32 @@ export default defineConfig({
               text: 'Facial Color Shifting',
               link: '/reference#color_shifting',
               items: [
-                {text: 'face_color_shift()', link: '/reference/reference#face_color_shift'},
-                {text: 'face_saturation_shift()', link: '/reference/reference#face_sat_shift'},
-                {text: 'face_brightness_shift()', link: '/reference/reference#face_bright_shift'},
+                { text: 'face_color_shift()', link: '/reference/reference#face_color_shift' },
+                { text: 'face_saturation_shift()', link: '/reference/reference#face_sat_shift' },
+                { text: 'face_brightness_shift()', link: '/reference/reference#face_bright_shift' },
               ]
             }
           ]
         }
+      ],
+
+      '/examples/': [
+        {
+          text: 'Examples and Tutorials', 
+          items: [
+            { 
+              text: 'Getting Started', 
+              link: '/examples/examples#start',
+              items: [
+                { text: "Installation", link: '/examples/examples#install' },
+                { text: "Using PyFAME", link: '/examples/examples#using_pyfame' }
+              ] 
+            },
+            {text: 'Examples', link: '/examples/examples#examples'}
+          ]
+        }
       ]
+
     },
     
     socialLinks: [

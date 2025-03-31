@@ -5,7 +5,7 @@ PyFAME is a python package for dynamic region occlusion and skin colour modifica
 PyFAME enables researchers to apply complex facial manipulations to just the face in dynamic video and still images scenes in several lines of code.
 Here is an example of PyFAME performing pixel-level modifications to create new videos from the original one:
 
-![PyFAME pixel-level Operations](./docs/images/output_grid.png)
+![PyFAME pixel-level Operations](./docs/docsite/output_grid.png)
 
 ## Statement of Need
 

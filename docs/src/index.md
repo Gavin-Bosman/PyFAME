@@ -11,8 +11,8 @@ hero:
     alt: Some example function outputs
   actions:
     - theme: brand
-      text: Source Code
-      link: https://github.com/Gavin-Bosman/PyFAME
+      text: Getting Started
+      link: /examples/examples
     - theme: alt
       text: API Reference
       link: /reference/reference
