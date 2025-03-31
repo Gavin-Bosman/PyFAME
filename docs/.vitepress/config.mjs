@@ -6,6 +6,7 @@ export default defineConfig({
   description: "API documentation for the PyFAME package",
   srcDir: './src',
   outDir: './docsite',
+  base: '/PyFAME',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
@@ -33,8 +34,6 @@ export default defineConfig({
                 {text: 'face_color_shift()', link: '/reference/reference#face_color_shift'},
                 {text: 'face_saturation_shift()', link: '/reference/reference#face_sat_shift'},
                 {text: 'face_brightness_shift()', link: '/reference/reference#face_bright_shift'},
-  
-  
               ]
             }
           ]
