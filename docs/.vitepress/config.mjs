@@ -9,9 +9,10 @@ export default defineConfig({
   base: '/PyFAME',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
+    logo: './pyfame_logo.png',
     nav: [
       { text: 'Home', link: '/index' },
-      { text: 'Reference', link: '/reference/reference' },
+      { text: 'Reference', link: '/reference/overview' },
       { text: 'Examples', link: '/examples/examples' },
       { text: 'Changelog', link: '/extras/changelog'}
     ],
@@ -26,15 +27,35 @@ export default defineConfig({
         {
           text: 'PyFAME API Reference',
           items: [
-            { text: 'Facial Masking', link: '/reference/reference#facial_masking' },
-            { text: 'Facial Occlusion', link: '/reference/reference#facial_occlusion' },
-            {
-              text: 'Facial Color Shifting',
-              link: '/reference#color_shifting',
+            { 
+              text: 'API Overview', 
+              link: '/reference/overview',
               items: [
-                { text: 'face_color_shift()', link: '/reference/reference#face_color_shift' },
-                { text: 'face_saturation_shift()', link: '/reference/reference#face_sat_shift' },
-                { text: 'face_brightness_shift()', link: '/reference/reference#face_bright_shift' },
+                { text: 'Analysis Submodule', link: '/reference/overview#module_analysis' },
+                { text: 'Coloring Submodule', link: '/reference/overview#module_coloring' },
+                { text: 'Occlusion Submodule', link: '/reference/overview#module_occlusion' },
+                { text: 'PLD Submodule', link: '/reference/overview#module_pld' },
+                { text: 'Scrambling Submodule', link: '/reference/overview#module_scrambling' },
+                { text: 'Temporal_transforms Submodule', link:'/reference/overview#module_tt' }
+              ]
+            },
+            {
+              text: 'Occlusion',
+              link: '/reference/occlusion',
+              items: [
+                { text: 'Facial Masking', link: '/reference/occlusion#facial_masking' },
+                { text: 'Facial Occlusion', link: '/reference/occlusion#facial_occlusion' },
+                { text: 'Facial Blurring', link: '/reference/occlusion#facial_blurring' },
+                { text: 'Applying Noise', link: '/reference/occlusion#facial_noise'}
+              ]
+            },
+            {
+              text: 'Coloring',
+              link: '/reference/coloring',
+              items: [
+                { text: 'face_color_shift()', link: '/reference/coloring#face_color_shift' },
+                { text: 'face_saturation_shift()', link: '/reference/coloring#face_sat_shift' },
+                { text: 'face_brightness_shift()', link: '/reference/coloring#face_bright_shift' },
               ]
             }
           ]

@@ -718,6 +718,12 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
         Given invalid landmark sets or unrecognized fill options.
     OSError 
         Given invalid path strings to either input_dir or output_dir.
+    FileReadError
+        When an error is encountered instantiating VideoCapture or calling imRead.
+    FileWriteError
+        When an error is encountered instantiating VideoWriter or calling imWrite.
+    UnrecognizedExtensionError
+        When an unrecognized image or video file extension is provided.
     '''
     
     singleFile = False

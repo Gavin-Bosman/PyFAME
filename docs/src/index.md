@@ -7,7 +7,7 @@ hero:
   text: "The Python Facial Analysis and Manipulation Environment"
   tagline: An Innovative Facial Psychology Toolkit For Python
   image:
-    src: ./output_grid.png
+    src: ./pyfame_logo.png
     alt: Some example function outputs
   actions:
     - theme: brand
@@ -15,14 +15,23 @@ hero:
       link: /examples/examples
     - theme: alt
       text: API Reference
-      link: /reference/reference
+      link: /reference/overview
 
 features:
-  - title: Multimedia Operability
-    details: PyFAME can perform dynamic facial masking, occlusion and color-shifting over a variety of image and video file types. PyFAME is one of the first packages of it's kind, allowing users to directly manipulate and analyze video files, rather than only still images.
-  - title: Temporal and Spatial Manipulations
-    details: PyFAME provides a variety of novel features allowing users to perform temporal and spatial manipulations over video files. For example, the shuffle_frame_order function allows users to reorganize video frames using a variety of methods including cyclic shifts, interleaving, and palindrome. 
-  - title: Multi-File Processing
-    details: With just a single line of Python code, PyFAME allows you to process any number of files given an input directory. This directory can contain nested subdirectories, and varying file extensions, which will all be handled automatically. 
+  - icon:
+      light: 'icons/multimedia-light.svg'
+      dark: 'icons/multimedia-dark.svg'
+    title: Multimedia Operability
+    details: Apply a library of 15+ classical facial manipulations to still images and movie stimuli (masking, occlusion, blurring, point-light display etc.)
+  - icon:
+      light: 'icons/layer.svg'
+      dark: 'icons/layer.svg'
+    title: Layer Manipulations
+    details: Multiple facial manipulations can be layered/composed into a single stimuli (i.e. landmark shuffling + desaturation)
+  - icon:
+      light: 'icons/graph.svg'
+      dark: 'icons/graph.svg'
+    title: Temporal Manipulation
+    details: Timing functions allow precise control over modulating the application of manipulation layers, as well as temporal shuffling of video frames 
 ---
 

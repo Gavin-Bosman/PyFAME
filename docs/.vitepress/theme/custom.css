@@ -1,0 +1,42 @@
+/* Custom CSS file for site */
+
+:root {
+    /* Make the hero name text transparent so the gradient can show through */
+    --vp-home-hero-name-color: transparent;
+  
+    /* Apply a gradient background to the hero name text */
+    --vp-home-hero-name-background: -webkit-linear-gradient(
+      325deg, #274472 40%, #41729f 15%, #1dc8bd 50%
+    );
+
+    /* Example: If you want the hero image background or blur effect */
+    --vp-home-hero-image-background-image: linear-gradient(
+        120deg,
+        #1dc8bd 50%,
+        #41729fa1 50%
+    );
+    --vp-home-hero-image-filter: blur(44px);
+
+    /* Current URL text colour */
+    --vp-c-brand-1: #138ef3;
+    /* Action button hover */
+    --vp-c-brand-2: #41729f;
+    /* Action button colour */
+    --vp-c-brand-3: #1dc8bd;
+    /* --vp-c-brand-soft: purple; */
+
+    /* Alt button click */
+    --vp-c-default-1: #788eab81;
+    /* Alt button hover */
+    --vp-c-default-2: #788eab52;
+  }
+
+  .dark {
+    --vp-c-default-1: #7e92ad88;
+    --vp-c-default-2: #9eb6d588;
+  }
+
+  .VPHero .image {
+    width: 50px; /* Adjust the width as needed */
+    height: auto; /* Keep aspect ratio */
+  }
