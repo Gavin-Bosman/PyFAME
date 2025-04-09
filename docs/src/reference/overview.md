@@ -52,16 +52,19 @@ This module contains several functions associated with occluding, obstructing or
 
 ## Point_light_display {#module_pld}
 
-temp filler
+This module contains only one function, namely `generate_point_light_display()`. A point-light-display is a motion-perception paradigm that allows researchers to study how the brain perceives and interprets biological motion. This function focusses on the underlying face, overlaying pertinent landmarks with point-lights and tracking their position/velocity. Classically, point-light-displays have been created using motion capture software, which is both costly and requires physical labour. Alternatively, `generate_point_light_display()` is able to take any video containing a face, and overlay up to 468 unique points to generate a dynamic point-light-display.
+
+One novel ability of `generate_point_light_display()` is it's ability to display historical displacement vectors. The function allows users to specify the history time window, as well as several methods of displaying the history vectors (relative positional history, relative to origin history).
 
 ## Scrambling {#module_scrambling}
 
-temp filler
+Again, this module only contains one function, namely the `facial_scramble()` function. However, this function is multimodal and leverages several distinct methods of shuffling/scrambling the facial features. The two main scrambling methods provided are `landmark_scramble` and `grid_scramble`. These methods shuffle the facial features by masking out specified landmarks and randomizing their positions, and breaking up the face into a grid then repositioning the grid-squares respectively. 
 
 ## Temporal_transforms {#module_tt}
 
-temp filler
+This module contains two related functions `generate_shuffled_block_array()` and `shuffle_frame_order()`. `shuffle_frame_order()` provides a variety of methods (i.e. palindrome, random sampling, cyclic shift) to temporally shift and restructure input video files. It performs the shuffling by breaking up the video frames into 'blocks' of frames, for which the time duration is specified by the user. `generate_shuffled_block_array()` is a helper function that returns a specific tuple which can be fed directly as input into `shuffle_frame_order()`. Depending on input parameters, `generate_shuffled_block_array()` returns a tuple containing the `block_order` array, the `block_size` and `block_duration`.
 
+## Utils {#module_utils}
 
 The `utils` submodule also contains several submodules, each providing various utility functions, predefined constants, and any extra features not directly relevant to the core funtionality of the package.
 
@@ -72,5 +75,4 @@ The `utils` submodule also contains several submodules, each providing various u
 | Predefined_constants | Evident from this submodules name, it contains a large set of predefined parameter values for use with all of the core functions. |
 | Setup_logging  | Provides access to a function `setup_logging()` which allows users to provide a custom logging config.yml if they want to define custom logging behaviour. |
 | Timing_functions | A set of predefined timing functions, namely `constant()`, `linear()`, `sigmoid()` and `gaussian()`. |
-| Utils     | Any extra utilities and mathematical operations not part of the core functionality. |
-
+| Utils     | Any extra utilities and mathematical operations not part of the core functionality. (i.e. `create_path()`, `compute_line_intersection()`) |

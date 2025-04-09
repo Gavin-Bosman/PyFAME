@@ -36,7 +36,8 @@ export default defineConfig({
                 { text: 'Occlusion Submodule', link: '/reference/overview#module_occlusion' },
                 { text: 'PLD Submodule', link: '/reference/overview#module_pld' },
                 { text: 'Scrambling Submodule', link: '/reference/overview#module_scrambling' },
-                { text: 'Temporal_transforms Submodule', link:'/reference/overview#module_tt' }
+                { text: 'Temporal_transforms Submodule', link:'/reference/overview#module_tt' },
+                { text: 'Utilities', link: '/reference/overview#module_utils' }
               ]
             },
             {
