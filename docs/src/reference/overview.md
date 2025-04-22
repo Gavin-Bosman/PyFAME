@@ -3,21 +3,27 @@ layout: doc
 title: Api Overview
 prev: false
 next: 
-    text: 'Occlusion'
-    link: '/reference/occlusion'
+    text: 'Analysis'
+    link: '/reference/analysis'
 ---
 
 # Overview
 
-<p>
-    <img src="/pyfame_logo.png" width=400px style="float: center" />
-</p>
-
 PyFAME: The Python Facial Analysis and Manipulation Environment is a Python toolkit for performing a variety of classical facial psychology manipulations over both still images and videos. All of PyFAME's manipulation functions can be layered, and they are designed in such a way that users can apply several manipulations in succession easily. Thus, PyFAME can be used to perform individual facial psychology experiments, or to create novel facial psychology stimuli which themselves can be used in experiments or as inputs to train neural networks.
 
-The PyFAME package is divided into two main submodules `core` and `utils`. Simply importing pyfame will expose both submodules and the entirety of the package's contents. However, most users will be focused on using the core functionalities. So, generally PyFAME will be imported as follows
+The PyFAME package is divided into two main submodules `core` and `utils`. A top-level import of PyFAME will expose all of the `core` functions, and the `utils` submodule to the user. The package is set up this way so that users can simply import PyFAME like below in order to directly access all of the relevant functions.
 ``` python
-import pyfame.core as pf
+import pyfame as pf
+
+# pyfame.core functions can be directly called
+pf.occlude_face_region(...)
+
+# pyfame.utils is still available, but has to be called by name
+pf.utils.display_options.display_convex_landmark_paths(...)
+
+# specific utils submodules are exposed at the top level, including all predefined 
+# constants, landmarks and timing functions
+pf.landmarks.HEMI_FACE_LEFT_PATH
 ```
 
 The `core` submodule contains several submodules itself, breaking up the package into specific functional groups, which is detailed below.
@@ -72,7 +78,7 @@ The `utils` submodule also contains several submodules, each providing various u
 | :------------- | :---------- |
 | Display_options | A group of functions that display parameter options to the terminal, i.e. `display_mask_type_options()`. |
 | Landmarks      | Predefined landmark regions for use with all of the core functions. |
-| Predefined_constants | Evident from this submodules name, it contains a large set of predefined parameter values for use with all of the core functions. |
+| Predefined_constants | Contains a large set of predefined parameter values for use with all of the core functions. |
 | Setup_logging  | Provides access to a function `setup_logging()` which allows users to provide a custom logging config.yml if they want to define custom logging behaviour. |
 | Timing_functions | A set of predefined timing functions, namely `constant()`, `linear()`, `sigmoid()` and `gaussian()`. |
 | Utils     | Any extra utilities and mathematical operations not part of the core functionality. (i.e. `create_path()`, `compute_line_intersection()`) |

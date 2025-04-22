@@ -25,3 +25,9 @@ class FileWriteError(PyFameError):
     def __init__(self, message="Invalid file path, or path cannot be found in your current working directory."):
         self.message = message
         super().__init__(self.message)
+
+class ImageShapeError(PyFameError):
+    """ Raised when there are mismatching image shapes provided to the moviefy function."""
+    def __init__(self, message="Input image shapes do not match."):
+        self.message = message
+        super().__init__(self.message)

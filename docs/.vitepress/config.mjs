@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "PyFAME Documentation",
+  title: "PyFAME",
   description: "API documentation for the PyFAME package",
   srcDir: './src',
   outDir: './docsite',
@@ -11,24 +11,23 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     logo: './pyfame_logo.png',
     nav: [
-      { text: 'Home', link: '/index' },
       { text: 'Reference', link: '/reference/overview' },
-      { text: 'Examples', link: '/examples/examples' },
-      { text: 'Changelog', link: '/extras/changelog'}
+      { text: 'Guide', link: '/guide/getting_started' },
+      { text: 'About', link: '/about/authors' }
     ],
 
     footer: {
-      message: 'Released under the <a href="https://github.com/Gavin-Bosman/PyFAME/blob/master/LICENSE.txt">Gnu General Public License Version 3</a>.',
+      message: 'This documentation is released under a <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC4.0 License</a>.',
       copyright: 'Copyright @ 2024-present <a href="https://github.com/Gavin-Bosman">Gavin Bosman</a>'
     },
 
     sidebar: {
       '/reference/': [
         {
-          text: 'PyFAME API Reference',
+          text: 'Reference',
           items: [
             { 
-              text: 'API Overview', 
+              text: 'Overview', 
               link: '/reference/overview',
               items: [
                 { text: 'Analysis Submodule', link: '/reference/overview#module_analysis' },
@@ -38,6 +37,14 @@ export default defineConfig({
                 { text: 'Scrambling Submodule', link: '/reference/overview#module_scrambling' },
                 { text: 'Temporal_transforms Submodule', link:'/reference/overview#module_tt' },
                 { text: 'Utilities', link: '/reference/overview#module_utils' }
+              ]
+            },
+            {
+              text: 'Analysis',
+              link: '/reference/analysis',
+              items: [
+                { text: 'Optical Flow', link: '/reference/analysis#optic_flow' },
+                { text: 'Extracting Color Means', link: '/reference/analysis#color_means' }
               ]
             },
             {
@@ -63,19 +70,29 @@ export default defineConfig({
         }
       ],
 
-      '/examples/': [
+      '/guide/': [
         {
-          text: 'Examples and Tutorials', 
+          text: 'Guide', 
           items: [
             { 
               text: 'Getting Started', 
-              link: '/examples/examples#start',
+              link: '/guide/getting_started',
               items: [
-                { text: "Installation", link: '/examples/examples#install' },
-                { text: "Using PyFAME", link: '/examples/examples#using_pyfame' }
+                { text: "Installation", link: '/guide/getting_started#install' },
+                { text: "Quick Example", link: '/guide/getting_started#quick_example' }
               ] 
             },
-            {text: 'Examples', link: '/examples/examples#examples'}
+            {text: 'Examples', link: '/guide/examples'}
+          ]
+        }
+      ],
+
+      '/about/': [
+        {
+          text: 'About', 
+          items: [
+            { text: "Authors", link: '/about/authors' },
+            { text: "Changelog", link: '/about/changelog' }
           ]
         }
       ]

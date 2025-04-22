@@ -2,11 +2,13 @@
 layout: doc
 title: Coloring
 prev:
+    text: 'Analysis'
+    link: '/reference/analysis'
+next: 
     text: 'Occlusion'
     link: '/reference/occlusion'
-next: false
 ---
-# Coloring Submodule API Reference
+# Coloring Submodule Reference
 
 ## Facial Color Manipulation {#face_color_shift}
 
@@ -50,6 +52,7 @@ def face_color_shift(
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
 ## Facial Saturation Manipulation {#face_sat_shift}
 
@@ -87,6 +90,7 @@ def face_saturation_shift(
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
 ## Facial Brightness Manipulation {#face_bright_shift}
 
@@ -124,3 +128,4 @@ def face_brightness_shift(
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |

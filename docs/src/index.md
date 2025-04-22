@@ -4,18 +4,20 @@ layout: home
 
 hero:
   name: "PyFAME"
-  text: "The Python Facial Analysis and Manipulation Environment"
-  tagline: An Innovative Facial Psychology Toolkit For Python
+  tagline: The Python Facial Analysis and Manipulation Environment
   image:
     src: ./pyfame_logo.png
-    alt: Some example function outputs
+    alt: PyFAME Logo
   actions:
     - theme: brand
       text: Getting Started
-      link: /examples/examples
+      link: /guide/getting_started
     - theme: alt
       text: API Reference
       link: /reference/overview
+    - theme: alt
+      text: Source Code
+      link: 'https://github.com/Gavin-Bosman/PyFAME'
 
 features:
   - icon:

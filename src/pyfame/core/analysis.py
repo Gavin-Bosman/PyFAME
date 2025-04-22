@@ -517,7 +517,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
 def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str = COLOR_SPACE_RGB, with_sub_dirs:bool = False,
                              min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
-    Creates a new directory 'CSV_Output', where a csv file will be written to for each input video file provided.
+    Creates a new directory 'Color_Channel_Means', where a csv file will be written to for each input video file provided.
 
     Parameters
     ----------

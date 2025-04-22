@@ -2,13 +2,11 @@
 layout: doc
 title: Occlusion
 prev: 
-    text: 'Overview'
-    link: '/reference/overview'
-next: 
     text: 'Coloring'
     link: '/reference/coloring'
+next: false
 ---
-# Occlusion Submodule API Reference
+# Occlusion Submodule Reference
 
 ## Facial Masking {#facial_masking}
 
@@ -55,6 +53,7 @@ For more information on MediaPipes FaceMesh solution, [see here.](https://ai.goo
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
 ## Facial Occlusion {#facial_occlusion}
 
@@ -88,6 +87,7 @@ def occlude_face_region(
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
 ## Facial Blurring {#facial_blurring}
 
@@ -120,6 +120,7 @@ def blur_face_region(
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
 ## Dynamic Noise Application {#facial_noise}
 
@@ -158,3 +159,4 @@ def apply_noise(
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
+| `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
