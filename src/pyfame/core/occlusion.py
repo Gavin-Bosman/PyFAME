@@ -53,6 +53,12 @@ def mask_face_region(input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MA
         Given invalid parameter types.
     OSError: 
         Given invalid path strings for in/output directories
+    FaceNotFoundError:
+        When mediapipe's face_mesh cannot detect a face.
+    FileWriteError:
+        On error catches thrown by cv2.imwrite or cv2.VideoWriter.
+    FileReadError:
+        On error catches thrown by cv2.imread or cv2.VideoCapture.
     """
     
     logger.info("Now entering function mask_face_region().")

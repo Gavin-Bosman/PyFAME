@@ -6,17 +6,24 @@ All notable changes to this project will be documented in this file.
 - v0.7... add masking to blur_face_region()
 - v0.7... expand timing function availability to blurring, occluding and noise
 - v0.7... expanded functionality to extract_face_color_means()
+- v0.7... rework function output directory writing
 - v0.8... full docsite reimplementation with vitepress
 - v1.0 gui preview prior to file processing
 
-## [0.7.3] 2025-04-10
+## [0.7.3] 2025-04-12
 
 ### Added
+
+- New package submodule has been defined; `moviefy`. `moviefy` contains two functions, `normalize_image_sizes()` and `moviefy_images()`. These functions allow you to convert a directory of images into a "movie" or video-like mp4 file. This is useful for applying video-only manipulations (such as point-light display, or temporal manipulations) to static images. `moviefy_images()` creates 'movies' by repeating frames and blending frames together to create a transitioning sequence of images that can be operated on like a video. The number of frame repeats versus transitional blended frames is determined by the input parameters `fps`, `repeat_duration`, and `blended_frames_prop`.
+- `moviefy_images()` requires its input images to all be of the same size, shape and format. 
+- `normalize_image_sizes()` provides two methods of normalizing the image sizes; NORMALIZE_IMAGES_CROP and NORMALIZE_IMAGES_PAD. These methods will match all of the images sizes to the smallest, and largest image size contained in `input_dir`, respectively. 
 
 ### Changed
 
 - Package import method has been reworked. Previously, users would have to import pyfame.core to access the core functions, now .core by default is exposed with a top-level import `import pyfame`. 
 - Specific commonly used .utils components are also exposed with a top-level import, including `predefined_constants`, `landmarks`, and `timing_functions`.
+
+### Removed
 
 ## [0.7.2] 2025-03-10
 

@@ -16,7 +16,7 @@ Color_Channel_Means/
 Noise_Added/
 Makefile
 make.bat
-/OpenCV_References
+OpenCV_References/
 pyfame/processing_script.py
 tests/data/outputs/.
 .pytest_cache
@@ -25,3 +25,5 @@ tests/data/outputs/.
 .python-version
 docs/.vitepress/dist
 docs/.vitepress/cache
+Moviefied/
+moviefy_test
