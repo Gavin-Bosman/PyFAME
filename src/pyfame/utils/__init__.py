@@ -10,6 +10,6 @@ __all__ = [
     "display_occlusion_fill_options", "display_blur_method_options", "display_noise_method_options",
     "display_scramble_method_options", "display_optical_flow_options", "display_history_mode_options",
     "display_shuffle_method_options", "display_timing_function_options", "constant", "sigmoid", "linear",
-    "gaussian", "create_path", "get_variable_name", "compute_line_intersection", "calculate_rot_angle", 
+    "gaussian", "create_path", "get_variable_name", "compute_line_intersection", "compute_rot_angle", 
     "transcode_video_to_mp4", "predefined_constants"
 ]

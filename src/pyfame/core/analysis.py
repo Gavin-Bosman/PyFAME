@@ -583,7 +583,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
         raise ValueError("Extract_color_channel_means: output_dir must be a path string to a directory.")
     
     if isinstance(color_space, int):
-        if color_space not in COLOR_SPACES:
+        if color_space not in COLOR_SPACE_OPTIONS:
             logger.warning("Function encountered a ValueError for input parameter color_space. "
                            "Message: unrecognized value for parameter color_space, see pyfame_utils.display_color_space_options() "
                            "for a full list of accepted values.")

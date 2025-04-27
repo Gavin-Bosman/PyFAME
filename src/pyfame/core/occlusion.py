@@ -1,6 +1,6 @@
 from pyfame.utils.predefined_constants import *
 from pyfame.utils.landmarks import *
-from pyfame.utils.utils import get_variable_name, calculate_rot_angle
+from pyfame.utils.utils import get_variable_name, compute_rot_angle
 from pyfame.core.exceptions import *
 import os
 import cv2 as cv
@@ -1162,7 +1162,7 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                                 # Compute the center bisecting line of the landmark
                                 cx = round((p2.get('y') + p1.get('y'))/2)
                                 cy = round((p2.get('x') + p1.get('x'))/2)
-                                rot_angle = calculate_rot_angle(slope1=slope)
+                                rot_angle = compute_rot_angle(slope1=slope)
                                 
                                 rectangle = cv.rectangle(masked_frame, (p1.get('x')-50, cx - 50), (p2.get('x') + 50, cx + 50), (255,255,255), -1)
                                 masked_frame_t = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
@@ -1178,9 +1178,9 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                                 p1 = landmark_screen_coords[min_x_lm]
                                 p2 = landmark_screen_coords[max_x_lm]
                                 slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
-                                rot_angle = calculate_rot_angle(slope1=slope, slope2=prev_slope)
+                                rot_angle = compute_rot_angle(slope1=slope, slope2=prev_slope)
                                 prev_slope = slope
-                                angle_from_x_axis = calculate_rot_angle(slope1=slope)
+                                angle_from_x_axis = compute_rot_angle(slope1=slope)
 
                                 # Compute the center bisecting line of the landmark
                                 cx = round((p2.get('y') + p1.get('y'))/2)
@@ -1342,7 +1342,7 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                                 # Compute the center bisecting line of the landmark
                                 cx = round((p2.get('y') + p1.get('y'))/2)
                                 cy = round((p2.get('x') + p1.get('x'))/2)
-                                rot_angle = calculate_rot_angle(slope1=slope)
+                                rot_angle = compute_rot_angle(slope1=slope)
                                 
                                 rectangle = cv.rectangle(masked_frame, (p1.get('x')-50, cx - 50), (p2.get('x') + 50, cx + 50), (255,255,255), -1)
                                 masked_frame_t = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
@@ -1359,8 +1359,8 @@ def occlude_face_region(input_dir:str, output_dir:str, landmarks_to_occlude:list
                                 p2 = landmark_screen_coords[max_x_lm]
                                 slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
                                 prev_slope = slope
-                                rot_angle = calculate_rot_angle(slope1=slope, slope2=prev_slope)
-                                angle_from_x_axis = calculate_rot_angle(slope1=prev_slope)
+                                rot_angle = compute_rot_angle(slope1=slope, slope2=prev_slope)
+                                angle_from_x_axis = compute_rot_angle(slope1=prev_slope)
 
                                 # Compute the center bisecting line of the landmark
                                 cx = round((p2.get('y') + p1.get('y'))/2)

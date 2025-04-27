@@ -1,6 +1,6 @@
-import pandas as pd
+from .utils import create_path
 
-# Defining pertinent facemesh landmark sets
+# pertinent facemesh landmark sets
 FACE_OVAL_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 454, 366, 401, 288, 397, 365, 379, 378, 400, 377, 
                  152, 148, 176, 149, 150, 136, 172, 58, 177, 137, 234, 127, 162, 21, 54, 103, 67, 109, 10]
 FACE_OVAL_TIGHT_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 345, 352, 376, 433, 397, 365, 379, 378, 400, 377, 
@@ -23,43 +23,6 @@ HEMI_FACE_TOP_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 454, 366, 137, 234, 
 HEMI_FACE_BOTTOM_IDX = [366, 401, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 177, 137, 366]
 HEMI_FACE_LEFT_IDX = [152, 148, 176, 149, 150, 136, 172, 58, 177, 137, 234, 127, 162, 21, 54, 103, 67, 109, 10, 152]
 HEMI_FACE_RIGHT_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 454, 366, 401, 288, 397, 365, 379, 378, 400, 377, 152, 10]
-
-
-def create_path(landmark_set:list[int]) -> list[tuple]:
-    """Given a list of facial landmarks (int), returns a list of tuples, creating a closed path in the form 
-    [(a,b), (b,c), (c,d), ...]. This function allows the user to create custom facial landmark sets, for use in 
-    mask_face_region() and occlude_face_region().
-    
-    Parameters
-    ----------
-
-    landmark_set: list of int
-        A python list containing facial landmark indicies.
-    
-    Returns
-    -------
-        
-    routes: list of tuple
-        A list of tuples containing overlapping points, forming a path.
-    """
-    
-    # Connvert the input list to a two-column dataframe
-    landmark_dataframe = pd.DataFrame([(landmark_set[i], landmark_set[i+1]) for i in range(len(landmark_set) - 1)], columns=['p1', 'p2'])
-    routes = []
-
-    # Initialise the first two points
-    p1 = landmark_dataframe.iloc[0]['p1']
-    p2 = landmark_dataframe.iloc[0]['p2']
-
-    for i in range(0, landmark_dataframe.shape[0]):
-        obj = landmark_dataframe[landmark_dataframe['p1'] == p2]
-        p1 = obj['p1'].values[0]
-        p2 = obj['p2'].values[0]
-
-        current_route = (p1, p2)
-        routes.append(current_route)
-    
-    return routes
 
 # Preconstructed face region paths for use with facial manipulation functions. Landmarks below are convex polygons
 LEFT_EYE_PATH = create_path(LEFT_EYE_IDX)

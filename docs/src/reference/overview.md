@@ -15,16 +15,30 @@ The PyFAME package is divided into two main submodules `core` and `utils`. A top
 ``` python
 import pyfame as pf
 
-# pyfame.core functions can be directly called
+# pyfame.core functions are all exposed in the top-level import
 pf.occlude_face_region(...)
 
-# pyfame.utils is still available, but has to be called by name
-pf.utils.display_options.display_convex_landmark_paths(...)
+# Extra utility functions like the parameter display functions are 
+# available in pyfame.utils
+pf.utils.display_all_landmark_paths()
 
-# specific utils submodules are exposed at the top level, including all predefined 
-# constants, landmarks and timing functions
-pf.landmarks.HEMI_FACE_LEFT_PATH
+# Specific commonly used utils submodules are exposed at the top level 
+# This includes all predefined constants, landmarks and timing functions
+pf.OCCLUSION_FILL_BAR
+pf.HEMI_FACE_LEFT_PATH
+pf.sigmoid()
 ```
+
+Every facial manipulation function in PyFAME leverages MediaPipe's FaceMesh solution to identify and track facial landmarks. Thus, almost all of the functions take in some common parameters. Namely, `min_detection_confidence` and `min_tracking_confidence` are passed directly to the declaration of the MediaPipe FaceMesh model as follows.
+
+``` python
+import mediapipe as mp
+
+face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, min_detection_confidence = min_detection_confidence,
+                                    min_tracking_confidence = min_tracking_confidence, static_image_mode = static_image_mode)
+```
+
+For more information on MediaPipe's FaceMesh solution, [see here.](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)
 
 The `core` submodule contains several submodules itself, breaking up the package into specific functional groups, which is detailed below.
 

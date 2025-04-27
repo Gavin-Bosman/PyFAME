@@ -4,9 +4,11 @@ title: Occlusion
 prev: 
     text: 'Coloring'
     link: '/reference/coloring'
-next: false
+next: 
+    text: 'Point-Light Display'
+    link: '/reference/pld'
 ---
-# Occlusion Submodule Reference
+# Occlusion Module Reference
 
 ## Facial Masking {#facial_masking}
 
@@ -29,19 +31,6 @@ def mask_face_region(
 | `with_sub_dirs`            | `bool` | A boolean flag indicating if the input directory contains sub-directories. |
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
-
-::: info
-Parameters `min_detection_confidence` and `min_tracking_confidence` are passed directly to the declaration of the MediaPipe FaceMesh model. 
-
-``` python
-import mediapipe as mp
-
-face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, min_detection_confidence = min_detection_confidence,
-                                    min_tracking_confidence = min_tracking_confidence, static_image_mode = static_image_mode)
-```
-
-For more information on MediaPipes FaceMesh solution, [see here.](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)
-:::
 
 ### Error Handling {#facial_masking_error}
 

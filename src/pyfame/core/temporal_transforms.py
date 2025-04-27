@@ -60,7 +60,7 @@ def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUF
         logger.warning("Function encountered a TypeError for input parameter shuffle_method. "
                        "Message: invalid type for parameter shuffle_method, expected int.")
         raise TypeError("Generate_shuffled_block_array: parameter running_mode must be an integer.")
-    if shuffle_method not in SHUFFLE_METHODS:
+    if shuffle_method not in FRAME_SHUFFLE_METHODS:
         logger.warning("Function has encountered a ValueError for input parameter shuffle_method. "
                        "Message: unrecognized value for parameter shuffle_method. For a full list of "
                        "accepted values, please see pyfame_utils.display_shuffle_method_options().")
@@ -204,7 +204,7 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         logger.warning("Function encountered a TypeError for input parameter shuffle_method. "
                        "Message: invalid type for parameter shuffle_method, expected int.")
         raise TypeError("Shuffle_frame_order: parameter running_mode must be an integer.")
-    if shuffle_method not in SHUFFLE_METHODS:
+    if shuffle_method not in FRAME_SHUFFLE_METHODS:
         logger.warning("Function has encountered a ValueError for input parameter shuffle_method. "
                        "Message: unrecognized value for parameter shuffle_method. For a full list of "
                        "accepted values, please see pyfame_utils.display_shuffle_method_options().")

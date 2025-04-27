@@ -408,9 +408,8 @@ def moviefy_images(input_dir:str, output_dir:str, output_filename:str, fps:int =
     writer = cv.VideoWriter(output_dir + f"\\{output_filename}.mp4", cv.VideoWriter.fourcc(*"mp4v"), fps, im_size)
 
     if not writer.isOpened():
-        debug_logger.error("Function encountered a FileWriteError. "
-                           "Message: function encountered an error attempting to instantiate cv2.VideoWriter "
-                           f"with output path {output_dir + f"\\{output_filename}.mp4"}, and fourcc {"*'mp4v'"}.")
+        debug_logger.error("Function encountered a FileWriteError. ")
+                           
         raise FileWriteError()
     
     num_repeats = int(np.floor((repeat_duration/1000)*fps))
@@ -435,4 +434,4 @@ def moviefy_images(input_dir:str, output_dir:str, output_filename:str, fps:int =
                 writer.write(image_list[i])
     
     writer.release()
-    logger.info(f"Function execution has completed successfully. View outputted files at {output_dir + f"\\{output_filename}.mp4"}")
+    logger.info(f"Function execution has completed successfully.")

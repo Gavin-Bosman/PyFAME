@@ -8,7 +8,7 @@ next:
     text: 'Occlusion'
     link: '/reference/occlusion'
 ---
-# Coloring Submodule Reference
+# Coloring Module Reference
 
 ## Facial Color Manipulation {#face_color_shift}
 

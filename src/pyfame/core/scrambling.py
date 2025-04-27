@@ -1,6 +1,6 @@
 from pyfame.utils.predefined_constants import *
 from pyfame.utils.landmarks import *
-from pyfame.utils.utils import get_variable_name, calculate_rot_angle
+from pyfame.utils.utils import get_variable_name, compute_rot_angle
 from pyfame.core.exceptions import *
 import os
 import cv2 as cv
@@ -503,9 +503,9 @@ def facial_scramble(input_dir:str, output_dir:str, out_grayscale:bool = False, s
                     slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
 
                     if slope > 0:
-                        angle_from_x_axis = (-1)*calculate_rot_angle(slope1=slope)
+                        angle_from_x_axis = (-1)*compute_rot_angle(slope1=slope)
                     else:
-                        angle_from_x_axis = calculate_rot_angle(slope1=slope)
+                        angle_from_x_axis = compute_rot_angle(slope1=slope)
                     cx = min_x + (width/2)
                     cy = min_y + (height/2)
 

@@ -3,6 +3,7 @@ from .landmarks import *
 from pyfame.core.exceptions import FileReadError, FileWriteError
 from math import atan
 import numpy as np
+import pandas as pd
 import cv2 as cv
 import os
 
@@ -28,7 +29,7 @@ def get_variable_name(variable, namespace) -> str:
 
     return [name for name, value in namespace.items() if value == variable][0]
 
-def calculate_rot_angle(slope1:float, slope2:float = 0.0):
+def compute_rot_angle(slope1:float, slope2:float = 0.0) -> float:
     """ Given the current and previous slope, this function uses the arctan function to compute the angle delta 
     in radians. If no previous slope is provided, the default value is zero.
 
@@ -71,12 +72,46 @@ def compute_line_intersection(p1:tuple, p2:tuple, line:int, vertical:bool=False)
     
     vertical: bool
         A boolean flag indicating whether or not the comparison line is vertical.
+    
+    Raises:
+    -------
+
+    TypeError:
+        Given invalid parameter types.
+    ValueError:
+        Given unrecognized parameter types.
 
     Returns:
     --------
 
     A point (x,y) intersecting the provided line, or None if no such point exists.
     """
+
+    # Performing type checks on input params
+    if not isinstance(p1, tuple):
+        raise TypeError("Function encountered a TypeError for input parameter p1. "
+                        "Message: parameter p1 must be a tuple of integers.")
+    elif not isinstance(p1[0], int) or not isinstance(p1[1], int):
+        raise TypeError("Function encountered a TypeError for input parameter p1. "
+                        "Message: parameter p1 must be a tuple of integers.")
+    elif p1[0] < 0 or p1[1] < 0:
+        raise ValueError("Function encountered a ValueError for input parameter p1. "
+                         "Message: pixel coordinates must be positive integers.")
+    
+    if not isinstance(p2, tuple):
+        raise TypeError("Function encountered a TypeError for input parameter p2. "
+                        "Message: parameter p1 must be a tuple of integers.")
+    elif not isinstance(p2[0], int) or not isinstance(p2[1], int):
+        raise TypeError("Function encountered a TypeError for input parameter p2. "
+                        "Message: parameter p1 must be a tuple of integers.")
+    elif p2[0] < 0 or p2[1] < 0:
+        raise ValueError("Function encountered a ValueError for input parameter p2. "
+                         "Message: pixel coordinates must be positive integers.")
+    
+    if not isinstance(line, int):
+        raise TypeError("Function enountered a TypeError for input parameter line. "
+                        "Message: parameter line must be an integer. ")
+
     x1, y1 = p1
     x2, y2 = p2
 
@@ -285,3 +320,39 @@ def transcode_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:bool = F
 
         capture.release()
         result.release()
+
+def create_path(landmark_set:list[int]) -> list[tuple]:
+    """Given a list of facial landmarks (int), returns a list of tuples, creating a closed path in the form 
+    [(a,b), (b,c), (c,d), ...]. This function allows the user to create custom facial landmark sets, for use in 
+    mask_face_region() and occlude_face_region().
+    
+    Parameters
+    ----------
+
+    landmark_set: list of int
+        A python list containing facial landmark indicies.
+    
+    Returns
+    -------
+        
+    closed_path: list of tuple
+        A list of tuples containing overlapping points, forming a path.
+    """
+    
+    # Connvert the input list to a two-column dataframe
+    landmark_dataframe = pd.DataFrame([(landmark_set[i], landmark_set[i+1]) for i in range(len(landmark_set) - 1)], columns=['p1', 'p2'])
+    closed_path = []
+
+    # Initialise the first two points
+    p1 = landmark_dataframe.iloc[0]['p1']
+    p2 = landmark_dataframe.iloc[0]['p2']
+
+    for i in range(0, landmark_dataframe.shape[0]):
+        obj = landmark_dataframe[landmark_dataframe['p1'] == p2]
+        p1 = obj['p1'].values[0]
+        p2 = obj['p2'].values[0]
+
+        current_route = (p1, p2)
+        closed_path.append(current_route)
+    
+    return closed_path

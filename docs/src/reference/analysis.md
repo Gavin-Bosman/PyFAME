@@ -8,7 +8,7 @@ next:
     text: 'Coloring'
     link: '/reference/coloring'
 ---
-# Analysis Submodule Reference
+# Analysis Module Reference
 
 ## Optical Flow {#optic_flow}
 

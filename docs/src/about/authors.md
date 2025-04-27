@@ -41,7 +41,7 @@ const authors = [
   }, {
     avatar: '../avatars/Livingstone_SR.png',
     name: 'Steven R. Livingstone',
-    title: 'Project design and documentation',
+    title: 'Project design and facilitation',
     links: [
         { icon: {
           svg: svg_icons["url"]

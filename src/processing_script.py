@@ -6,7 +6,7 @@ in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy_test"
 out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\"
 
 #pf.normalize_image_sizes(input_dir=in_dir, method=pf.predefined_constants.NORMALIZE_IMAGES_PAD)
-pf.moviefy_images(input_dir=in_dir, output_dir=out_dir, output_filename="test", blend_images= True)
+#pf.moviefy_images(input_dir=in_dir, output_dir=out_dir, output_filename="test", blend_images= True)
 #pf.occlude_face_region(in_dir, out_dir, landmarks_to_occlude=[pf.landmarks.HEMI_FACE_RIGHT_PATH])
 #pf.mask_face_region(input_dir=in_dir, output_dir=out_dir, mask_type=EYES_NOSE_MOUTH_MASK)
 ##pf.face_color_shift(input_dir=in_dir, output_dir=out_dir, shift_color="red", landmark_regions=[LEFT_CHEEK_PATH, CHIN_PATH], shift_magnitude=25.0)

@@ -1,0 +1,1 @@
+import{_ as e,c as o,o as t}from"./chunks/framework.C5RTWoTo.js";const m=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"guide/codebook.md","filePath":"guide/codebook.md"}'),a={name:"guide/codebook.md"};function c(r,d,s,n,i,p){return t(),o("div")}const f=e(a,[["render",c]]);export{m as __pageData,f as default};
