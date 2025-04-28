@@ -12,8 +12,9 @@
     /* Example: If you want the hero image background or blur effect */
     --vp-home-hero-image-background-image: linear-gradient(
         120deg,
-        #1dc8bd 50%,
-        #41729fa1 50%
+        #274472 40%, 
+        #41729f 15%, 
+        #1dc8bd 50%
     );
     --vp-home-hero-image-filter: blur(44px);
 

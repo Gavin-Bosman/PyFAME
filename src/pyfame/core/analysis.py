@@ -13,8 +13,8 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str = SPARSE_OPTICAL_FLOW, landmarks_to_track:list[int]|None = None,
-                     max_corners:int = 20, corner_quality_lvl:float = 0.3, min_corner_distance:int = 7, block_size:int = 7, win_size:tuple[int] = (15,15), 
-                     max_pyr_lvl:int = 2, pyr_scale:float = 0.5, max_lk_iter:int = 10, lk_accuracy_thresh:float = 0.03, poly_sigma:float = 1.5, 
+                     max_corners:int = 20, corner_quality_lvl:float = 0.3, min_corner_distance:int = 7, block_size:int = 5, win_size:tuple[int] = (15,15), 
+                     max_pyr_lvl:int = 2, pyr_scale:float = 0.5, max_iter:int = 10, lk_accuracy_thresh:float = 0.03, poly_sigma:float = 1.2, 
                      point_color:tuple[int] = (255,255,255), point_radius:int = 5, vector_color:tuple[int]|None = None, with_sub_dirs:bool = False, 
                      csv_sample_freq:int = 1000, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     '''Takes an input video file, and computes the sparse or dense optical flow, outputting the visualised optical flow to output_dir.
@@ -62,8 +62,8 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         A float in the range [0,1] representing the downscale of the image at each pyramid level in Farneback's dense optical flow algorithm.
         For example, with a pyr_scale of 0.5, at each pyramid level the image will be half the size of the previous image.
     
-    max_lk_iter: int
-        The maximum number of iterations (over each frame) the Lucas-Kanade sparse optical flow algorithm will make before terminating.
+    max_iter: int
+        The maximum number of iterations (over each frame) the optical flow algorithm will make before terminating.
 
     lk_accuracy_thresh: float
         A float in the range [0,1] representing the optimal termination accuracy for the Lucas-Kanade sparse optical flow algorithm.
@@ -203,7 +203,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                        "Message: pyr_scale must be a float in the range [0,1].")
         raise ValueError("Get_optical_flow: parameter pyr_scale must be a float in the range [0,1).")
     
-    if not isinstance(max_lk_iter, int):
+    if not isinstance(max_iter, int):
         logger.warning("Function encountered a TypeError for input parameter max_lk_iter. "
                        "Message: invalid type for parameter max_lk_iter, expected int.")
         raise TypeError("Get_optical_flow: parameter max_lk_iter must be an integer.")
@@ -282,7 +282,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
     
     logger.info(f"Input parameters: optical_flow_type = {oft_name}, landmarks_to_track = {landmarks_to_track}, max_corners = {max_corners}, "
                 f"corner_quality_lvl = {corner_quality_lvl}, min_corner_distance = {min_corner_distance}, block_size = {block_size}, win_size = {win_size}")
-    logger.info(f"Input parameters continued... max_pyr_level = {max_pyr_lvl}, pyr_scale = {pyr_scale}, max_lk_iter = {max_lk_iter}, lk_accuracy_thresh = {lk_accuracy_thresh}, "
+    logger.info(f"Input parameters continued... max_pyr_level = {max_pyr_lvl}, pyr_scale = {pyr_scale}, max_lk_iter = {max_iter}, lk_accuracy_thresh = {lk_accuracy_thresh}, "
                 f"poly_sigma = {poly_sigma}, point_color = {point_color}, point_radius = {point_radius}, vector_color = {vector_color}, with_sub_dirs = {with_sub_dirs}.")
     logger.info(f"Mediapipe configurations: min_detection_confidence = {min_detection_confidence}, min_tracking_confidence = {min_tracking_confidence}.")
     
@@ -379,7 +379,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         # Parameters for lucas kanade optical flow
         lk_params = dict(winSize  = win_size,
             maxLevel = max_pyr_lvl,
-            criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, max_lk_iter, lk_accuracy_thresh))
+            criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, max_iter, lk_accuracy_thresh))
 
         # Main Processing loop
         while True:
@@ -488,7 +488,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                 elif optical_flow_type == DENSE_OPTICAL_FLOW:
 
                     # Calculate dense optical flow
-                    flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyr_scale, max_pyr_lvl, win_size[0], max_lk_iter, block_size, poly_sigma, 0)
+                    flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyr_scale, max_pyr_lvl, win_size[0], max_iter, block_size, poly_sigma, 0)
 
                     # Get vector magnitudes and angles
                     magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])

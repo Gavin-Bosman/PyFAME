@@ -17,8 +17,9 @@ next:
 ```Python
 def get_optical_flow(
     input_dir:str, output_dir:str, optical_flow_type: int|str = SPARSE_OPTICAL_FLOW, 
-    landmarks_to_track:list[int]|None = None, max_corners:int = 20, corner_quality_lvl:float = 0.3, min_corner_distance:int = 7, block_size:int = 7, win_size:tuple[int] = (15,15), 
-    max_pyr_lvl:int = 2, pyr_scale:float = 0.5, max_lk_iter:int = 10, lk_accuracy_thresh:float = 0.03, poly_sigma:float = 1.5, point_color:tuple[int] = (255,255,255), point_radius:int = 5, 
+    landmarks_to_track:list[int]|None = None, max_corners:int = 20, corner_quality_lvl:float = 0.3, min_corner_distance:int = 7, block_size:int = 5, win_size:tuple[int] = (15,15), 
+    max_pyr_lvl:int = 2, pyr_scale:float = 0.5, max_iter:int = 10, lk_accuracy_thresh:float = 0.03, 
+    poly_sigma:float = 1.2, point_color:tuple[int] = (255,255,255), point_radius:int = 5, 
     vector_color:tuple[int]|None = None, with_sub_dirs:bool = False, csv_sample_freq:int = 1000, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
 ) -> None:
 ```
@@ -36,7 +37,7 @@ def get_optical_flow(
 | `win_size` | `tuple[int]` | The size of the search window (in pixels) used at each pyramid level with sparse optical flow. |
 | `max_pyr_level` | `int` | The maximum number of pyramid levels used in sparse optical flow. As you increase this parameter larger motions can be detected but consequently computation time increases. |
 | `pyr_scale` | `float` | A float in the range [0,1] representing the downscale of the image at each pyramid level in dense optical flow. For example, with a pyr_scale of 0.5, at each pyramid level the image will be half the size of the previous image. |
-| `max_lk_iter` | `int` | One of the termination criteria for sparse optical flow. Represents the maximum number of iterations over each frame the algorithm will make before terminating. |
+| `max_iter` | `int` | One of the termination criteria for both optical flow algorithms. Represents the maximum number of iterations over each frame the algorithm will make before terminating. |
 | `lk_accuracy_thresh` | `float` | One of the termination criteria for sparse optical flow. A float in the range [0,1] representing the optimal termination accuracy for the algorithm. |
 | `poly_sigma` | `float` | The standard deviation of the Gaussian distribution used in the polynomial expansion of each pixel for dense optical flow. Typically with `block_size` of 5 or 7, good values for `poly_sigma` are 1.2 and 1.5, respectively. |
 | `point_color` | `tuple[int]` | A BGR color code that specifies the color of the points displayed in the sparse optical flow output image. |
@@ -57,6 +58,29 @@ def get_optical_flow(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python
+import pyfame as pf
+# Define your input and output file paths
+in_dir = "c:/my/path/to/files"
+out_dir = "c:/my/path/to/output"
+
+# Sparse optical flow, simplest call
+pf.get_optical_flow(in_dir, out_dir, pf.SPARSE_OPTICAL_FLOW)
+
+# Sparse optical flow, with input points
+pf.get_optical_flow(in_dir, out_dir, pf.SPARSE_OPTICAL_FLOW, landmarks_to_track = [1,32,43,112,169])
+# If you want to ONLY track the input points, set max_corners = len(landmark_list)
+
+# Dense optical flow, simplest call
+pf.get_optical_flow(in_dir, out_dir, pf.DENSE_OPTICAL_FLOW)
+
+# Dense optical flow, get a more robust result with more iterations and greater search window
+pf.get_optical_flow(in_dir, out_dir, pf.DENSE_OPTICAL_FLOW, max_iter=15, block_size=7, poly_sigma=1.5)
+
+```
 
 ## Facial Color Means {#color_means}
 
@@ -88,3 +112,18 @@ def extract_face_color_means(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python 
+import pyfame as pf
+# Define your input and output file paths
+in_dir = "c:/my/path/to/files"
+out_dir = "c:/my/path/to/output"
+
+# Simplest call
+pf.extract_face_color_means(in_dir, out_dir, pf.COLOR_SPACE_RGB)
+
+# Nested subdirectories in input folder, HSV output
+pf.extract_face_color_means(in_dir, out_dir, pf.COLOR_SPACE_HSV, With_sub_dirs=True)
+```

@@ -71,7 +71,7 @@ def test_exception_handling():
     
     # exception testing max_lk_iter parameter
     with pytest.raises(TypeError):
-        get_optical_flow(input_dir=in_dir_valid, output_dir=out_dir_valid, max_lk_iter="test")
+        get_optical_flow(input_dir=in_dir_valid, output_dir=out_dir_valid, max_iter="test")
     
     # exception testing lk_accuracy_thresh parameter
     with pytest.raises(TypeError):

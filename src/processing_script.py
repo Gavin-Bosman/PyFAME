@@ -2,8 +2,8 @@ import pyfame as pf
 import cv2 as cv
 import matplotlib.pyplot as plt
 #in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\data\\Video_Speech_Actors_01-24\\Video_Speech_Actor_08\\Actor_08\\01-01-04-02-01-01-08.mp4"
-in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy_test"
-out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\"
+in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy"
+out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\Moviefied"
 
 #pf.normalize_image_sizes(input_dir=in_dir, method=pf.predefined_constants.NORMALIZE_IMAGES_PAD)
 #pf.moviefy_images(input_dir=in_dir, output_dir=out_dir, output_filename="test", blend_images= True)
