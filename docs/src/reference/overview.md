@@ -3,8 +3,8 @@ layout: doc
 title: Api Overview
 prev: false
 next: 
-    text: 'Analysis'
-    link: '/reference/analysis'
+    text: 'Moviefy'
+    link: '/reference/moviefy'
 ---
 
 # Overview
@@ -41,6 +41,14 @@ face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces = 1, min_detection_con
 For more information on MediaPipe's FaceMesh solution, [see here.](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)
 
 The `core` submodule contains several submodules itself, breaking up the package into specific functional groups, which is detailed below.
+
+## Moviefy
+
+The moviefy submodule contains some special helper functions for converting a directory of still images into "movies", by repeating and interpolating the images as video frames. This function makes it possible to perform PyFAME's spatial and temporal manipulations (i.e. color-shifting, frame-reordering) over static images. The two functions provided in the moviefy submodule are as follows
+
+`normalize_image_sizes()` takes in an input directory path, and scans through the directory to find the maximum, and minimum image dimensions. Then, using the normalization method of choice (pad or crop), the function normalizes the image dimensions of all the images within the directory (in-place). This function can be used as a preprocessing step to `moviefy_images()`, or you can perform both steps in a single call by specifying `normalize=True` in the `moviefy_images()` call. 
+
+`moviefy_images()` at the most basic level, will repeat the images provided to it a set number of times, written out as frames to an mp4 file. However, the function also offers an image interpolation option, which will blend successive images together over a transitionary period defined by input parameter `blended_frames_prop`. For example, with `repeat_duration = 1000`(msec), and with `blend_frames_prop = 0.25`, the last 250 msec of each 'block' of frames will be used to interpolate the first image into the next. 
 
 ## Analysis {#module_analysis}
 

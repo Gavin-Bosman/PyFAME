@@ -45,3 +45,30 @@ def facial_scramble(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Simplest call; defaults to fully random grid-scramble, with grid square size of (40,40)
+# It's always a good idea to define a random seed to ensure results are reproducable
+pf.facial_scramble(in_dir, out_dir, rand_seed=1234)
+
+# Landmark scramble in grayscale
+pf.facial_scramble(
+    in_dir, out_dir, rand_seed = 1234, 
+    out_grayscale = True, scramble_method = pf.LANDMARK_SCRAMBLE
+)
+
+# Low level grid scrambling with grid square size of (30,30)
+pf.facial_scramble(
+    in_dir, out_dir, rand_seed = 1234,
+    scramble_method = pf.LOW_LEVEL_GRID_SCRAMBLE, 
+    grid_scramble_threshold = 2, grid_square_size = 30
+)
+```

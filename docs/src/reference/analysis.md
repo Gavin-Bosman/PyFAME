@@ -2,8 +2,8 @@
 layout: doc
 title: Analysis
 prev: 
-    text: 'Overview'
-    link: '/reference/overview'
+    text: 'Moviefy'
+    link: '/reference/moviefy'
 next: 
     text: 'Coloring'
     link: '/reference/coloring'

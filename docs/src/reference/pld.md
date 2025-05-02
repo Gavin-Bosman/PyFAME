@@ -16,7 +16,7 @@ The `generate_point_light_display()` function provides users the ability to gene
 
 ```python
 def generate_point_light_display(
-    input_dir:str, output_dir:str, landmark_regions:list[list[tuple]] = [FACE_OVAL_PATH], point_density:float = 0.5, 
+    input_dir:str, output_dir:str, landmark_regions:list[list[tuple]] = [FACE_OVAL_PATH], point_density:float = 1.0, 
     show_history:bool = False, history_mode:int = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_color:tuple[int] = (0,0,255), point_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
 ) -> None:
 ```
@@ -47,3 +47,22 @@ def generate_point_light_display(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Simplest call; defaults to full face PLD with no history vectors
+pf.generate_point_light_display(in_dir, out_dir)
+
+# PLD of the eyes, nose and mouth, with blue relative history vectors
+pf.generate_point_light_display(
+    in_dir, out_dir, landmark_regions = [pf.BOTH_EYES_PATH, pf.NOSE_PATH, pf.MOUTH_PATH],
+    show_history = True, history_mode = pf.SHOW_HISTORY_RELATIVE, history_color = (255,0,0)
+)
+```

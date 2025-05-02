@@ -1,5 +1,10 @@
 ![Tests](https://github.com/Gavin-Bosman/PyFAME/actions/workflows/tests.yml/badge.svg)
+![Docs](https://github.com/Gavin-Bosman/PyFAME/actions/workflows/deploy.yml/badge.svg)
+
 # PyFAME: the Python Facial Analysis and Manipulation Environment
+
+![](./docs/src/public/pyfame_logo.png)
+
 PyFAME is a python package for dynamic region occlusion and skin colour modification of faces in video and images. Provides a range of tools for changing the colour of user-specified facial regions using industry-standard colour spaces (L*a*b, HSV, BGR), occlusion of user-defined facial regions (e.g., eyes, nose, mouth, hemi-face), and isolation of the head from background scene through video matting. Facial modifications can be further transitioned on and off through a range of timing functions (e.g., linear, sigmoid, Gaussian etc).
 
 PyFAME enables researchers to apply complex facial manipulations to just the face in dynamic video and still images scenes in several lines of code.
@@ -11,34 +16,35 @@ Here is an example of PyFAME performing pixel-level modifications to create new 
 
 Currently, there are no available tools for performing these types of pixel-level operations over videos. Existing research has commonly used general image editing tools (such as Photoshop). However, these tools apply changes to the entire image, causing noticeable background artifacts. PyFAME provides users the ability to selectively modify specific regions of the face, for both static images and videos. Our package also seamlessly integrates temporal functions into it's video processing, allowing users to specify how and when pixel-level operations will be applied.
 
-## A Quick Example: Facial Masking
-```
-import pyfame.core as pf
-from pyfame.utils.predefined_constants import *
-from pyfame.utils.landmarks import *
+## A Quick Example: 
 
-# For windows operating systems use "\\" to delimit your pathstrings
-# For linux or macos use "/" to delimit your pathstrings
-in_dir = ".\<your input directory>"
-out_dir = ".\<your output directory>"
+```Python
+import pyfame as pf
 
-# PyFAME provides an extensive list of predefined landmark paths, as well as several predefined occlusion types
-pf.mask_face_region(input_dir = in_dir, output_dir = out_dir, mask_type = FACE_OVAL_MASK, background_color = (0,0,0))
+# pyfame.core functions are all exposed in the top-level import
+pf.occlude_face_region(...)
+
+# Extra utility functions like the parameter display functions are 
+# available in pyfame.utils
+pf.utils.display_all_landmark_paths()
+
+# Specific commonly used utils submodules are exposed at the top level 
+# This includes all predefined constants, landmarks and timing functions
+pf.OCCLUSION_FILL_BAR
+pf.HEMI_FACE_LEFT_PATH
+pf.sigmoid()
 ```
 
 ## Underlying Model
 
-MediaPipe's Face Mesh task provides automated detection of 468 unique facial landmarks. By accessing the x-y screen coordinates of these landmarks, many complex image and video operations can be performed. 
-
-[![MediaPipe FaceMesh](https://ai.google.dev/static/mediapipe/images/solutions/examples/face_landmark.png)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)
-
+MediaPipe's Face Mesh solution provides automated detection of 478 unique facial landmarks. By accessing the x-y pixel coordinates of these landmarks, many complex image and video manipulations can be performed. 
 For more on mediapipe, see [here](https://ai.google.dev/edge/mediapipe/solutions/guide)
 
 ## Documentation and Changelog
 
 This project maintains a changelog, following the format of [keep a changelog](https://keepachangelog.com/en/1.0.0/). This project also adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
-To view our documentation, examples and tutorials, see [PyFAME Docs](https://gavin-bosman-psyface.readthedocs.io/en/latest/).
+To view our documentation, examples and tutorials, see [PyFAME Docs](https://gavin-bosman.github.io/PyFAME/).
 
 ## Contributing
 
@@ -48,4 +54,4 @@ Pull requests are always welcome. If you spot a mistake, error, or inefficiency 
 
 ## License
 
-[MIT](https://opensource.org/license/mit)
+[GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)

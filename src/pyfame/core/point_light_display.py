@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions:list[list[tuple]] = [FACE_OVAL_PATH], point_density:float = 0.5, 
+def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions:list[list[tuple]] = [FACE_OVAL_PATH], point_density:float = 1.0, 
                         show_history:bool = False, history_mode:int = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_color:tuple[int] = (0,0,255),
                         point_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     '''Generates a point light display of the face region contained in the input image or video file. Points are either predefined mediapipe FaceMesh points, passed 

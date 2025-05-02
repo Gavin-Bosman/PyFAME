@@ -26,7 +26,7 @@ def mask_face_region(
 | :------------------------- | :------------- | :-------------------------------------------------------- |
 | `input_dir`                | `str` | A path string to the directory containing files to process. |
 | `output_dir`               | `str` | A path string to the directory where processed files will be output. |
-| `mask_type`                | `int` | An integer flag specifying the type of masking operation being performed. One of `FACE_OVAL`, `FACE_OVAL_TIGHT` OR `FACE_SKIN_ISOLATION`. |
+| `mask_type`                | `int` | An integer flag specifying the type of masking operation being performed. The default value is `pyfame.FACE_OVAL_MASK`, for the complete list of options please see `pyfame.utils.display_face_mask_options()`. |
 | `background_color`         | `tuple[int]` | A BGR color code specifying the output files background color. |
 | `with_sub_dirs`            | `bool` | A boolean flag indicating if the input directory contains sub-directories. |
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
@@ -43,6 +43,22 @@ def mask_face_region(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input"
+out_dir = "c:/my/path/to/output"
+
+# Simplest call; which defaults to a face-oval mask with white background
+pf.mask_face_region(in_dir, out_dir)
+
+# Masking out the eyes, nose and mouth, with a black background
+pf.mask_face_region(in_dir, out_dir, mask_type=pf.EYES_NOSE_MOUTH_MASK, background_color=(0,0,0))
+```
 
 ## Facial Occlusion {#facial_occlusion}
 
@@ -78,6 +94,25 @@ def occlude_face_region(
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input"
+out_dir = "c:/my/path/to/output"
+
+# Simplest call; which defaults to occluding the eyes with black
+pf.occlude_face_region(in_dir, out_dir)
+
+# Occluding the mouth with bar-style occlusion
+pf.occlude_face_region(
+    in_dir, out_dir, landmarks_to_occlude=[pf.MOUTH_PATH], 
+    occlusion_fill=pf.OCCLUSION_FILL_BAR
+)
+```
+
 ## Facial Blurring {#facial_blurring}
 
 `blur_face_region` takes the provided `blur_method` (one of gaussian, average or median), and applies it to each image or video file contained in `input_dir`. The processed files are written out to {`output_dir`}/Blurred.
@@ -110,6 +145,22 @@ def blur_face_region(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input"
+out_dir = "c:/my/path/to/output"
+
+# Simplest call; defaults to guassian blur with a (15,15) kernel
+pf.blur_face_region(in_dir, out_dir)
+
+# Apply median-blur with (20,20) kernel
+pf.blur_face_region(in_dir, out_dir, blur_method=pf.BLUR_METHOD_MEDIAN, k_size=20)
+```
 
 ## Dynamic Noise Application {#facial_noise}
 
@@ -149,3 +200,22 @@ def apply_noise(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input"
+out_dir = "c:/my/path/to/output"
+
+# Simplest call; defaults to pixelation with pixel size of 32
+pf.apply_noise(in_dir, out_dir)
+
+# Applying salt and pepper noise, to just the facial skin
+pf.apply_noise(
+    in_dir, out_dir, noise_method = pf.NOISE_METHOD_SALT_AND_PEPPER,
+    noise_prob=0.6, mask_type=pf.FACE_SKIN_MASK
+)
+```

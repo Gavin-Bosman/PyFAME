@@ -12,7 +12,7 @@ next:
 
 ## Facial Color Manipulation {#face_color_shift}
 
-`face_color_shift` performs a weighted color shift on the color channel specified in `shift_color`, weighted by the outputs of the provided `timing_func`. Parameters `onset_t` and `offset_t` can be used to specify when the color shifting fades in and fades out (this only applies to video files). `face_color_shift` makes use of the CIELAB color space to perform color shifting, due to it being far more perceptually uniform than the standard RGB or BGR color spaces.
+`face_color_shift` performs a weighted color shift on the color channel specified in `shift_color`, weighted by the outputs of the provided `timing_func`. Parameters `onset_t` and `offset_t` can be used to specify when the color shifting fades in and fades out (this only applies to video files). `face_color_shift` makes use of the CIELAB color space to perform color shifting, due to it being far more perceptually uniform than the standard RGB or BGR color spaces. Processed videos will be written to {`output_dir`}/Color_Shifted.
 
 ::: warning
 `face_color_shift` requires the outputs of the provided `timing_func` to be normalised; that is, in the range [0,1]. Predefined normalised functions such as `sigmoid`, `linear`, `gaussian` and `constant` are available for use in `pyfame.utils`. Extra parameters for these functions can be passed to `face_color_shift` as keyword arguments. Users may also define their own timing functions, but it is up to the user to ensure their functions take at least one input float parameter, and that the return value is within the normal range.
@@ -54,9 +54,33 @@ def face_color_shift(
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Blue-shifting the cheeks with linear timing
+# default timing_func is linear()
+pf.face_color_shift(
+    in_dir, out_dir, shift_magnitude = 10.0,
+    landmark_regions = [pf.CHEEKS_PATH], shift_color = pf.COLOR_BLUE
+)
+
+# Red-shifting the facial skin with sigmoid timing
+# default shift_color is COLOR_RED
+pf.face_color_shift(
+    in_dir, out_dir, landmark_regions = [pf.FACE_SKIN_PATH],
+    timing_func = pf.sigmoid()
+)
+```
+
 ## Facial Saturation Manipulation {#face_sat_shift}
 
-`face_saturation_shift` performs a weighted saturation shift in a near identical manner to `face_color_shift`. This function makes use of the HSV color space to manipulate saturation. 
+`face_saturation_shift` performs a weighted saturation shift in a near identical manner to `face_color_shift`. This function makes use of the HSV color space to manipulate saturation. Processed videos will be written to {`output_dir`}/Sat_Shifted.
 
 ```python
 def face_saturation_shift(
@@ -92,9 +116,32 @@ def face_saturation_shift(
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
 
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Desaturating the cheeks with linear timing
+# default timing_func is linear()
+pf.face_saturation_shift(
+    in_dir, out_dir, shift_magnitude = -10.0,
+    landmark_regions = [pf.CHEEKS_PATH]
+)
+
+# Saturating the facial skin with sigmoid timing
+pf.face_color_shift(
+    in_dir, out_dir, shift_magnitude = 8.0,
+    timing_func = pf.sigmoid(), landmark_regions = [pf.FACE_SKIN_PATH]
+)
+```
+
 ## Facial Brightness Manipulation {#face_bright_shift}
 
-`face_brightness_shift` performs a weighted brightness shift in a near identical manner to `face_color_shift`. This function leverages native OpenCV operations like `cv2.convertScaleAbs` to manipulate image brightness.
+`face_brightness_shift` performs a weighted brightness shift in a near identical manner to `face_color_shift`. This function leverages native OpenCV operations like `cv2.convertScaleAbs` to manipulate image brightness. Processed videos will be written to {`output_dir`}/Brightness_Shifted.
 
 ```python
 def face_brightness_shift(
@@ -129,3 +176,26 @@ def face_brightness_shift(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 | `FaceNotFoundError` | If the mediapipe FaceMesh model cannot identify a face in the input image or video. |
+
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Brightening the cheeks with linear timing
+# default timing_func is linear()
+pf.face_brightness_shift(
+    in_dir, out_dir, shift_magnitude = 15.0,
+    landmark_regions = [pf.CHEEKS_PATH]
+)
+
+# Darkening the facial skin with sigmoid timing
+pf.face_brightness_shift(
+    in_dir, out_dir, shift_magnitude = -10.0,
+    timing_func = pf.sigmoid(), landmark_regions = [pf.FACE_SKIN_PATH]
+)
+```

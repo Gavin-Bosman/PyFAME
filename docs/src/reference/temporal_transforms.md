@@ -44,6 +44,27 @@ def shuffle_frame_order(
 | `FileWriteError` | If an error is encountered instantiating `cv2.VideoWriter()` or calling `cv2.imWrite()`. |
 | `UnrecognizedExtensionError` | If the function encounters an unrecognized image or video file extension. |
 
+### Quick Example
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Simplest call; defaults to fully random frame shuffling 
+# with 1 second temporal blocks
+pf.shuffle_frame_order(in_dir, out_dir, rand_seed = 1234)
+
+# Left cyclic shift, with temporal blocks of 500 msec,
+# dropping the last uneven block
+pf.shuffle_frame_order(
+    in_dir, out_dir, shuffle_method = pf.FRAME_SHUFFLE_LEFT_CYCLIC_SHIFT, 
+    rand_seed = 1234, block_duration = 500, drop_last_block = True
+)
+```
+
 ## Generating Block-Order Array {#frame_order}
 
 `generate_shuffled_block_array()` is a helper function to `shuffle_frame_order()` that allows users to provide an input video, a shuffling method, and a temporal block duration, which returns a tuple containing (block order array, num frames per block). This function was created in order to abstract the `block_size` (num frames per block) from the user, as determining it's value was not very intuitive. Instead, using the `block_duration` and `shuffle_method`, `generate_shuffled_block_array()` automatically computes the optimal `block_size`, then uses it to generate a block order array, shuffled using the method of choice. The output block order array is a zero-indexed array, that determines the order that the frame-blocks will be written out in `shuffle_frame_order()`. Additionally, in order to ease the processing pipeline, the output of `generate_shuffled_block_array()` can be directly passed as an input parameter `block_order` to the `shuffle_Frame_order()` function. 
@@ -70,3 +91,24 @@ def generate_shuffled_block_array(
 | `TypeError` | Given invalid input parameter typings. |
 | `OSError` | Given an invalid path-string for either `input_dir` or `output_dir`. |
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
+
+```Python
+import pyfame as pf
+
+# Define input paths
+in_dir = "c:/my/path/to/input/"
+out_dir = "c:/my/path/to/output/"
+
+# Simplest call; defaults to fully random frame shuffling 
+# with 1 second temporal blocks
+pf.generate_shuffled_block_array(in_dir, rand_seed = 1234)
+
+# This function can also be used as a preprocessing step that directly feeds
+# it's output into shuffle_frame_order()
+blocks = pf.generate_shuffled_block_array(
+    in_dir, shuffle_method = pf.FRAME_SHUFFLE_PALINDROME, rand_seed = 1234
+)
+
+# We can then feed block_arr directly as input to shuffle_frame_order()
+pf.shuffle_frame_order(in_dir, out_dir, block_order = blocks, drop_last_block = True)
+```
