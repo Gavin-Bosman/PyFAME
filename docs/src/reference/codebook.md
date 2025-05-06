@@ -5,6 +5,7 @@ prev:
     text: 'Utilities'
     link: '/reference/utils'
 next: False
+aside: False
 ---
 # PyFAME's Codebook
 

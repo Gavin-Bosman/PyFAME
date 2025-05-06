@@ -4,7 +4,9 @@ title: Utilities
 prev: 
     text: 'Temporal Transforms'
     link: '/reference/temporal_transforms'
-next: False
+next: 
+    text: 'Codebook'
+    link: '/reference/codebook'
 ---
 # Utilities Module Reference
 
