@@ -514,7 +514,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         result.release()
         csv.close()
             
-def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str = COLOR_SPACE_RGB, with_sub_dirs:bool = False,
+def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str = COLOR_SPACE_BGR, with_sub_dirs:bool = False,
                              min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
     Creates a new directory 'Color_Channel_Means', where a csv file will be written to for each input video file provided.
@@ -596,7 +596,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
             raise ValueError("Extract_color_channel_means: unrecognized value for parameter color_space.")
         else:
             if str.lower(color_space) == "rgb":
-                color_space = COLOR_SPACE_RGB
+                color_space = COLOR_SPACE_BGR
             if str.lower(color_space) == "hsv":
                 color_space = COLOR_SPACE_HSV
             if str.lower(color_space) == "grayscale":
@@ -701,7 +701,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                 raise FileReadError()
             
             # Writing the column headers to csv
-            if color_space == COLOR_SPACE_RGB:
+            if color_space == COLOR_SPACE_BGR:
                 dir_file_path += f"\\{filename}_RGB.csv"
                 csv = open(output_dir + "\\" + filename + "_RGB.csv", "w")
                 csv.write("Timestamp,Mean_Red,Mean_Green,Mean_Blue,Cheeks_Red,Cheeks_Green,Cheeks_Blue," +
@@ -717,7 +717,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
                 csv.write("Timestamp,Mean_Value,Cheeks_Value,Nose_Value,Chin_Value\n")
         else:
             # Writing the column headers to csv
-            if color_space == COLOR_SPACE_RGB:
+            if color_space == COLOR_SPACE_BGR:
                 dir_file_path += f"\\{filename}_RGB.csv"
                 csv = open(output_dir + "\\" + filename + "_RGB.csv", "w")
                 csv.write("Mean_Red,Mean_Green,Mean_Blue,Cheeks_Red,Cheeks_Green,Cheeks_Blue," +
@@ -893,7 +893,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
         bin_chin_mask[chin_mask] = 255
 
         if not static_image_mode: 
-            if color_space == COLOR_SPACE_RGB:
+            if color_space == COLOR_SPACE_BGR:
                 # Extracting the color channel means
                 blue, green, red, *_ = cv.mean(frame, bin_fo_mask)
                 b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, bin_cheeks_mask)
@@ -935,7 +935,7 @@ def extract_face_color_means(input_dir:str, output_dir:str, color_space: int|str
 
                 csv.write(f"{timestamp:.5f},{val:.5f},{v_cheeks:.5f},{v_nose:.5f},{v_chin:.5f}\n")
         else:
-            if color_space == COLOR_SPACE_RGB:
+            if color_space == COLOR_SPACE_BGR:
                 # Extracting the color channel means
                 blue, green, red, *_ = cv.mean(frame, bin_fo_mask)
                 b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, bin_cheeks_mask)

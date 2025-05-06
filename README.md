@@ -2,15 +2,14 @@
 ![Docs](https://github.com/Gavin-Bosman/PyFAME/actions/workflows/deploy.yml/badge.svg)
 
 # PyFAME: the Python Facial Analysis and Manipulation Environment
-
-![](./docs/src/public/pyfame_logo.png)
+<img src="./docs/src/public/pyfame_logo.png" width=300 />
 
 PyFAME is a python package for dynamic region occlusion and skin colour modification of faces in video and images. Provides a range of tools for changing the colour of user-specified facial regions using industry-standard colour spaces (L*a*b, HSV, BGR), occlusion of user-defined facial regions (e.g., eyes, nose, mouth, hemi-face), and isolation of the head from background scene through video matting. Facial modifications can be further transitioned on and off through a range of timing functions (e.g., linear, sigmoid, Gaussian etc).
 
 PyFAME enables researchers to apply complex facial manipulations to just the face in dynamic video and still images scenes in several lines of code.
 Here is an example of PyFAME performing pixel-level modifications to create new videos from the original one:
 
-![PyFAME pixel-level Operations](./docs/docsite/output_grid.png)
+<img src="./docs/docsite/output_grid.png" width=400/>
 
 ## Statement of Need
 
