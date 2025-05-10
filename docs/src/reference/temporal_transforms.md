@@ -8,19 +8,18 @@ next:
     text: 'Utilities'
     link: '/reference/utils'
 ---
-# Temporal Transforms Module Reference
+# Temporal Transforms Module
 
-## Shuffling Frame-Blocks {#shuffle_frames}
+## shuffle_frame_order()
+
+```python
+shuffle_frame_order(input_dir, output_dir, shuffle_method = FRAME_SHUFFLE_RANDOM)
+```
+Breaks up the input video(s) frames into 'blocks' of equal size, then positionally shuffles them according to the specified `shuffle_method`.
 
 `shuffle_frame_order()` provides users the ability to temporally segment groups of frames in a video (in 'blocks'), and shuffle their ordering. The function can perform 6+ frame shuffling operations, ranging from random reassignment to cyclic shuffling to frame-interleaving. The `block_order` input parameter expects a tuple containing a zero-indexed list specifying the block ordering, and an integer specifying the number of frames per block. Both of these values can be provided manually, but the parameter is set up in this way to accept the output of helper function `generate_shuffled_block_array()`. The total number of frames in the input video often will not evenly divide into a set number of blocks, thus the `drop_last_block` parameter can be passed to drop the last uneven block from the output video.
 
-```python
-def shuffle_frame_order(
-    input_dir:str, output_dir:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, 
-    rand_seed:int|None = None, block_order:tuple|None = None, block_duration:int = 1000, 
-    drop_last_block:bool = True, with_sub_dirs:bool = False
-) -> None:
-```
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -33,7 +32,11 @@ def shuffle_frame_order(
 | `drop_last_block` | `bool` | A boolean flag specifying if the last (uneven sized) block should be dropped from the output video. |
 | `with_sub_dirs` | `bool` | A boolean flag specifying if the input directory contains nested subdirectories. |
 
-### Error Handling
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -65,16 +68,16 @@ pf.shuffle_frame_order(
 )
 ```
 
-## Generating Block-Order Array {#frame_order}
+## generate_shuffled_block_array()
+
+```python
+generate_shuffled_block_array(file_path, shuffle_method = FRAME_SHUFFLE_RANDOM)
+```
+Precomputes the `block_size` and block-ordering array for the specified `shuffle_method`, then returns them as a tuple.
 
 `generate_shuffled_block_array()` is a helper function to `shuffle_frame_order()` that allows users to provide an input video, a shuffling method, and a temporal block duration, which returns a tuple containing (block order array, num frames per block). This function was created in order to abstract the `block_size` (num frames per block) from the user, as determining it's value was not very intuitive. Instead, using the `block_duration` and `shuffle_method`, `generate_shuffled_block_array()` automatically computes the optimal `block_size`, then uses it to generate a block order array, shuffled using the method of choice. The output block order array is a zero-indexed array, that determines the order that the frame-blocks will be written out in `shuffle_frame_order()`. Additionally, in order to ease the processing pipeline, the output of `generate_shuffled_block_array()` can be directly passed as an input parameter `block_order` to the `shuffle_Frame_order()` function. 
 
-```python
-def generate_shuffled_block_array(
-    file_path:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, rand_seed:int|None = None, 
-    block_duration:int = 1000
-) -> tuple:
-```
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -83,7 +86,13 @@ def generate_shuffled_block_array(
 | `rand_seed` | `int` or `None` | An integer seed to the random number generator used in the frame shuffling operations. |
 | `block_duration` | `int` | The time duration in milliseconds of each temporal block. The exact frame count of each block depends on the input video's fps, but an example duration of 500ms with a 30fps video would result in ~15 frames per temporal block. |
 
-### Error Handling
+### Returns
+
+| Type | Description |
+| :--- | :---------- |
+| `tuple[list, int]` | A tuple containing the block-ordering list, and a block_size integer. |
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -91,6 +100,8 @@ def generate_shuffled_block_array(
 | `TypeError` | Given invalid input parameter typings. |
 | `OSError` | Given an invalid path-string for either `input_dir` or `output_dir`. |
 | `FileReadError` | If an error is encountered instantiating `cv2.VideoCapture()` or calling `cv2.imRead()`. |
+
+### Quick Example
 
 ```Python
 import pyfame as pf

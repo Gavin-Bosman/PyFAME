@@ -510,5 +510,3 @@ def shuffle_frame_order(input_dir:str, output_dir:str, shuffle_method:int = FRAM
         capture.release()
         result.release()
         logger.info(f"Function execution completed successfully, view outputted file(s) at {dir_file_path}.")
-        
-        

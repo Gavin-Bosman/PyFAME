@@ -8,18 +8,18 @@ next:
     text: 'Scrambling'
     link: '/reference/scrambling'
 ---
-# Point-Light Display Module Reference
+# Point-Light Display
 
-## Generating Point-Light Displays {#pld}
+## generate_point_light_display()
+
+```python
+generate_point_light_display(input_dir, output_dir, landmark_regions = [BOTH_EYES_PATH, MOUTH_PATH])
+```
+Creates a point-light display over the specified `landmark_regions`.
 
 The `generate_point_light_display()` function provides users the ability to generate a facial point-light display with only an input video. Facial landmark regions of interest are passed in as paths (predefined, or created using `pyfame.utils.create_path()`). Furthermore, point density and color can be easily manipulated via input parameters. `generate_point_light_display()` also provides the ability to track and display point displacement history, which can be visualized in two methods. `SHOW_HISTORY_ORIGIN` visualizes the displacement vectors from the current point positions to their original positions, while `SHOW_HISTORY_RELATIVE` visualizes the displacement vectors as their relative path of travel within some time window defined by parameter `history_window_msec`.
 
-```python
-def generate_point_light_display(
-    input_dir:str, output_dir:str, landmark_regions:list[list[tuple]] = [FACE_OVAL_PATH], point_density:float = 1.0, 
-    show_history:bool = False, history_mode:int = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_color:tuple[int] = (0,0,255), point_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
-```
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -36,7 +36,11 @@ def generate_point_light_display(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling {#pld_error}
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |

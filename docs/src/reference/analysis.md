@@ -8,21 +8,18 @@ next:
     text: 'Coloring'
     link: '/reference/coloring'
 ---
-# Analysis Module Reference
+# Analysis Module
 
-## Optical Flow {#optic_flow}
-
-`get_optical_flow` provides access to both sparse (Lucas-Kanadae) and dense (Farneback) optical flow. The type of optical flow operation performed is specified by input parameter `optical_flow_type`. For each file in `input_dir`, `get_optical_flow` applies the specified optical flow operation and outputs two files to `output_dir`. These two files are an image/video representation of the optical flow, and a CSV file containing the optical flow vector's magnitudes and direction. The input parameter `csv_sample_freq` determines how often the optical flow vectors should be sampled and recorded in the output CSV file. 
+## get_optical_flow()
 
 ```Python
-def get_optical_flow(
-    input_dir:str, output_dir:str, optical_flow_type: int|str = SPARSE_OPTICAL_FLOW, 
-    landmarks_to_track:list[int]|None = None, max_corners:int = 20, corner_quality_lvl:float = 0.3, min_corner_distance:int = 7, block_size:int = 5, win_size:tuple[int] = (15,15), 
-    max_pyr_lvl:int = 2, pyr_scale:float = 0.5, max_iter:int = 10, lk_accuracy_thresh:float = 0.03, 
-    poly_sigma:float = 1.2, point_color:tuple[int] = (255,255,255), point_radius:int = 5, 
-    vector_color:tuple[int]|None = None, with_sub_dirs:bool = False, csv_sample_freq:int = 1000, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
+get_optical_flow(input_dir, output_dir, optical_flow_type = SPARSE_OPTICAL_FLOW)
 ```
+Computes the sparse or dense optical flow for each video provided in `input_dir`.
+
+This function provides access to both sparse (Lucas-Kanadae) and dense (Farneback) optical flow. The type of optical flow operation performed is specified by input parameter `optical_flow_type`. For each file in `input_dir`, `get_optical_flow()` applies the specified optical flow operation and outputs two files to `output_dir`. These two files are an image/video representation of the optical flow, and a CSV file containing the optical flow vector's magnitudes and direction. The input parameter `csv_sample_freq` determines how often the optical flow vectors should be sampled and recorded in the output CSV file. 
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -48,7 +45,11 @@ def get_optical_flow(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling
+### Returns
+
+`None`
+
+### Exceptions Raised
 | Raises | Encountered Error |
 | :----- | :---- |
 | `ValueError` | Given unrecognized input parameter values. |
@@ -72,7 +73,7 @@ pf.get_optical_flow(in_dir, out_dir, pf.SPARSE_OPTICAL_FLOW)
 
 # Sparse optical flow, with input points
 pf.get_optical_flow(in_dir, out_dir, pf.SPARSE_OPTICAL_FLOW, landmarks_to_track = [1,32,43,112,169])
-# If you want to ONLY track the input points, set max_corners = len(landmark_list)
+# If you want to ONLY track the input points, set max_corners = len(landmarks_to_track)
 
 # Dense optical flow, simplest call
 pf.get_optical_flow(in_dir, out_dir, pf.DENSE_OPTICAL_FLOW)
@@ -82,16 +83,16 @@ pf.get_optical_flow(in_dir, out_dir, pf.DENSE_OPTICAL_FLOW, max_iter=15, block_s
 
 ```
 
-## Facial Color Means {#color_means}
-
-`extract_face_color_means` will take each input image/video, and extract the global and local color channel values in the specified color space (determined by input parameter `color_space`). The color channel values of the full face, cheeks, nose, and chin, are recorded and written out in a CSV file. `extract_face_color_means` will create a new subdirectory under `output_dir` called `Color_Channel_Means/`.
+## extract_face_color_means()
 
 ```Python
-def extract_face_color_means(
-    input_dir:str, output_dir:str, color_space: int|str = COLOR_SPACE_RGB, 
-    with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
+extract_face_color_means(input_dir, output_dir, color_space = COLOR_SPACE_RGB)
 ```
+For each image or video provided in `input_dir`, the facial color means in the provided color space are extracted and written out as a CSV.
+
+This function will extract both the global (full-face) and local (landmark-specific) color channel values in the specified color space (determined by input parameter `color_space`). The color channel values of the full face, cheeks, nose, and chin, are recorded and written out in a CSV file. The function will create a new subdirectory under `output_dir` called `Color_Channel_Means/` where all CSV output files will be written.
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -102,7 +103,11 @@ def extract_face_color_means(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling
+### Returns
+
+`None`
+
+### Exceptions Raised
 | Raises | Encountered Error |
 | :----- | :---- |
 | `ValueError` | Given unrecognized input parameter values. |

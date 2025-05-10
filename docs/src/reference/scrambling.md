@@ -8,18 +8,18 @@ next:
     text: 'Temporal Transforms'
     link: '/reference/temporal_transforms'
 ---
-# Scrambling Module Reference
+# Scrambling Module
 
-## Facial Scrambling {#facial_scramble}
+## facial_scramble()
+
+```python
+facial_scramble(input_dir, output_dir, scramble_method = HIGH_LEVEL_GRID_SCRAMBLE)
+```
+Scrambles the positions of the facial features using the specified `scramble_method`.
 
 The `facial_scramble()` function is essentially two functions disguised as one, providing users the ability to perform grid-based and landmark-based shuffling of the face. The input parameter `scramble_method` defines the type of facial scrambling to be performed, which can be `pyfame.HIGH_LEVEL_GRID_SCRAMBLE`, `pyfame.LOW_LEVEL_GRID_SCRAMBLE` or `pyfame.LANDMARK_SCRAMBLE`. High level grid scramble will reshuffle the facial grid squares purely randomly, while low level grid scramble will reshuffle the facial grid squares within their rows, with the bounds of their random positional reassignment determined by parameter `grid_scramble_threshold`. Landmark-based scrambling will cut out and store the eyes, eyebrows, nose, and mouth, and randomly reorient and reposition them over the face. As all of the scrambling methods heavily rely on random number generation, the random number generator can be seeded with parameter `rand_seed` to ensure reproducible results. 
 
-```python
-def facial_scramble(
-    input_dir:str, output_dir:str, out_grayscale:bool = False, scramble_method:int = HIGH_LEVEL_GRID_SCRAMBLE, rand_seed:int|None = None, grid_scramble_threshold:int = 2, grid_square_size:int = 40, 
-    with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
-```
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -34,7 +34,11 @@ def facial_scramble(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling {#scramble_error}
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |

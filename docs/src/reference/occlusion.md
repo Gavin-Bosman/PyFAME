@@ -8,19 +8,18 @@ next:
     text: 'Point-Light Display'
     link: '/reference/pld'
 ---
-# Occlusion Module Reference
+# Occlusion Module
 
-## Facial Masking {#facial_masking}
-
-`mask_face_region` will apply the specified `mask_type` to all files contained in `input_dir`, outputting masked images and videos to {`output_dir`}/Masked.
+## mask_face_region()
 
 ``` python
-def mask_face_region(
-    input_dir:str, output_dir:str, mask_type:int = FACE_OVAL_MASK, 
-    with_sub_dirs:bool = False, background_color: tuple[int] = (255,255,255),
-    min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
+def mask_face_region(input_dir, output_dir, mask_type = FACE_OVAL_MASK)
 ```
+Applies the specified `mask_type` to each input image or video file contained in `input_dir`.
+
+The masked-out region of each image or frame is by default replaced with black (255,255,255), however other background colors can be specified by passing a BGR color code to input parameter `background_color`. This function creates a new output directory; outputting masked images and videos to {`output_dir`}/Masked.
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -32,7 +31,11 @@ def mask_face_region(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling {#facial_masking_error}
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -60,17 +63,16 @@ pf.mask_face_region(in_dir, out_dir)
 pf.mask_face_region(in_dir, out_dir, mask_type=pf.EYES_NOSE_MOUTH_MASK, background_color=(0,0,0))
 ```
 
-## Facial Occlusion {#facial_occlusion}
-
-`occlude_face_region` takes the landmark regions specified within `landmarks_to_occlude`, and occludes them with the specified method for each image or video file present within the input directory provided in `input_dir`. Processed videos will be written to {`output_dir`}/Occluded.
+## occlude_face_region()
 
 ``` python
-def occlude_face_region(
-    input_dir:str, output_dir:str, landmarks_to_occlude:list[list[tuple]] = [BOTH_EYES_PATH],
-    occlusion_fill:int = OCCLUSION_FILL_BLACK, with_sub_dirs:bool =  False, 
-    min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
+occlude_face_region(input_dir, output_dir, landmarks_to_occlude = [BOTH_EYES_PATH])
 ```
+For each input image or video contained in `input_dir`, the specified landmark paths are occluded. 
+
+This function takes the landmark regions specified within `landmarks_to_occlude`, and occludes them with the specified `occlusion_fill`. `pyfame.OCCLUSION_FILL_BLACK` and `pyfame.OCCLUSION_FILL_MEAN` fill the exact shape of the provided landmark path with a solid color, while `pyfame.OCCLUSION_FILL_BAR` centers a horizontal rectangle over the provided landmark path. Occluded images and videos will be written to {`output_dir`}/Occluded.
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -82,7 +84,11 @@ def occlude_face_region(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling {#facial_occlusion_error}
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -113,16 +119,15 @@ pf.occlude_face_region(
 )
 ```
 
-## Facial Blurring {#facial_blurring}
-
-`blur_face_region` takes the provided `blur_method` (one of gaussian, average or median), and applies it to each image or video file contained in `input_dir`. The processed files are written out to {`output_dir`}/Blurred.
-
+## blur_face_region()
 ```python
-def blur_face_region(
-    input_dir:str, output_dir:str, blur_method:str | int = "gaussian", k_size:int = 15, 
-    with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
+blur_face_region(input_dir, output_dir, blur_method = "gaussian")
 ```
+Applies a blur operation to each input image or video contained in `input_dir`.
+
+`blur_face_region()` takes the provided `blur_method` (one of gaussian, average or median), and applies it to each image or video file contained in `input_dir`. The degree of blurring can be precisely controlled by manipulating the size of the blurring kernel, which can be specified by input parameter `k_size`. Blurred images and videos will be written out to {`output_dir`}/Blurred.
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -134,7 +139,11 @@ def blur_face_region(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling {#facial_blurring_error}
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -162,17 +171,16 @@ pf.blur_face_region(in_dir, out_dir)
 pf.blur_face_region(in_dir, out_dir, blur_method=pf.BLUR_METHOD_MEDIAN, k_size=20)
 ```
 
-## Dynamic Noise Application {#facial_noise}
-
-`apply_noise` provides the ability to apply various types of image noise (pixelation, gaussian or salt and pepper) to dynamic facial regions using built-in facial region masks. `apply_noise` offers a high degree of noise customization, with parameters `noise_prob`, `mean`, `standard_dev` and `rand_seed` allowing for precise control over the manipulations and their reproducibility. Processed files are written out to {`output_dir`}/Noise_Added.
+## apply_noise()
 
 ``` python
-def apply_noise(
-    input_dir:str, output_dir:str, noise_method:str|int = "pixelate", pixel_size:int = 32, 
-    noise_prob:float = 0.5, rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, 
-    mask_type:int = FACE_OVAL_MASK, with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5
-) -> None:
+apply_noise(input_dir, output_dir, noise_method = "pixelate")
 ```
+Applies the specified `noise_method` in the specified facial region to each input image or video contained in `input_dir`.
+
+This function provides the ability to apply various types of image noise (pixelation, gaussian or salt and pepper) to dynamic facial regions using built-in facial region masks. `apply_noise` offers a high degree of noise customization, with parameters `noise_prob`, `mean`, `standard_dev` and `rand_seed` allowing for precise control over the manipulations and their reproducibility. Processed files will be written out to {`output_dir`}/Noise_Added.
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -189,7 +197,11 @@ def apply_noise(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling {#facial_noise_error}
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |

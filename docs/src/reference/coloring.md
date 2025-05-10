@@ -8,25 +8,22 @@ next:
     text: 'Occlusion'
     link: '/reference/occlusion'
 ---
-# Coloring Module Reference
+# Coloring Module
 
-## Facial Color Manipulation {#face_color_shift}
+## face_color_shift()
 
-`face_color_shift` performs a weighted color shift on the color channel specified in `shift_color`, weighted by the outputs of the provided `timing_func`. Parameters `onset_t` and `offset_t` can be used to specify when the color shifting fades in and fades out (this only applies to video files). `face_color_shift` makes use of the CIELAB color space to perform color shifting, due to it being far more perceptually uniform than the standard RGB or BGR color spaces. Processed videos will be written to {`output_dir`}/Color_Shifted.
+```python
+face_color_shift(input_dir, output_dir, shift_magnitude = 8.0, shift_color = COLOR_RED)
+```
+Performs a weighted color shift on the specified facial landmarks for each input image or video file provided in `input_dir`.
+
+The color channel in which the color shift is performed is determined by parameter `shift_color`, and the shift is weighted by the outputs of the provided `timing_func`. Parameters `onset_t` and `offset_t` can be used to specify when the color shifting fades in and fades out (this only applies to video files). `face_color_shift()` makes use of the CIELAB color space to perform color shifting, due to it being far more perceptually uniform than the standard RGB or BGR color spaces. Processed videos will be written to {`output_dir`}/Color_Shifted.
 
 ::: warning
-`face_color_shift` requires the outputs of the provided `timing_func` to be normalised; that is, in the range [0,1]. Predefined normalised functions such as `sigmoid`, `linear`, `gaussian` and `constant` are available for use in `pyfame.utils`. Extra parameters for these functions can be passed to `face_color_shift` as keyword arguments. Users may also define their own timing functions, but it is up to the user to ensure their functions take at least one input float parameter, and that the return value is within the normal range.
+`face_color_shift` requires the outputs of the provided `timing_func` to be normalised; that is, in the range [0,1]. Predefined normalised functions such as `sigmoid`, `linear`, `gaussian` and `constant` are available for use in `pyfame.utils`. Extra parameters for these functions can be passed to `face_color_shift()` as keyword arguments. Users may also define their own timing functions, but it is up to the user to ensure their functions take at least one input float parameter, and that the return value is within the normal range.
 :::
     
-```python
-def face_color_shift(
-    input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, 
-    shift_magnitude: float = 8.0, timing_func:Callable[...,float] = linear, 
-    shift_color:str|int = COLOR_RED, landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], 
-    with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, 
-    min_tracking_confidence:float = 0.5, **kwargs
-) -> None:
-```
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -42,7 +39,11 @@ def face_color_shift(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -78,18 +79,16 @@ pf.face_color_shift(
 )
 ```
 
-## Facial Saturation Manipulation {#face_sat_shift}
-
-`face_saturation_shift` performs a weighted saturation shift in a near identical manner to `face_color_shift`. This function makes use of the HSV color space to manipulate saturation. Processed videos will be written to {`output_dir`}/Sat_Shifted.
+## face_saturation_shift()
 
 ```python
-def face_saturation_shift(
-    input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, 
-    shift_magnitude:float = -8.0, timing_func:Callable[..., float] = linear, 
-    landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], with_sub_dirs:bool = False, 
-    min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs
-) -> None:
+face_saturation_shift(input_dir, output_dir, shift_magnitude = -8.0)
 ```
+Performs a weighted saturation shift on the specified facial landmarks for each input image or video provided in `input_dir`.
+
+The functions weighted saturation shift is implemented nearly identically to the weighted color shift performed `face_color_shift()`. This function makes use of the HSV color space to manipulate saturation. Processed videos will be written to {`output_dir`}/Sat_Shifted.
+
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -104,7 +103,11 @@ def face_saturation_shift(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
@@ -133,24 +136,22 @@ pf.face_saturation_shift(
 )
 
 # Saturating the facial skin with sigmoid timing
-pf.face_color_shift(
+pf.face_saturation_shift(
     in_dir, out_dir, shift_magnitude = 8.0,
     timing_func = pf.sigmoid(), landmark_regions = [pf.FACE_SKIN_PATH]
 )
 ```
 
-## Facial Brightness Manipulation {#face_bright_shift}
+## face_brightness_shift()
+
+```python
+face_brightness_shift(input_dir, output_dir, shift_magnitude = 20.0)
+```
+Performs a weighted brightness shift on the specified facial landmarks for each input image or video file provided in `input_dir`.
 
 `face_brightness_shift` performs a weighted brightness shift in a near identical manner to `face_color_shift`. This function leverages native OpenCV operations like `cv2.convertScaleAbs` to manipulate image brightness. Processed videos will be written to {`output_dir`}/Brightness_Shifted.
 
-```python
-def face_brightness_shift(
-    input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, 
-    shift_magnitude:float = 20.0, timing_func:Callable[..., float] = linear, 
-    landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], with_sub_dirs:bool = False, 
-    min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **kwargs
-) -> None:
-```
+### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
@@ -165,7 +166,11 @@ def face_brightness_shift(
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
-### Error Handling
+### Returns
+
+`None`
+
+### Exceptions Raised
 
 | Raises | Encountered Error |
 | :----- | :---- |
