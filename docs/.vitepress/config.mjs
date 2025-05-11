@@ -1,12 +1,23 @@
-import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+export default withMermaid({
   title: "PyFAME",
   description: "API documentation for the PyFAME package",
   srcDir: './src',
   outDir: './docsite',
   base: '/PyFAME',
+
+  mermaid: {
+    securityLevel: 'loose',
+    theme: 'default',
+    layout: 'elk',
+    themeVariables: {
+      mergeEdges: true,
+      nodePlacementStrategy: 'BRANDES_KOEPF',
+    }
+  },
+
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: './pyfame_logo.png',
@@ -49,7 +60,7 @@ export default defineConfig({
         text: 'About',
         items: [
           { text: "Authors", link: '/about/authors' },
-          { text: "Contributing"},
+          { text: "Contributing", link: '/about/contrib'},
           { text: "Changelog", link: '/about/changelog' }
         ]
       }

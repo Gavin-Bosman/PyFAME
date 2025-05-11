@@ -1,3 +1,11 @@
+---
+layout: doc
+prev:
+    text: 'Contributing'
+    link: '/about/contrib'
+next: false
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

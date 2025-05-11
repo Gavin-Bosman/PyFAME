@@ -11,6 +11,30 @@ next:
 
 PyFAME: The Python Facial Analysis and Manipulation Environment is a Python toolkit for performing a variety of classical facial psychology manipulations over both still images and videos. All of PyFAME's manipulation functions can be layered, and they are designed in such a way that users can apply several manipulations in succession easily. Thus, PyFAME can be used to perform individual facial psychology experiments, or to create novel facial psychology stimuli which themselves can be used in experiments or as inputs to train neural networks.
 
+## Package Structure
+
+```mermaid
+mindmap
+  root((PyFAME))
+    core
+        analysis
+        coloring
+        moviefy
+        occlusion
+        point_light_display
+        spatial_transforms
+        temporal_transforms
+        timing_functions
+    utils
+        exceptions
+        display_options
+        landmarks
+        predefined_constants
+        setup_logging
+        utils
+    
+```
+
 The PyFAME package is divided into two main submodules `core` and `utils`. A top-level import of PyFAME will expose all of the `core` functions, and the `utils` submodule to the user. The package is set up this way so that users can simply import PyFAME like below in order to directly access all of the relevant functions.
 ``` python
 import pyfame as pf

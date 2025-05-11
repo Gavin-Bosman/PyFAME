@@ -1,7 +1,9 @@
 ---
 layout: doc
 title: Getting Started
-prev: false
+prev: 
+    title: 'What is PyFAME?'
+    link: '/guide/intro'
 next: 
     title: 'Examples'
     link: '/guide/examples'
