@@ -1,13 +1,14 @@
 import pyfame as pf
 import cv2 as cv
 import matplotlib.pyplot as plt
-#in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\data\\Video_Speech_Actors_01-24\\Video_Speech_Actor_08\\Actor_08\\01-01-04-02-01-01-08.mp4"
-in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy"
-out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\Moviefied"
+in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\Actor_01.png"
+#in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy"
+out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\"
 
+pf.overlay_image(in_dir, out_dir, 1)
 #pf.normalize_image_sizes(input_dir=in_dir, method=pf.predefined_constants.NORMALIZE_IMAGES_PAD)
 #pf.moviefy_images(input_dir=in_dir, output_dir=out_dir, output_filename="test", blend_images= True)
-#pf.occlude_face_region(in_dir, out_dir, landmarks_to_occlude=[pf.landmarks.HEMI_FACE_RIGHT_PATH])
+#pf.occlude_face_region(in_dir, out_dir, landmarks_to_occlude=[pf.BOTH_EYES_PATH], occlusion_fill=pf.OCCLUSION_FILL_BAR)
 #pf.mask_face_region(input_dir=in_dir, output_dir=out_dir, mask_type=EYES_NOSE_MOUTH_MASK)
 ##pf.face_color_shift(input_dir=in_dir, output_dir=out_dir, shift_color="red", landmark_regions=[LEFT_CHEEK_PATH, CHIN_PATH], shift_magnitude=25.0)
 ##pf.occlude_face_region(in_dir, out_dir, [RIGHT_EYE_PATH, NOSE_PATH, LIPS_PATH], OCCLUSION_FILL_BLACK)

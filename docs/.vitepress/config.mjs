@@ -22,8 +22,8 @@ export default withMermaid({
     // https://vitepress.dev/reference/default-theme-config
     logo: './pyfame_logo.png',
     nav: [
-      { text: 'Reference', link: '/reference/overview' },
       { text: 'Guide', link: '/guide/getting_started' },
+      { text: 'Reference', link: '/reference/overview' },
       { text: 'About', link: '/about/authors' }
     ],
 

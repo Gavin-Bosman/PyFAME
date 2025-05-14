@@ -1,6 +1,6 @@
 from .predefined_constants import *
 from .landmarks import *
-from pyfame.core.exceptions import FileReadError, FileWriteError
+from pyfame.utils.exceptions import FileReadError, FileWriteError
 from math import atan
 import numpy as np
 import pandas as pd
@@ -45,11 +45,11 @@ def compute_rot_angle(slope1:float, slope2:float = 0.0) -> float:
     returns
     -------
 
-    rot_angle:float
-        The displacement between the two slopes, provided in radians. 
+    rot_angle: float
+        The displacement between the two slopes. 
     """
 
-    angle = abs((slope2-slope1) / (1 + slope1*slope2))
+    angle = (slope2-slope1) / (1 + slope1*slope2)
     rad_angle = atan(angle)
     rot_angle = (rad_angle * 180) / np.pi
     return rot_angle

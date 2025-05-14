@@ -2,7 +2,7 @@ from pyfame.utils.predefined_constants import *
 from pyfame.utils.landmarks import *
 from pyfame.utils.timing_functions import *
 from pyfame.utils.utils import get_variable_name
-from pyfame.core.exceptions import *
+from pyfame.utils.exceptions import *
 import os
 import cv2 as cv
 import cv2.typing

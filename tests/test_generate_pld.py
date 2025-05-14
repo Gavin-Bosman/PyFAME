@@ -1,5 +1,5 @@
 import pytest
-from pyfame.core.exceptions import *
+from pyfame.utils.exceptions import *
 from pyfame.core.point_light_display import generate_point_light_display
 
 def test_exception_handling():

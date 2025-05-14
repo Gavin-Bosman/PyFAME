@@ -1,7 +1,7 @@
 from pyfame.utils.predefined_constants import *
 from pyfame.utils.landmarks import *
 from pyfame.utils.utils import get_variable_name, compute_rot_angle
-from pyfame.core.exceptions import *
+from pyfame.utils.exceptions import *
 import os
 import cv2 as cv
 import mediapipe as mp

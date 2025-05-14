@@ -1,5 +1,5 @@
 import pytest
-from pyfame.core.exceptions import *
+from pyfame.utils.exceptions import *
 from pyfame.core.coloring import face_brightness_shift
 
 def test_exception_handling():

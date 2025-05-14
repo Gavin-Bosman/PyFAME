@@ -1,4 +1,4 @@
-from pyfame.core.exceptions import *
+from pyfame.utils.exceptions import *
 from pyfame.utils.predefined_constants import *
 from pyfame.utils.utils import get_variable_name
 import numpy as np

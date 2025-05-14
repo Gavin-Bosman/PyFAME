@@ -1,5 +1,5 @@
 import pytest
-from pyfame.core.exceptions import *
+from pyfame.utils.exceptions import *
 from pyfame.core.temporal_transforms import generate_shuffled_block_array
 
 def test_exception_handling():

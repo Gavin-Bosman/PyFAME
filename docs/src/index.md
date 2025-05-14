@@ -10,7 +10,7 @@ hero:
     alt: PyFAME Logo
   actions:
     - theme: brand
-      text: Getting Started
+      text: What Is PyFAME?
       link: /guide/getting_started
     - theme: alt
       text: API Reference
