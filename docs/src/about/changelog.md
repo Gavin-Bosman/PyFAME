@@ -10,14 +10,6 @@ next: false
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
-- v0.7... add masking to blur_face_region()
-- v0.7... expand timing function availability to blurring, and noise
-- v0.7... expanded functionality to extract_face_color_means()
-- v0.8... full docsite reimplementation with vitepress
-- v1.0 gui preview prior to file processing
-- test suite integration for moviefy submodule
-
 ## [0.7.3] 2025-04-12
 
 ### Added

@@ -1,6 +1,6 @@
 import pytest
 from pyfame.utils.exceptions import *
-from pyfame.core.scrambling import facial_scramble
+from pyfame.manipulations.scrambling import facial_scramble
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

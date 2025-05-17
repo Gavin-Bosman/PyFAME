@@ -1,6 +1,7 @@
 from pyfame.utils.exceptions import *
 from pyfame.utils.predefined_constants import *
 from pyfame.utils.utils import get_variable_name
+from pyfame.io import *
 import numpy as np
 import cv2 as cv
 import os
@@ -50,7 +51,7 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
         On error catches thrown by cv2.imread.
 
     """
-    single_file = False
+    
     logger.info("Now entering function Equate_image_sizes.")
 
     # Performing input parameter checks
@@ -62,8 +63,6 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
         logger.warning("Function encountered an OSError for input parameter input_dir. "
                        "Message: input_dir is not a valid path, or the directory does not exist.")
         raise OSError("Equate_image_sizes: input directory path is not a valid path, or the directory does not exist.")
-    elif os.path.isfile(input_dir):
-        single_file = True
 
     if not isinstance(method, int):
         logger.warning("Function encountered a TypeError for input parameter method. "
@@ -98,17 +97,8 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
     logger.info(f"Input Parameters: input_dir = {input_dir}, method = {eq_meth_name}, pad_color = {pad_color}, with_sub_dirs = {with_sub_dirs}.")
 
     # Creating a list of file path strings to iterate through when processing
-    files_to_process = []
+    files_to_process = get_directory_walk(input_dir, with_sub_dirs)
 
-    if single_file:
-        files_to_process.append(input_dir)
-    elif not with_sub_dirs:
-        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
-    else:
-        files_to_process = [os.path.join(path, file) 
-                            for path, dirs, files in os.walk(input_dir, topdown=True) 
-                            for file in files]
-    
     logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
 
     min_size = None
@@ -139,6 +129,7 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
             max_size[0] = cur_size[0]
         if cur_size[1] > max_size[1]:
             max_size[1] = cur_size[1]
+
     # resizing the images
     if method == EQUATE_IMAGES_CROP:
         for file in files_to_process:
@@ -239,7 +230,7 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
     logger.info("Function execution completed successfully.")
 
 
-def moviefy_images(input_dir:str, output_dir:str, output_filename:str, fps:int = 30, repeat_duration:int = 1000, 
+def convert_images_to_video(input_dir:str, output_dir:str, output_filename:str, fps:int = 30, repeat_duration:int = 1000, 
     blend_images:bool = True, blended_frames_prop:float = 0.2, equate_sizes:bool = False, 
     equalization_method:int = EQUATE_IMAGES_CROP, pad_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False) -> None:
     """ Takes a series of static images contained in input_dir, and converts them into a video sequence by repeating
@@ -306,89 +297,86 @@ def moviefy_images(input_dir:str, output_dir:str, output_filename:str, fps:int =
         On error catches thrown by cv2.imread.
     
     """
-    single_file = False
-    logger.info("Now entering function moviefy_images.")
+    logger.info("Now entering function convert_images_to_video.")
 
     # Performing input parameter checks
     if not isinstance(input_dir, str):
         logger.warning("Function encountered a TypeError for input parameter input_dir. "
                        "Message: parameter input_dir must be of type str.")
-        raise TypeError("Moviefy_images: parameter input_dir must be of type str.")
+        raise TypeError("Convert_images_to_video: parameter input_dir must be of type str.")
     elif not os.path.exists(input_dir):
         logger.warning("Function encountered an OSError for input parameter input_dir. "
                        "Message: input_dir is not a valid path, or the directory does not exist.")
-        raise OSError("Moviefy_images: input directory path is not a valid path, or the directory does not exist.")
-    elif os.path.isfile(input_dir):
-        single_file = True
+        raise OSError("Convert_images_to_video: input directory path is not a valid path, or the directory does not exist.")
     
     if not isinstance(output_dir, str):
         logger.warning("Function encountered a TypeError for input parameter output_dir. "
                        "Message: parameter output_dir must be of type str.")
-        raise TypeError("Moviefy_images: parameter output_dir must be of type str.")
+        raise TypeError("Convert_images_to_video: parameter output_dir must be of type str.")
     elif not os.path.exists(output_dir):
         logger.warning("Function encountered an OSError for input parameter input_dir. "
                        "Message: input_dir is not a valid path, or the directory does not exist.")
-        raise OSError("Moviefy_images: output directory path is not a valid path, or the directory does not exist.")
+        raise OSError("Convert_images_to_video: output directory path is not a valid path, or the directory does not exist.")
     elif not os.path.isdir(output_dir):
         logger.warning("Function encountered a ValueError for input parameter output_dir. "
                        "Message: output_dir must be a valid path to a directory.")
-        raise ValueError("Moviefy_images: output_dir must be a valid path to a directory.")
+        raise ValueError("Convert_images_to_video: output_dir must be a valid path to a directory.")
     
     if not isinstance(output_filename, str):
         logger.warning("Function encountered a TypeError for input parameter output_filename. "
                        "Message: parameter output_filename must be a str.")
-        raise TypeError("Moviefy_images: parameter output_filename must be of type str.")
+        raise TypeError("Convert_images_to_video: parameter output_filename must be of type str.")
     
     if not isinstance(fps, int):
         logger.warning("Function encountered a TypeError for input parameter fps. "
                        "Message: parameter fps must be an int.")
-        raise TypeError("Moviefy_images: parameter fps must be an int.")
+        raise TypeError("Convert_images_to_video: parameter fps must be an int.")
     elif fps < 0 or fps > 120:
         logger.warning("Function encountered a ValueError for input parameter fps. "
                        "Message: fps must lie in the range [1,120]. ")
-        raise ValueError("Moviefy_images: parameter fps must lie between 1-120. ")
+        raise ValueError("Convert_images_to_video: parameter fps must lie between 1-120. ")
     
     if not isinstance(repeat_duration, int):
         logger.warning("Function encountered a TypeError for input parameter repeat_duration. "
                        "Message: parameter repeat_duration must be an int.")
-        raise TypeError("Moviefy_images: parameter repeat_duration must be an int.")
+        raise TypeError("Convert_images_to_video: parameter repeat_duration must be an int.")
     elif repeat_duration < 100:
         logger.warning("Function encountered a ValueError for input parameter repeat_duration. "
                        "Message: parameter repeat_duration must be an int > 100.")
-        raise ValueError("Moviefy_images: parameter repeat_duration cannot be less than 100 msec.")
+        raise ValueError("Convert_images_to_video: parameter repeat_duration cannot be less than 100 msec.")
     
     if not isinstance(blend_images, bool):
         logger.warning("Function encountered a TypeError for input parameter blend_images. "
                        "Message: parameter blend_images must be of type bool.")
-        raise TypeError("Moviefy_images: parameter blend_images must be of type bool.")
+        raise TypeError("Convert_images_to_video: parameter blend_images must be of type bool.")
     
     if not isinstance(blended_frames_prop, float):
         logger.warning("Function encountered a TypeError for input parameter blended_frames_prop. "
                        "Message: parameter blended_frames_prop must be of type float.")
-        raise TypeError("Moviefy_images: parameter blended_frames_prop must be of type float.")
+        raise TypeError("Convert_images_to_video: parameter blended_frames_prop must be of type float.")
     elif blended_frames_prop < 0 or blended_frames_prop > 1:
         logger.warning("Function encountered a ValueError for input parameter blended_frames_prop. "
                        "Message: parameter blended_frames_prop must be a float in the range [0,1].")
-        raise ValueError("Moviefy_images: parameter blended_frames_prop must be a float in the range [0,1].")
+        raise ValueError("Convert_images_to_video: parameter blended_frames_prop must be a float in the range [0,1].")
     
     if not isinstance(equate_sizes, bool):
         logger.warning("Function encountered a TypeError for input parameter normalize. "
                        "Message: parameter normalize must be of type bool.")
-        raise TypeError("Moviefy_images: parameter normalize must be of type bool.")
+        raise TypeError("Convert_images_to_video: parameter normalize must be of type bool.")
     
     if not isinstance(equalization_method, int):
         logger.warning("Function encountered a TypeError for input parameter normalization_method. "
                        "Message: parameter normalization_method must be an int.")
-        raise TypeError("Moviefy_images: parameter normalization_method must be an int.")
+        raise TypeError("Convert_images_to_video: parameter normalization_method must be an int.")
     elif equalization_method not in [EQUATE_IMAGES_CROP, EQUATE_IMAGES_PAD]:
         logger.warning("Function encountered a ValueError for input parameter normalization_method. "
                        "Message: unrecognized value for parameter normalization_method.")
-        raise ValueError("Moviefy_images: unrecognized value for parameter normalization_method.")
+        raise ValueError("Convert_images_to_video: unrecognized value for parameter normalization_method.")
     
     if not isinstance(with_sub_dirs, bool):
         logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
                        "Message: parameter with_sub_dirs must be of type bool.")
-        raise TypeError("Moviefy_images: parameter with_sub_dirs must be of type bool.")
+        raise TypeError("Convert_images_to_video: parameter with_sub_dirs must be of type bool.")
     
     # Logging input parameters
     norm_meth_name = get_variable_name(equalization_method, globals())
@@ -397,26 +385,11 @@ def moviefy_images(input_dir:str, output_dir:str, output_filename:str, fps:int =
                 f"normalize = {equate_sizes}, normalization_method = {norm_meth_name}, with_sub_dirs = {with_sub_dirs}.")
 
     # Creating a list of file path strings to iterate through when processing
-    files_to_process = []
-
-    if single_file:
-        files_to_process.append(input_dir)
-    elif not with_sub_dirs:
-        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
-    else:
-        files_to_process = [os.path.join(path, file) 
-                            for path, dirs, files in os.walk(input_dir, topdown=True) 
-                            for file in files]
+    files_to_process = get_directory_walk(input_dir, with_sub_dirs)
     
     logger.info(f"Function read in {len(files_to_process)} files from input directory {input_dir}.")
     
-    # Creating named output directories for video output
-    if not os.path.isdir(output_dir + "\\Moviefied"):
-        os.mkdir(output_dir + "\\Moviefied")
-        output_dir = output_dir + "\\Moviefied"
-        logger.info(f"Function created new output directory {output_dir}.")
-    else:
-        output_dir = output_dir + "\\Moviefied"
+    output_dir = create_output_dir(output_dir, "Image_To_Video")
     
     image_list = []
     im_size = None
@@ -451,12 +424,7 @@ def moviefy_images(input_dir:str, output_dir:str, output_filename:str, fps:int =
                     raise ImageShapeError()
     
     # Instantiating our videowriter
-    writer = cv.VideoWriter(output_dir + f"\\{output_filename}.mp4", cv.VideoWriter.fourcc(*"mp4v"), fps, im_size)
-
-    if not writer.isOpened():
-        debug_logger.error("Function encountered a FileWriteError. ")
-                           
-        raise FileWriteError()
+    writer = get_video_writer(output_dir + f"\\{output_filename}.mp4", size=im_size)
     
     num_repeats = int(np.floor((repeat_duration/1000)*fps))
     blend_window = round(num_repeats * blended_frames_prop)

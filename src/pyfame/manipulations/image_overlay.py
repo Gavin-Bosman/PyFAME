@@ -1,5 +1,5 @@
 from pyfame.utils.exceptions import *
-from pyfame.utils.landmarks import *
+from pyfame.mesh.landmarks import *
 from pyfame.utils import compute_rot_angle
 import cv2 as cv
 import numpy as np

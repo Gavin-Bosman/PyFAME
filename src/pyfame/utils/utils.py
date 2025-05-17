@@ -1,5 +1,5 @@
 from .predefined_constants import *
-from .landmarks import *
+from ..mesh.landmarks import *
 from pyfame.utils.exceptions import FileReadError, FileWriteError
 from math import atan
 import numpy as np
@@ -243,83 +243,6 @@ def get_min_max_bgr(filePath:str, focusColor:int|str = COLOR_RED) -> tuple:
                 min_color = frame[min_y, min_x]
     
     return (min_color, max_color)
-
-def transcode_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:bool = False) -> None:
-    """ Given an input directory containing one or more video files, transcodes all video files from their current
-    container to mp4. This function can be used to preprocess older video file types before masking, occluding or color shifting.
-
-    Parameters
-    ----------
-
-    input_dir: str
-        A path string to the directory containing the videos to be transcoded.
-    
-    output_dir: str
-        A path string to the directory where transcoded videos will be written too.
-    
-    with_sub_dirs: bool
-        A boolean flag indicating if the input directory contains sub-directories.
-    
-    Raises
-    ------
-
-    TypeError
-        Given invalid parameter types.
-    OSError
-        Given invalid paths for input_dir or output_dir.
-    """
-
-    # Type checking input parameters
-    singleFile = False
-    if not isinstance(input_dir, str):
-        raise TypeError("Transcode_video: parameter input_dir must be of type str.")
-    if not os.path.exists(input_dir):
-        raise OSError("Transcode_video: parameter input_dir must be a valid path string.")
-    elif os.path.isfile(input_dir):
-        singleFile = True
-
-    if not isinstance(output_dir, str):
-        raise TypeError("Transcode_video: parameter output_dir must be of type str.")
-    if not os.path.exists(output_dir):
-        raise OSError("Transcode_video: parameter output_dir must be a valid path string.")
-    
-    if not isinstance(with_sub_dirs, bool):
-        raise TypeError("Transcode_video: parameter with_sub_dirs must be of type bool.")
-
-    files_to_process = []
-    if singleFile:
-        files_to_process.append(input_dir)
-    elif not with_sub_dirs:
-        files_to_process = [input_dir + "\\" + file for file in os.listdir(input_dir)]
-    else:
-        files_to_process = [os.path.join(path, file) 
-                            for path, dirs, files in os.walk(input_dir, topdown=True) 
-                            for file in files]
-    
-    for file in files_to_process:
-        # Initialize capture and writer objects
-        filename, extension = os.path.splitext(os.path.basename(file))
-        capture = cv.VideoCapture(file)
-        if not capture.isOpened():
-            print("Transcode_video: Error opening VideoCapture object.")
-            raise FileReadError()
-        
-        size = (int(capture.get(3)), int(capture.get(4)))
-        result = cv.VideoWriter(output_dir + "\\" + filename + "_transcoded.mp4",
-                                cv.VideoWriter.fourcc(*'MP4V'), 30, size)
-        if not result.isOpened():
-            print("Transcode_video: Error opening VideoWriter object.")
-            raise FileWriteError()
-        
-        while True:
-            success, frame = capture.read()
-            if not success:
-                break
-
-            result.write(frame)
-
-        capture.release()
-        result.release()
 
 def create_path(landmark_set:list[int]) -> list[tuple]:
     """Given a list of facial landmarks (int), returns a list of tuples, creating a closed path in the form 

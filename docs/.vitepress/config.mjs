@@ -22,7 +22,7 @@ export default withMermaid({
     // https://vitepress.dev/reference/default-theme-config
     logo: './pyfame_logo.png',
     nav: [
-      { text: 'Guide', link: '/guide/getting_started' },
+      { text: 'Guide', link: '/guide/intro' },
       { text: 'Reference', link: '/reference/overview' },
       { text: 'About', link: '/about/authors' }
     ],

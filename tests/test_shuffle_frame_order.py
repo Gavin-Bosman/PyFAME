@@ -1,6 +1,6 @@
 import pytest
 from pyfame.utils.exceptions import *
-from pyfame.core.temporal_transforms import shuffle_frame_order
+from pyfame.timing.temporal_transforms import shuffle_frame_order
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

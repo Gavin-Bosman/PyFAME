@@ -1,6 +1,6 @@
 import pytest
 from pyfame.utils.exceptions import *
-from pyfame.core.analysis import get_optical_flow
+from pyfame.analysis.analysis import get_optical_flow
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

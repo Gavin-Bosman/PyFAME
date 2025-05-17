@@ -1,6 +1,6 @@
 import pytest
 from pyfame.utils.exceptions import *
-from pyfame.core.analysis import extract_face_color_means
+from pyfame.analysis.analysis import extract_face_color_means
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

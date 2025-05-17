@@ -5,7 +5,6 @@ in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\Actor_01.png"
 #in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy"
 out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\"
 
-pf.overlay_image(in_dir, out_dir, 1)
 #pf.normalize_image_sizes(input_dir=in_dir, method=pf.predefined_constants.NORMALIZE_IMAGES_PAD)
 #pf.moviefy_images(input_dir=in_dir, output_dir=out_dir, output_filename="test", blend_images= True)
 #pf.occlude_face_region(in_dir, out_dir, landmarks_to_occlude=[pf.BOTH_EYES_PATH], occlusion_fill=pf.OCCLUSION_FILL_BAR)

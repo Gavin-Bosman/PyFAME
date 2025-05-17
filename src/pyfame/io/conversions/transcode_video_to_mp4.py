@@ -1,0 +1,61 @@
+from pyfame.io import *
+import cv2 as cv
+import os
+
+def transcode_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:bool = False) -> None:
+    """ Given an input directory containing one or more video files, transcodes all video files from their current
+    container to mp4. This function can be used to preprocess older video file types before masking, occluding or color shifting.
+
+    Parameters
+    ----------
+
+    input_dir: str
+        A path string to the directory containing the videos to be transcoded.
+    
+    output_dir: str
+        A path string to the directory where transcoded videos will be written too.
+    
+    with_sub_dirs: bool
+        A boolean flag indicating if the input directory contains sub-directories.
+    
+    Raises
+    ------
+
+    TypeError
+        Given invalid parameter types.
+    OSError
+        Given invalid paths for input_dir or output_dir.
+    """
+
+    # Type checking input parameters
+    if not isinstance(input_dir, str):
+        raise TypeError("Transcode_video: parameter input_dir must be of type str.")
+    if not os.path.exists(input_dir):
+        raise OSError("Transcode_video: parameter input_dir must be a valid path string.")
+
+    if not isinstance(output_dir, str):
+        raise TypeError("Transcode_video: parameter output_dir must be of type str.")
+    if not os.path.exists(output_dir):
+        raise OSError("Transcode_video: parameter output_dir must be a valid path string.")
+    
+    if not isinstance(with_sub_dirs, bool):
+        raise TypeError("Transcode_video: parameter with_sub_dirs must be of type bool.")
+
+    files_to_process = get_directory_walk(input_dir, with_sub_dirs)
+    
+    for file in files_to_process:
+        # Initialize capture and writer objects
+        filename, extension = os.path.splitext(os.path.basename(file))
+        capture = get_video_capture(file)
+        size = (int(capture.get(3)), int(capture.get(4)))
+        result = get_video_writer(output_dir + "\\" + filename + "_transcoded.mp4", size)
+        
+        while True:
+            success, frame = capture.read()
+            if not success:
+                break
+
+            result.write(frame)
+
+        capture.release()
+        result.release()

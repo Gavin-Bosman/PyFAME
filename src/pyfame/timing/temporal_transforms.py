@@ -1,5 +1,5 @@
 from pyfame.utils.predefined_constants import *
-from pyfame.utils.landmarks import *
+from pyfame.mesh.landmarks import *
 from pyfame.utils.utils import get_variable_name
 from pyfame.utils.exceptions import *
 import os
