@@ -1,8 +1,8 @@
 import cv2 as cv
 from pyfame.utils import exceptions
 
-def get_video_writer(file_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:int = 30) -> cv.VideoWriter:
-    vw = cv.VideoWriter(file_path, cv.VideoWriter.fourcc(*codec), fps, size)
+def get_video_writer(file_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:int = 30, isColor:bool = False) -> cv.VideoWriter:
+    vw = cv.VideoWriter(file_path, cv.VideoWriter.fourcc(*codec), fps, size, isColor=isColor)
 
     if not vw.isOpened():
         raise exceptions.FileWriteError("Function encountered an error attempting to instantiate "

@@ -1,7 +1,7 @@
 from pyfame.utils.predefined_constants import *
 from pyfame.mesh.landmarks import *
 from pyfame.io import *
-from pyfame.manipulations.occlusion import get_mask_from_path
+from pyfame.manipulations.occlusion.apply_occlusion import get_mask_from_path
 from pyfame.utils.utils import get_variable_name
 from pyfame.utils.exceptions import *
 import os

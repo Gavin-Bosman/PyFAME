@@ -1,6 +1,6 @@
 import pytest
 from pyfame.utils.exceptions import *
-from pyfame.manipulations.point_light_display import generate_point_light_display
+from pyfame.manipulations.spatial_transforms.create_point_light_display import generate_point_light_display
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

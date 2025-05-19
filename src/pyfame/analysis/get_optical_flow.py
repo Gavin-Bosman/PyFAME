@@ -3,7 +3,7 @@ from pyfame.mesh.landmarks import *
 from pyfame.io import *
 from pyfame.utils.utils import get_variable_name
 from pyfame.utils.exceptions import *
-from pyfame.manipulations.occlusion import get_mask_from_path
+from pyfame.manipulations.occlusion.apply_occlusion import get_mask_from_path
 import os
 import cv2 as cv
 import mediapipe as mp
@@ -100,6 +100,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
         FaceMesh constructor.
     '''
 
+    # Performing type checks on input parameters
     if not isinstance(input_dir, str):
         logger.warning("Function encountered a TypeError for input parameter input_dir. "
                        "Message: invalid type for parameter input_dir, expected str.")
