@@ -1,6 +1,6 @@
 import pytest
-from pyfame.utils.exceptions import *
-from pyfame.manipulations.coloring.apply_brightness_shift import face_color_shift
+from pyfame.util.util_exceptions import *
+from pyfame.manipulation.color.apply_color_brightness_shift import face_color_shift
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

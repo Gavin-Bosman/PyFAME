@@ -1,5 +1,5 @@
 import pytest
-from pyfame.utils.exceptions import *
+from pyfame.util.util_exceptions import *
 from pyfame.analysis.analysis import get_optical_flow
 
 def test_exception_handling():

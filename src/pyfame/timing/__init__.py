@@ -1,7 +1,5 @@
-from .temporal_transforms import shuffle_frame_order, generate_shuffled_block_array
-from .timing_functions import constant, linear, gaussian, sigmoid
+from .apply_timing_function import timing_constant, timing_linear, timing_gaussian, timing_sigmoid
 
 __all__ = [
-    "shuffle_frame_order", "generate_shuffled_block_array",
-    "constant", "linear", "gaussian", "sigmoid"
+    "timing_constant", "timing_linear", "timing_gaussian", "timing_sigmoid"
 ]

@@ -1,5 +1,5 @@
 import pytest
-from pyfame.utils.exceptions import *
+from pyfame.util.util_exceptions import *
 from pyfame.analysis.analysis import extract_face_color_means
 
 def test_exception_handling():

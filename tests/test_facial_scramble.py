@@ -1,6 +1,6 @@
 import pytest
-from pyfame.utils.exceptions import *
-from pyfame.manipulations.spatial_transforms.apply_grid_positional_shuffle import apply_grid_shuffle
+from pyfame.util.util_exceptions import *
+from pyfame.manipulation.spatial.apply_spatial_grid_shuffle import apply_grid_shuffle
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"
