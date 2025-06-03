@@ -1,7 +1,6 @@
-from .apply_occlusion_image_noise import blur_face_region, apply_noise
-from .apply_occlusion_overlay import occlude_frame, occlude_face_region
+from .apply_occlusion_noise_layer import layer_blurring, layer_noise
+from .apply_occlusion_layer import layer_occlusion, layer_occlusion_bar
 
 __all__ = [
-    "get_mask_from_path", "mask_frame", "mask_face_region", "blur_face_region", 
-    "apply_noise", "occlude_frame", "occlude_face_region"
+    "layer_blurring", "layer_noise", "layer_occlusion", "layer_occlusion_bar",
 ]

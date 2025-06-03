@@ -96,7 +96,7 @@ def apply_image_overlay(input_dir:str, output_dir:str, overlay_object:int, overl
                     break    
             
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
             
             face_oval_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
             

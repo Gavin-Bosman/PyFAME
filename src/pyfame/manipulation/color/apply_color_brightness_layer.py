@@ -1,9 +1,9 @@
 from pyfame.util.util_constants import *
-from pyfame.mesh import *
+from pyfame.mesh import get_mask_from_path
+from pyfame.mesh.get_mesh_landmarks import *
 from pyfame.timing.apply_timing_function import *
 from pyfame.util.util_exceptions import *
-from pyfame.io import *
-from pyfame.manipulation.occlusion.apply_occlusion_overlay import get_mask_from_path, mask_frame
+from pyfame.io import get_video_capture, get_video_writer, get_directory_walk, create_output_directory
 import os
 import cv2 as cv
 import mediapipe as mp
@@ -14,11 +14,10 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def frame_brightness_shift(frame:cv.typing.MatLike, mask:cv.typing.MatLike | None, shift_weight:float, 
-                           shift_magnitude:float = 20.0, static_image_mode:bool = False) -> cv.typing.MatLike:
-    if mask is None:
-        face_mesh = get_mesh(0.5, 0.5, static_image_mode, 1)
-        mask = mask_frame(frame, face_mesh, FACE_OVAL_MASK, return_mask=True)
+def layer_brightness_shift(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]], weight:float, 
+                           magnitude:float = 20.0, **kwargs) -> cv.typing.MatLike:
+    # creating frame mask
+    mask = get_mask_from_path(frame, roi, face_mesh)
     
     # Otsu thresholding to seperate foreground and background
     grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -35,14 +34,11 @@ def frame_brightness_shift(frame:cv.typing.MatLike, mask:cv.typing.MatLike | Non
     floodfilled = cv.bitwise_not(floodfilled)
     foreground = cv.bitwise_or(thresholded, floodfilled)
 
-    if static_image_mode:
-        img_brightened = np.where(mask == 255, cv.convertScaleAbs(src=frame, alpha=1, beta=shift_magnitude), frame)
-        img_brightened[foreground == 0] = frame[foreground == 0]
-        return img_brightened
-    else:
-        img_brightened = np.where(mask == 255, cv.convertScaleAbs(src=frame, alpha=1, beta=(shift_weight * shift_magnitude)), frame)
-        img_brightened[foreground == 0] = frame[foreground == 0]
-        return img_brightened
+    img_brightened = np.where(mask == 255, cv.convertScaleAbs(src=frame, alpha=1, beta=(weight * magnitude)), frame)
+    img_brightened[foreground == 0] = frame[foreground == 0]
+    return img_brightened
+
+### Error lines commented out in face_brightness_shift
 
 def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_t:float = 0.0, shift_magnitude:float = 20.0, 
                         timing_func:Callable[..., float] = timing_linear, landmark_regions:list[list[tuple]] = [FACE_SKIN_PATH], with_sub_dirs:bool = False, 
@@ -207,13 +203,13 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
         match extension:
             case ".mp4":
                 codec = "mp4v"
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
+                #face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
             case ".mov":
                 codec = "mp4v"
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
+                #face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
             case ".jpg" | ".jpeg" | ".png" | ".bmp":
                 static_image_mode = True
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
+                #face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
             case _:
                 logger.error("Function has encountered an unparseable file type, Function exiting with status 1. " 
                              "Please see pyfameutils.transcode_video_to_mp4().")
@@ -252,7 +248,7 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                     break    
 
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+            #landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
             
             masked_frame = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
 
@@ -272,16 +268,16 @@ def face_brightness_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                     result.write(frame)
                 elif dt < offset_t:
                     weight = timing_func(dt, **timing_kwargs)
-                    img_brightened = frame_brightness_shift(frame, masked_frame, weight, shift_magnitude, static_image_mode)
+                    img_brightened = layer_brightness_shift(frame, masked_frame, weight, shift_magnitude, static_image_mode)
                     result.write(img_brightened)
                 else:
                     dt = cap_duration - dt
                     weight = timing_func(dt, **timing_kwargs)
-                    img_brightened = frame_brightness_shift(frame, masked_frame, weight, shift_magnitude, static_image_mode)
+                    img_brightened = layer_brightness_shift(frame, masked_frame, weight, shift_magnitude, static_image_mode)
                     result.write(img_brightened)
             else:
                 # Brightening the image
-                img_brightened = frame_brightness_shift(frame, masked_frame, 1.0, shift_magnitude, static_image_mode)
+                img_brightened = layer_brightness_shift(frame, masked_frame, 1.0, shift_magnitude, static_image_mode)
                 success = cv.imwrite(output_dir + "\\" + filename + "_brightened" + extension, img_brightened)
                 if not success:
                     logger.warning("Function has encountered an error attempting to call cv2.imwrite(), exiting with status 1.")

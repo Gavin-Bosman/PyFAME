@@ -1,12 +1,11 @@
 from pyfame.util.util_constants import *
-from pyfame.mesh import *
-from pyfame.io import *
+from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates
+from pyfame.mesh.get_mesh_landmarks import *
+from pyfame.io import get_video_capture, get_video_writer, get_directory_walk, create_output_directory
 from pyfame.util.util_general_utilities import get_variable_name
 from pyfame.util.util_exceptions import *
-from pyfame.manipulation.occlusion.apply_occlusion_overlay import get_mask_from_path
 import os
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 from skimage.util import *
 import logging
@@ -357,7 +356,7 @@ def get_optical_flow(input_dir:str, output_dir:str, optical_flow_type: int|str =
                 break    
 
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
             
             # Create face oval image mask
             face_mask = get_mask_from_path(frame, FACE_OVAL_PATH, face_mesh)

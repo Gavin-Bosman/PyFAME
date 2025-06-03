@@ -1,9 +1,9 @@
 from pyfame.util.util_constants import *
 from pyfame.mesh import *
+from pyfame.manipulation.mask import layer_mask
 from pyfame.util.util_general_utilities import get_variable_name
 from pyfame.util.util_exceptions import *
 from pyfame.io import *
-from ...mesh.apply_mesh_facial_mask import mask_frame
 import os
 import cv2 as cv
 import mediapipe as mp
@@ -13,6 +13,48 @@ import logging
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
+
+def layer_blurring(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]], **kwargs) -> cv.typing.MatLike:
+    blur_method = BLUR_METHOD_GAUSSIAN
+    k_size = 15
+
+    if kwargs.get("blur_method") is not None:
+        blur_method = kwargs.get("blur_method")
+    
+    if kwargs.get("k_size") is not None:
+        k_size = kwargs.get("k_size")
+
+    masked_frame = get_mask_from_path(frame, roi, face_mesh)
+    output_frame = np.zeros_like(frame, dtype=np.uint8)
+
+    match blur_method:
+        case "average" | "Average":
+            frame_blurred = cv.blur(frame, (k_size, k_size))
+            output_frame = np.where(masked_frame == 255, frame_blurred, frame)
+        case 11:
+            frame_blurred = cv.blur(frame, (k_size, k_size))
+            output_frame = np.where(masked_frame == 255, frame_blurred, frame)
+        
+        case "gaussian" | "Gaussian":
+            frame_blurred = cv.GaussianBlur(frame, (k_size, k_size), 0)
+            output_frame = np.where(masked_frame == 255, frame_blurred, frame)
+        case 12:
+            frame_blurred = cv.GaussianBlur(frame, (k_size, k_size), 0)
+            output_frame = np.where(masked_frame == 255, frame_blurred, frame)
+        
+        case "median" | "Median":
+            frame_blurred = cv.medianBlur(frame, k_size)
+            output_frame = np.where(masked_frame == 255, frame_blurred, frame)
+        case 13:
+            frame_blurred = cv.medianBlur(frame, k_size)
+            output_frame = np.where(masked_frame == 255, frame_blurred, frame)
+        
+        case _:
+            debug_logger.error("Function encountered a ValueError after parameter checks. "
+                                "Parameter type and value checks may not be performing as intended.")
+            raise ValueError("Unrecognized value for parameter blur_method.")
+    
+    return output_frame
 
 def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gaussian", mask_type:int = FACE_OVAL_MASK, 
                      k_size:int = 15, with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
@@ -210,7 +252,7 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
                 if not success:
                     break    
 
-            masked_frame = mask_frame(frame, face_mesh, mask_type, (0,0,0))
+            masked_frame = layer_mask(frame, face_mesh, mask_type, (0,0,0))
 
             frame_blurred = None
 
@@ -258,6 +300,94 @@ def blur_face_region(input_dir:str, output_dir:str, blur_method:str | int = "gau
             result.release()
         
         logger.info(f"Function execution completed successfully. View outputted file(s) at {output_dir}.")
+
+def layer_noise(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]], **kwargs) -> cv.typing.MatLike:
+    noise_method = NOISE_METHOD_GAUSSIAN
+    rand_seed = 1234
+    noise_prob = 0.5
+    pixel_size = 32
+    mean = 0.0
+    sd = 0.5
+
+    if kwargs.get("noise_method") is not None:
+        noise_method = kwargs.get("noise_method")
+    
+    if kwargs.get("rand_seed") is not None:
+        rand_seed = kwargs.get("rand_seed")
+    
+    if kwargs.get("noise_prob") is not None:
+        noise_prob = kwargs.get("noise_prob")
+    
+    if kwargs.get("pixel_size") is not None:
+        pixel_size = kwargs.get("pixel_size")
+    
+    if kwargs.get("mean") is not None:
+        mean = kwargs.get("mean")
+    
+    if kwargs.get("sd") is not None:
+        sd = kwargs.get("sd")
+    
+    mask = get_mask_from_path(frame, roi, face_mesh)
+    mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
+    output_frame = frame.copy()
+
+    match noise_method:
+        case 'pixelate' | 18:
+            height, width = output_frame.shape[:2]
+            h = frame.shape[0]//pixel_size
+            w = frame.shape[1]//pixel_size
+
+            temp = cv.resize(frame, (w, h), None, 0, 0, cv.INTER_LINEAR)
+            output_frame = cv.resize(temp, (width, height), None, 0, 0, cv.INTER_NEAREST)
+
+            output_frame = np.where(mask == 255, output_frame, frame)
+
+        case 'salt and pepper' | 19:
+            # Divide prob in 2 for "salt" and "pepper"
+            thresh = noise_prob
+            noise_prob = noise_prob/2
+            rng = None
+
+            if rand_seed is not None:
+                rng = np.random.default_rng(rand_seed)
+            else:
+                rng = np.random.default_rng()
+            
+            # Use numpy's random number generator to generate a random matrix in the shape of the frame
+            rdm = rng.random(output_frame.shape[:2])
+
+            # Create boolean masks 
+            pepper_mask = rdm < noise_prob
+            salt_mask = (rdm >= noise_prob) & (rdm < thresh)
+            
+            # Apply boolean masks
+            output_frame[pepper_mask] = [0,0,0]
+            output_frame[salt_mask] = [255,255,255]
+
+            output_frame = np.where(mask == 255, output_frame, frame)
+        
+        case 'gaussian' | 20:
+            var = sd**2
+            rng = None
+
+            if rand_seed is not None:
+                rng = np.random.default_rng(rand_seed)
+            else:
+                rng = np.random.default_rng()
+
+            # scikit-image's random_noise function works with floating point images, need to convert our frame's type
+            output_frame = img_as_float64(output_frame)
+            output_frame = random_noise(image=output_frame, mode='gaussian', rng=rng, mean=mean, var=var)
+            output_frame = img_as_ubyte(output_frame)
+
+            output_frame = np.where(mask == 255, output_frame, frame)
+
+        case _:
+            logger.warning("Function has encountered an unrecognized value for parameter noise_method during execution, "
+                            "exiting with status 1. Input parameter checks may not be functioning as expected.")
+            raise ValueError("Unrecognized value for parameter noise_method.")
+    
+    return output_frame
 
 def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate", pixel_size:int = 32, noise_prob:float = 0.5,
                 rand_seed:int | None = None, mean:float = 0.0, standard_dev:float = 0.5, mask_type:int = FACE_OVAL_MASK, 
@@ -510,7 +640,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     temp = cv.resize(frame, (w, h), None, 0, 0, cv.INTER_LINEAR)
                     output_frame = cv.resize(temp, (width, height), None, 0, 0, cv.INTER_NEAREST)
 
-                    img_mask = mask_frame(frame, face_mesh, mask_type)
+                    img_mask = layer_mask(frame, face_mesh, mask_type)
                     output_frame = np.where(img_mask != 255, output_frame, frame)
 
                 case 'salt and pepper' | 19:
@@ -535,7 +665,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     output_frame[pepper_mask] = [0,0,0]
                     output_frame[salt_mask] = [255,255,255]
 
-                    img_mask = mask_frame(frame, face_mesh, mask_type)
+                    img_mask = layer_mask(frame, face_mesh, mask_type)
                     output_frame = np.where(img_mask != 255, output_frame, frame)
                 
                 case 'gaussian' | 20:
@@ -552,7 +682,7 @@ def apply_noise(input_dir:str, output_dir:str, noise_method:str|int = "pixelate"
                     output_frame = random_noise(image=output_frame, mode='gaussian', rng=rng, mean=mean, var=var)
                     output_frame = img_as_ubyte(output_frame)
 
-                    img_mask = mask_frame(frame, face_mesh, mask_type)
+                    img_mask = layer_mask(frame, face_mesh, mask_type)
                     output_frame = np.where(img_mask != 255, output_frame, frame)
 
                 case _:

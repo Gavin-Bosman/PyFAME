@@ -1,9 +1,14 @@
-import pyfame as pf
 import cv2 as cv
 import matplotlib.pyplot as plt
+import pyfame as pf
+
 in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\Actor_01.png"
-#in_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\moviefy"
 out_dir = "C:\\Users\\gavin\\Desktop\\PyFAME\\images\\"
+
+mask = pf.layer(pf.layer_mask, [pf.FACE_OVAL_PATH])
+desaturate = pf.layer(pf.layer_saturation_shift, [pf.FACE_OVAL_PATH], magnitude=-12.0)
+occlude = pf.layer(pf.layer_occlusion, [pf.BOTH_EYES_PATH], occlusion_fill=pf.OCCLUSION_FILL_BLACK)
+pf.layer_manipulations([mask, desaturate, occlude], in_dir, out_dir)
 
 #pf.normalize_image_sizes(input_dir=in_dir, method=pf.predefined_constants.NORMALIZE_IMAGES_PAD)
 #pf.moviefy_images(input_dir=in_dir, output_dir=out_dir, output_filename="test", blend_images= True)

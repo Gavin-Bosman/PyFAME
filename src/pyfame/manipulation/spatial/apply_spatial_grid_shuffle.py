@@ -5,6 +5,7 @@ from pyfame.util.util_exceptions import *
 from pyfame.io import *
 import os
 import cv2 as cv
+import mediapipe as mp
 import numpy as np
 from skimage.util import *
 from operator import itemgetter
@@ -12,6 +13,187 @@ import logging
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
+
+def layer_grid_shuffle(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]], **kwargs) -> cv.typing.MatLike:
+    shuffle_method = HIGH_LEVEL_GRID_SHUFFLE
+    rand_seed = 1234
+    grayscale = False
+    shuffle_threshold = 2
+    grid_square_size = 40
+    rng = None
+
+    if kwargs.get("shuffle_method") is not None:
+        shuffle_method = kwargs.get("shuffle_method")
+    
+    if kwargs.get("rand_seed") is not None:
+        rand_seed = kwargs.get("rand_seed")
+        rng = np.random.default_rng(rand_seed)
+    
+    if kwargs.get("grayscale") is not None:
+        grayscale = kwargs.get("grayscale")
+    
+    if kwargs.get("shuffle_threshold") is not None:
+        shuffle_threshold = kwargs.get("shuffle_threshold")
+    
+    if kwargs.get("grid_square_size") is not None:
+        grid_square_size = kwargs.get("grid_square_size")
+    
+    mask = get_mask_from_path(frame, [FACE_OVAL_PATH], face_mesh)
+    output_frame = np.zeros_like(frame, dtype=np.uint8)
+
+    # Computing shuffled grid positions
+    frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+    fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
+    
+    fo_mask = mask.astype(bool)
+
+    # Get x and y bounds of the face oval
+    max_x = max(fo_screen_coords, key=itemgetter(0))[0]
+    min_x = min(fo_screen_coords, key=itemgetter(0))[0]
+
+    max_y = max(fo_screen_coords, key=itemgetter(1))[1]
+    min_y = min(fo_screen_coords, key=itemgetter(1))[1]
+
+    height = max_y-min_y
+    width = max_x-min_x
+
+    # Calculate x and y padding, ensuring integer
+    x_pad = grid_square_size - (width % grid_square_size)
+    y_pad = grid_square_size - (height % grid_square_size)
+
+    if x_pad % 2 !=0:
+        min_x -= np.floor(x_pad/2)
+        max_x += np.ceil(x_pad/2)
+    else:
+        min_x -= x_pad/2
+        max_x += x_pad/2
+    
+    if y_pad % 2 !=0:
+        min_y -= np.floor(y_pad/2)
+        max_y += np.ceil(y_pad/2)
+    else:
+        min_y -= y_pad/2
+        max_y += y_pad/2
+        
+    # Ensure integer
+    min_x = int(min_x)
+    max_x = int(max_x)
+    min_y = int(min_y)
+    max_y = int(max_y)
+
+    height = max_y-min_y
+    width = max_x-min_x
+    cols = int(width/grid_square_size)
+    rows = int(height/grid_square_size)
+
+    grid_squares = {}
+
+    # Populate the grid_squares dict with segments of the frame
+    for i in range(rows):
+        for j in range(cols):
+            grid_squares.update({(i,j):frame[min_y:min_y + grid_square_size, min_x:min_x + grid_square_size]})
+            min_x += grid_square_size
+        min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+        min_y += grid_square_size
+    
+    keys = list(grid_squares.keys())
+
+    # Shuffle the keys of the grid_squares dict
+    if shuffle_method == LOW_LEVEL_GRID_SHUFFLE:
+        shuffled_keys = keys.copy()
+        shuffled_keys = np.array(shuffled_keys, dtype="i,i")
+        shuffled_keys = shuffled_keys.reshape((rows, cols))
+
+        ref_keys = keys.copy()
+        ref_keys = np.array(ref_keys, dtype="i,i")
+        ref_keys = ref_keys.reshape((rows, cols))
+
+        visited_keys = set()
+
+        # Localised threshold based shuffling of the grid
+        for y in range(rows):
+            for x in range(cols):
+                if (x,y) in visited_keys:
+                    continue
+                else:
+                    x_min = max(0, x - shuffle_threshold)
+                    x_max = min(cols-1, x + shuffle_threshold)
+                    y_min = max(0, y - shuffle_threshold)
+                    y_max = min(rows - 1, y + shuffle_threshold)
+
+                    valid_new_positions = [
+                        (new_x, new_y)
+                        for new_x in range(x_min, x_max + 1)
+                        for new_y in range(y_min, y_max + 1)
+                        if (new_x, new_y) not in visited_keys
+                    ]
+
+                    if valid_new_positions:
+                        new_x, new_y = rng.choice(valid_new_positions)
+
+                        # Perform the positional swap
+                        shuffled_keys[new_y,new_x] = ref_keys[y,x]
+                        shuffled_keys[y,x] = ref_keys[new_y, new_x]
+                        visited_keys.add((new_x, new_y))
+                        visited_keys.add((x,y))
+                    else:
+                        visited_keys.add((x,y))
+
+        shuffled_keys = list(shuffled_keys.reshape((-1,)))
+        # Ensure tuple(int) 
+        shuffled_keys = [tuple([int(x), int(y)]) for (x,y) in shuffled_keys]
+    else:
+        # Scramble the keys of the grid_squares dict
+        shuffled_keys = keys.copy()
+        rng.shuffle(shuffled_keys)
+    
+    # Populate the scrambled grid dict
+    shuffled_grid_squares = {}
+
+    for old_key, new_key in zip(keys, shuffled_keys):
+        square = grid_squares.get(new_key)
+        shuffled_grid_squares.update({old_key:square})
+
+    # Fill the output frame with scrambled grid segments
+    for i in range(rows):
+        for j in range(cols):
+            cur_square = shuffled_grid_squares.get((i,j))
+            output_frame[min_y:min_y+grid_square_size, min_x:min_x+grid_square_size] = cur_square
+            min_x += grid_square_size
+        min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+        min_y += grid_square_size
+    
+    min_x = int(min(fo_screen_coords, key=itemgetter(0))[0])
+    min_y = int(min(fo_screen_coords, key=itemgetter(1))[1])
+
+    # Calculate the slope of the connecting line & angle to the horizontal
+    # landmarks 162, 389 form a paralell line to the x-axis when the face is vertical
+    landmark_screen_coords = get_mesh_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), face_mesh)
+    p1 = landmark_screen_coords[162]
+    p2 = landmark_screen_coords[389]
+    slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
+
+    if slope > 0:
+        angle_from_x_axis = (-1)*compute_rot_angle(slope1=slope)
+    else:
+        angle_from_x_axis = compute_rot_angle(slope1=slope)
+    cx = min_x + (width/2)
+    cy = min_y + (height/2)
+
+    # Using the rotation angle, generate a rotation matrix and apply affine transform
+    rot_mat = cv.getRotationMatrix2D((cx,cy), (angle_from_x_axis), 1)
+    output_frame = cv.warpAffine(output_frame, rot_mat, (frame.shape[1], frame.shape[0]))
+
+    # Ensure grid only overlays the face oval
+    masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
+    masked_frame[fo_mask] = 255
+    output_frame = np.where(masked_frame == 255, output_frame, frame)
+    output_frame = output_frame.astype(np.uint8)
+
+    if grayscale:
+        return cv.cvtColor(output_frame, cv.COLOR_BGR2GRAY)
+    else:
+        return output_frame
 
 def apply_grid_shuffle(input_dir:str, output_dir:str, out_grayscale:bool = False, scramble_method:int = HIGH_LEVEL_GRID_SHUFFLE, rand_seed:int|None = None, grid_scramble_threshold:int = 2,
                     grid_square_size:int = 40, with_sub_dirs:bool = False, min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
@@ -221,7 +403,7 @@ def apply_grid_shuffle(input_dir:str, output_dir:str, out_grayscale:bool = False
 
             # Precomputing shuffled grid positions
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
 
             fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
             
@@ -332,7 +514,7 @@ def apply_grid_shuffle(input_dir:str, output_dir:str, out_grayscale:bool = False
         # Main Processing loop for video files (will only iterate once over images)
         while True:
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
 
             fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
             

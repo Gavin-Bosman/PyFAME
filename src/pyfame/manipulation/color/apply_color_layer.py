@@ -3,8 +3,7 @@ from pyfame.mesh import *
 from pyfame.timing.apply_timing_function import *
 from pyfame.util.util_general_utilities import get_variable_name
 from pyfame.util.util_exceptions import *
-from pyfame.io import *
-from pyfame.manipulation.occlusion.apply_occlusion_overlay import get_mask_from_path, mask_frame
+from pyfame.io import * 
 import os
 import cv2 as cv
 import mediapipe as mp
@@ -15,68 +14,30 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def frame_color_shift(frame: cv.typing.MatLike, mask: cv.typing.MatLike | None, shift_weight: float, shift_magnitude: float = 8.0, 
-                    shift_color: str|int = COLOR_RED, static_image_mode:bool = False) -> cv.typing.MatLike:
-        """Takes in an image and a mask of the same shape, and shifts the specified color temperature by (weight * max_shift) 
-        units in the masked region of the image. This function makes use of the CIE La*b* perceptually uniform color space to 
-        perform natural looking color shifts on the face.
-
-        Parameters
-        ----------
-
-        frame: Matlike
-            An input still image or video frame.
-
-        mask: Matlike
-            A binary image with the same shape as img.
-
-        shift_weight: float
-            The current shifting weight; a float in the range [0,1] returned from a timing function. 
-
-        shift_magnitude: float
-            The maximum units to shift a* (red-green) or b* (blue-yellow) of the Lab* color space.
+def layer_color_shift(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]],
+                      weight:float, magnitude:float = 10.0, **kwargs) -> cv.typing.MatLike:
         
-        shift_color: str, int
-            An integer or string literal specifying which color will be applied to the input image. For a full list of
-            predifined options, please see pyfame_utils.display_shift_color_options().
+        shift_color = "red"
+        if kwargs.get("color") is not None:
+            shift_color = kwargs.get("color")
         
-        static_image_mode: bool
-            A boolean flag indicating that the current image is a static image rather than a video frame. 
-                
-        Raises
-        ------
-
-        TypeError
-            On invalid input parameter types.
-        ValueError 
-            If an undefined color value is passed, or non-matching image and mask shapes are provided.
-
-        Returns
-        -------
-
-        result: Matlike
-            The input image, color-shifted in the region specified by the input mask. 
-        """
-        
-        if mask is None:
-            face_mesh = get_mesh(0.5, 0.5, static_image_mode, 1)
-            mask = mask_frame(frame, face_mesh, FACE_OVAL_MASK, return_mask=True)
+        mask = get_mask_from_path(frame, roi, face_mesh)
 
         # Convert input image to CIE La*b* color space (perceptually uniform space)
         img_LAB = cv.cvtColor(frame, cv.COLOR_BGR2LAB).astype(np.float32)
         l,a,b = cv.split(img_LAB)
 
         if shift_color == COLOR_RED or str.lower(shift_color) == "red":
-            a = np.where(mask==255, a + (shift_weight * shift_magnitude), a)
+            a = np.where(mask==255, a + (weight * magnitude), a)
             np.clip(a, -128, 127)
         if shift_color == COLOR_BLUE or str.lower(shift_color) == "blue":
-            b = np.where(mask==255, b - (shift_weight * shift_magnitude), b)
+            b = np.where(mask==255, b - (weight * magnitude), b)
             np.clip(a, -128, 127)
         if shift_color == COLOR_GREEN or str.lower(shift_color) == "green":
-            a = np.where(mask==255, a - (shift_weight * shift_magnitude), a)
+            a = np.where(mask==255, a - (weight * magnitude), a)
             np.clip(a, -128, 127)
         if shift_color == COLOR_YELLOW or str.lower(shift_color) == "yellow":
-            b = np.where(mask==255, b + (shift_weight * shift_magnitude), b)
+            b = np.where(mask==255, b + (weight * magnitude), b)
             np.clip(a, -128, 127)
         
         img_LAB = cv.merge([l,a,b])
@@ -368,18 +329,18 @@ def face_color_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, offset_
                     result.write(frame)
                 elif dt < offset_t:
                     weight = timing_func(dt, **timing_kwargs)
-                    frame_coloured = frame_color_shift(frame=frame, mask=masked_frame, shift_weight=weight, shift_color=shift_color, shift_magnitude=shift_magnitude)
+                    frame_coloured = layer_color_shift(frame=frame, mask=masked_frame, shift_weight=weight, shift_color=shift_color, shift_magnitude=shift_magnitude)
                     frame_coloured[foreground == 0] = frame[foreground == 0]
                     result.write(frame_coloured)
                 else:
                     dt = cap_duration - dt
                     weight = timing_func(dt, **timing_kwargs)
-                    frame_coloured = frame_color_shift(frame=frame, mask=masked_frame, shift_weight=weight, shift_color=shift_color, shift_magnitude=shift_magnitude)
+                    frame_coloured = layer_color_shift(frame=frame, mask=masked_frame, shift_weight=weight, shift_color=shift_color, shift_magnitude=shift_magnitude)
                     frame_coloured[foreground == 0] = frame[foreground == 0]
                     result.write(frame_coloured)
             
             else:
-                frame_coloured = frame_color_shift(frame=frame, mask=masked_frame, shift_weight=1.0, shift_color=shift_color, shift_magnitude=shift_magnitude)
+                frame_coloured = layer_color_shift(frame=frame, mask=masked_frame, shift_weight=1.0, shift_color=shift_color, shift_magnitude=shift_magnitude)
                 frame_coloured[foreground == 0] = frame[foreground == 0]
 
                 success = cv.imwrite(output_dir + "\\" + filename + "_color_shifted" + extension, frame_coloured)

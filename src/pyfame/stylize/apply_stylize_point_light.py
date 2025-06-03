@@ -1,9 +1,9 @@
 from pyfame.util.util_constants import *
-from pyfame.mesh import *
+from pyfame.mesh import get_mesh_coordinates, get_mask_from_path
+from pyfame.mesh.get_mesh_landmarks import *
 from pyfame.util.util_general_utilities import get_variable_name
 from pyfame.util.util_exceptions import *
-from pyfame.io import *
-from pyfame.manipulation.occlusion import get_mask_from_path
+from pyfame.io import get_video_capture, get_video_writer, get_directory_walk, create_output_directory
 import os
 import cv2 as cv
 import mediapipe as mp
@@ -270,7 +270,7 @@ def generate_point_light_display(input_dir:str, output_dir:str, landmark_regions
             output_img = np.zeros_like(frame, dtype=np.uint8)
 
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
             
             if counter == 0:
                 for lm_path in landmark_regions:

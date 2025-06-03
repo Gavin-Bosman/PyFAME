@@ -1,7 +1,7 @@
 import cv2 as cv
 from pyfame.util import util_exceptions
 
-def get_video_writer(file_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:int = 30, isColor:bool = False) -> cv.VideoWriter:
+def get_video_writer(file_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:int = 30, isColor:bool = True) -> cv.VideoWriter:
     vw = cv.VideoWriter(file_path, cv.VideoWriter.fourcc(*codec), fps, size, isColor=isColor)
 
     if not vw.isOpened():

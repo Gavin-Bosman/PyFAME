@@ -1,5 +1,5 @@
 from pyfame.util.util_exceptions import *
-from pyfame.util.util_general_utilities import create_path
+from .get_mesh_landmarks import create_path
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -9,9 +9,10 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 def get_mesh(min_tracking_confidence:float, min_detection_confidence:float, static_image_mode:bool, max_num_faces:int = 1) -> mp.solutions.face_mesh.FaceMesh:
-    return mp.solutions.face_mesh.FaceMesh(max_num_faces, static_image_mode, min_detection_confidence, min_tracking_confidence)
+    return mp.solutions.face_mesh.FaceMesh(max_num_faces = max_num_faces, static_image_mode = static_image_mode, 
+                                           min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
 
-def get_mesh_screen_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh) -> list[dict]:
+def get_mesh_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh) -> list[dict]:
 
     face_mesh_results = face_mesh.process(frame_rgb)
     landmark_screen_coords = []
@@ -33,7 +34,7 @@ def get_mesh_screen_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.soluti
 
 def get_mesh_coordinates_from_path(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, landmark_path:list[tuple]) -> list[tuple]:
 
-    lm_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+    lm_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
     path_screen_coords = []
 
     for cur_source, cur_target in landmark_path:

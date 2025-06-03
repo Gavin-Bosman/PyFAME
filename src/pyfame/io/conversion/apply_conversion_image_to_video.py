@@ -1,7 +1,7 @@
 from pyfame.util.util_exceptions import *
 from pyfame.util.util_constants import *
 from pyfame.util.util_general_utilities import get_variable_name
-from pyfame.io import *
+from pyfame.io import create_output_directory, get_video_capture, get_video_writer, get_directory_walk
 import numpy as np
 import cv2 as cv
 import os

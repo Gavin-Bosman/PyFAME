@@ -29,7 +29,6 @@ COLOR_YELLOW = 7
 # Fill options for occluded face regions
 OCCLUSION_FILL_BLACK = 8
 OCCLUSION_FILL_MEAN = 9
-OCCLUSION_FILL_BAR = 10
 
 # Blurring methods
 BLUR_METHOD_AVERAGE = 11

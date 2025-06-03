@@ -1,4 +1,40 @@
-from pyfame.util.util_general_utilities import create_path
+import pandas as pd
+
+def create_path(landmark_set:list[int]) -> list[tuple]:
+    """Given a list of facial landmarks (int), returns a list of tuples, creating a closed path in the form 
+    [(a,b), (b,c), (c,d), ...]. This function allows the user to create custom facial landmark sets, for use in 
+    mask_face_region() and occlude_face_region().
+    
+    Parameters
+    ----------
+
+    landmark_set: list of int
+        A python list containing facial landmark indicies.
+    
+    Returns
+    -------
+        
+    closed_path: list of tuple
+        A list of tuples containing overlapping points, forming a path.
+    """
+    
+    # Connvert the input list to a two-column dataframe
+    landmark_dataframe = pd.DataFrame([(landmark_set[i], landmark_set[i+1]) for i in range(len(landmark_set) - 1)], columns=['p1', 'p2'])
+    closed_path = []
+
+    # Initialise the first two points
+    p1 = landmark_dataframe.iloc[0]['p1']
+    p2 = landmark_dataframe.iloc[0]['p2']
+
+    for i in range(0, landmark_dataframe.shape[0]):
+        obj = landmark_dataframe[landmark_dataframe['p1'] == p2]
+        p1 = obj['p1'].values[0]
+        p2 = obj['p2'].values[0]
+
+        current_route = (p1, p2)
+        closed_path.append(current_route)
+    
+    return closed_path
 
 # pertinent facemesh landmark sets
 FACE_OVAL_IDX = [10, 338, 297, 332, 284, 251, 389, 356, 454, 366, 401, 288, 397, 365, 379, 378, 400, 377, 

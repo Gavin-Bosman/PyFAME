@@ -14,6 +14,18 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
+def layer_landmark_shuffle(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]], **kwargs) -> cv.typing.MatLike:
+    rand_seed = 1234
+    grayscale = False
+
+    if kwargs.get("rand_seed") is not None:
+        rand_seed = kwargs.get("rand_seed")
+    
+    if kwargs.get("grayscale") is not None:
+        grayscale = kwargs.get("grayscale")
+    
+    pass
+
 def apply_landmark_shuffle(input_dir:str, output_dir:str, rand_seed:int | None, out_grayscale:bool = False, with_sub_dirs:bool = False,
                            min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     static_image_mode = False
@@ -88,7 +100,7 @@ def apply_landmark_shuffle(input_dir:str, output_dir:str, rand_seed:int | None, 
 
         # Precomputing shuffled grid positions
         frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        landmark_screen_coords = get_mesh_screen_coordinates(frame_rgb, face_mesh)
+        landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
 
         fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_TIGHT_PATH)
         

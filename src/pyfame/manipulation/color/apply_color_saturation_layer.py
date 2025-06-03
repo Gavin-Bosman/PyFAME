@@ -4,7 +4,6 @@ from pyfame.timing.apply_timing_function import *
 from pyfame.util.util_general_utilities import get_variable_name
 from pyfame.util.util_exceptions import *
 from pyfame.io import *
-from pyfame.manipulation.occlusion.apply_occlusion_overlay import get_mask_from_path, mask_frame
 import os
 import cv2 as cv
 import mediapipe as mp
@@ -15,11 +14,10 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def frame_saturation_shift(frame:cv.typing.MatLike, mask:cv.typing.MatLike | None, shift_weight:float, 
-                           shift_magnitude:float = -8.0, static_image_mode:bool = False) -> cv.typing.MatLike:
-    if mask is None:
-        face_mesh = get_mesh(0.5, 0.5, static_image_mode, 1)
-        mask = mask_frame(frame, face_mesh, FACE_OVAL_MASK, return_mask=True)
+def layer_saturation_shift(frame:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, roi:list[list[tuple]], 
+                           weight:float, magnitude:float, **kwargs) -> cv.typing.MatLike:
+    
+    mask = get_mask_from_path(frame, roi, face_mesh)
 
     # Otsu thresholding to seperate foreground and background
     grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -37,17 +35,10 @@ def frame_saturation_shift(frame:cv.typing.MatLike, mask:cv.typing.MatLike | Non
     foreground = cv.bitwise_or(thresholded, floodfilled)
 
     img_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV).astype(np.float32)
-
-    if static_image_mode:
-        h,s,v = cv.split(img_hsv)
-        s = np.where(mask == 255, s + (1.0 * shift_magnitude), s)
-        np.clip(s,0,255)
-        img_hsv = cv.merge([h,s,v])
-    else:
-        h,s,v = cv.split(img_hsv)
-        s = np.where(mask == 255, s + (shift_weight * shift_magnitude), s)
-        np.clip(s,0,255)
-        img_hsv = cv.merge([h,s,v])
+    h,s,v = cv.split(img_hsv)
+    s = np.where(mask == 255, s + (weight * magnitude), s)
+    np.clip(s,0,255)
+    img_hsv = cv.merge([h,s,v])
 
     img_bgr = cv.cvtColor(img_hsv.astype(np.uint8), cv.COLOR_HSV2BGR)
     img_bgr[foreground == 0] = frame[foreground == 0]
@@ -290,15 +281,15 @@ def face_saturation_shift(input_dir:str, output_dir:str, onset_t:float = 0.0, of
                     result.write(frame)
                 elif dt < offset_t:
                     shift_weight = timing_func(dt, **timing_kwargs)
-                    img_out = frame_saturation_shift(frame, masked_frame, shift_weight, shift_magnitude, static_image_mode)
+                    img_out = layer_saturation_shift(frame, masked_frame, shift_weight, shift_magnitude, static_image_mode)
                     result.write(img_out)
                 else:
                     dt = cap_duration - dt
                     shift_weight = timing_func(dt, **timing_kwargs)
-                    img_out = frame_saturation_shift(frame, masked_frame, shift_weight, shift_magnitude, static_image_mode)
+                    img_out = layer_saturation_shift(frame, masked_frame, shift_weight, shift_magnitude, static_image_mode)
                     result.write(img_out)
             else:
-                img_out = frame_saturation_shift(frame, masked_frame, shift_weight, shift_magnitude, static_image_mode)
+                img_out = layer_saturation_shift(frame, masked_frame, shift_weight, shift_magnitude, static_image_mode)
 
                 success = cv.imwrite(output_dir + "\\" + filename + "_sat_shifted" + extension, img_out)
                 if not success:
