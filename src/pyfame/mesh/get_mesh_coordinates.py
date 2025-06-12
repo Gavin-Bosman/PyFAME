@@ -1,8 +1,6 @@
 from pyfame.util.util_exceptions import *
-from .get_mesh_landmarks import create_path
 import cv2 as cv
 import mediapipe as mp
-import numpy as np
 import logging
 
 logger = logging.getLogger("pyfame")

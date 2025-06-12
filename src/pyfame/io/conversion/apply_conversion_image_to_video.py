@@ -230,7 +230,7 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
     logger.info("Function execution completed successfully.")
 
 
-def convert_images_to_video(input_dir:str, output_dir:str, output_filename:str, fps:int = 30, repeat_duration:int = 1000, 
+def apply_conversion_image_to_video(input_dir:str, output_dir:str, output_filename:str, fps:int = 30, repeat_duration:int = 1000, 
     blend_images:bool = True, blended_frames_prop:float = 0.2, equate_sizes:bool = False, 
     equalization_method:int = EQUATE_IMAGES_CROP, pad_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False) -> None:
     """ Takes a series of static images contained in input_dir, and converts them into a video sequence by repeating

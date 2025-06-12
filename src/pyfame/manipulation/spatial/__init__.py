@@ -1,7 +1,6 @@
-from .apply_spatial_grid_shuffle import layer_grid_shuffle
-from .apply_spatial_landmark_shuffle import layer_landmark_shuffle
-from .apply_spatial_image_overlay import apply_image_overlay
+from .layer_spatial_grid_shuffle import layer_spatial_grid_shuffle
+from .layer_spatial_landmark_shuffle import layer_spatial_landmark_shuffle
 
 __all__ = [
-    "layer_grid_shuffle", "layer_landmark_shuffle", "apply_image_overlay"
+    "layer_spatial_grid_shuffle", "layer_spatial_landmark_shuffle"
 ]

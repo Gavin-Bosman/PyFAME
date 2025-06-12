@@ -1,6 +1,6 @@
 from pyfame.util.util_constants import *
 from pyfame.mesh import get_mesh_coordinates, get_mesh_coordinates_from_path
-from .get_mesh_landmarks import *
+from pyfame.mesh.get_mesh_landmarks import *
 from pyfame.util.util_exceptions import *
 import cv2 as cv
 import mediapipe as mp
@@ -165,4 +165,4 @@ def get_mask_from_path(frame:cv.typing.MatLike, roi:list[list[tuple]], face_mesh
 
                 masked_frame[bool_mask] = 255
     
-    return masked_frame
+    return masked_frame.astype(np.uint8)

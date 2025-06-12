@@ -1,3 +1,3 @@
-from .apply_mask_layer import mask_face_region, layer_mask
+from .layer_mask import layer_mask
 
-__all__ = ["mask_face_region", "layer_mask"]
+__all__ = ["layer_mask"]

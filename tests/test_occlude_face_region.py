@@ -1,6 +1,6 @@
 import pytest
 from pyfame.util.util_exceptions import *
-from pyfame.manipulation.occlusion.apply_occlusion_layer import occlude_face_region
+from pyfame.manipulation.occlusion.layer_occlusion import occlude_face_region
 
 def test_exception_handling():
     in_dir_valid = "tests\\data\\sample_video.mp4"

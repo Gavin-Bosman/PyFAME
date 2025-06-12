@@ -1,7 +1,7 @@
-from .apply_color_layer import layer_color_shift
-from .apply_color_saturation_layer import layer_saturation_shift
-from .apply_color_brightness_layer import layer_brightness_shift
+from .layer_color import layer_color
+from .layer_color_saturation import layer_color_saturation
+from .layer_color_brightness import layer_color_brightness
 
 __all__ = [
-    "layer_color_shift", "layer_saturation_shift", "layer_brightness_shift",
+    "layer_color", "layer_color_saturation", "layer_color_brightness",
 ]

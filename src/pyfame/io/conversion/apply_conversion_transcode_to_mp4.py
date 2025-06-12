@@ -2,7 +2,7 @@ from pyfame.io import *
 import cv2 as cv
 import os
 
-def transcode_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:bool = False) -> None:
+def apply_conversion_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:bool = False) -> None:
     """ Given an input directory containing one or more video files, transcodes all video files from their current
     container to mp4. This function can be used to preprocess older video file types before masking, occluding or color shifting.
 

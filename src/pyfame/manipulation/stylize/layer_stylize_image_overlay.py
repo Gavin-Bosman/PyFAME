@@ -5,7 +5,6 @@ from pyfame.util import compute_rot_angle
 import cv2 as cv
 import numpy as np
 import os
-import mediapipe as mp
 import logging
 
 logger = logging.getLogger("pyfame")
