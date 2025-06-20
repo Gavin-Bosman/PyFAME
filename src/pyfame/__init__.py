@@ -14,7 +14,7 @@ from pyfame.manipulation.temporal import generate_shuffled_block_array, apply_fr
 from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates, get_mesh_coordinates_from_path
 from pyfame.mesh.get_mesh_landmarks import *
 from pyfame.timing import timing_sigmoid, timing_constant, timing_gaussian, timing_linear
-from pyfame.layer import layer, layer_pipeline, apply_layers
+from pyfame.layer import Layer, LayerPipeline, apply_layers
 from pyfame.util import get_variable_name, compute_rot_angle, compute_line_intersection, FileReadError, FileWriteError, FaceNotFoundError, ImageShapeError, UnrecognizedExtensionError
 from pyfame.util.util_constants import *
 from pyfame.util.util_display_parameter_options import *
@@ -32,7 +32,7 @@ __all__ = [
     "generate_shuffled_block_array", "apply_frame_shuffle",
     "get_mask_from_path", "get_mesh", "get_mesh_coordinates", "get_mesh_coordinates_from_path",
     "timing_constant", "timing_linear", "timing_sigmoid", "timing_gaussian",
-    "layer", "layer_pipeline", "apply_layers",
+    "Layer", "LayerPipeline", "apply_layers",
     "get_variable_name", "compute_rot_angle", "compute_line_intersection", 
 
     "FACE_OVAL_IDX", "FACE_OVAL_TIGHT_IDX", "LEFT_EYE_IDX", "LEFT_IRIS_IDX", "RIGHT_EYE_IDX", "RIGHT_IRIS_IDX", 

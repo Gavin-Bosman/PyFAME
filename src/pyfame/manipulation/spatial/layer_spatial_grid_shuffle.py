@@ -2,7 +2,7 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_general_utilities import compute_rot_angle
 from pyfame.util.util_exceptions import *
-from pyfame.layer import layer
+from pyfame.layer import Layer
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_spatial_grid_shuffle(layer):
+class layer_spatial_grid_shuffle(Layer):
     def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, rand_seed:int|None, method:int = HIGH_LEVEL_GRID_SHUFFLE,
                  shuffle_threshold:int = 2, grid_square_size:int = 40):
         self.face_mesh = face_mesh

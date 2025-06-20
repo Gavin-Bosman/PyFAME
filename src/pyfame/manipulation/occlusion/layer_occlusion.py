@@ -3,7 +3,7 @@ from pyfame.mesh import *
 from pyfame.mesh.get_mesh_landmarks import *
 from pyfame.util.util_general_utilities import compute_rot_angle
 from pyfame.util.util_exceptions import *
-from pyfame.layer import layer
+from pyfame.layer import Layer
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_occlusion_path(layer):
+class layer_occlusion_path(Layer):
     def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, landmarks_to_occlude:list[list[tuple]], fill:int = OCCLUSION_FILL_BLACK):
         self.face_mesh = face_mesh
         self.landmarks = landmarks_to_occlude
@@ -48,7 +48,7 @@ class layer_occlusion_path(layer):
                 occluded = np.where(mask == 255, mean_img, frame)
                 return occluded
 
-class layer_occlusion_bar(layer):
+class layer_occlusion_bar(Layer):
     def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, landmarks_to_occlude:list[list[tuple]], color:tuple[int,int,int] = (0,0,0)):
         self.face_mesh = face_mesh
         self.landmarks = landmarks_to_occlude

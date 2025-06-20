@@ -1,7 +1,8 @@
-from .layer import layer
-from .layer_pipeline import layer_pipeline
+from .layer import Layer
+from .layer_pipeline import LayerPipeline
 from .apply_layers import apply_layers
+from .layer_config import LayerConfig
 
 __all__ = [
-    "layer", "layer_pipeline", "apply_layers"
+    "Layer", "LayerPipeline", "apply_layers", "LayerConfig"
 ]

@@ -1,7 +1,7 @@
 from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_exceptions import *
-from pyfame.layer import layer
+from pyfame.layer import Layer
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -13,7 +13,7 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 ### Add on/off check in layer.apply_layers(...)
 
-class layer_stylize_point_light(layer):
+class layer_stylize_point_light(Layer):
     def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, point_density:float, point_color:tuple[int] = (255,255,255), 
                  maintain_background:bool = True, display_history_vectors:bool = False, history_method:int = SHOW_HISTORY_ORIGIN, 
                  history_window_msec:int = 500, history_vec_color:tuple[int] = (0,0,255)):

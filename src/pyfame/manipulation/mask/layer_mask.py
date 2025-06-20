@@ -1,21 +1,23 @@
 from pyfame.util.util_constants import *
 from pyfame.util.util_exceptions import *
 from pyfame.mesh import get_mask_from_path
-from pyfame.layer import layer
+from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_constant
 import numpy as np
 import cv2 as cv
 import mediapipe as mp
 import logging
+from typing import Callable
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_mask(layer):
+class layer_mask(Layer):
     def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, background_color:tuple[int,int,int] = (0,0,0)):
         self.face_mesh = face_mesh
         self.background_color = background_color
     
-    def apply_layer(self, frame, weight, roi):
+    def apply_layer(self, frame, roi, dt):
         mask = get_mask_from_path(frame, roi, self.face_mesh)
 
         # Otsu thresholding to seperate foreground and background

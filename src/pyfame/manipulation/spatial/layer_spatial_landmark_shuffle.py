@@ -1,7 +1,7 @@
 from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_exceptions import *
-from pyfame.layer import layer
+from pyfame.layer import Layer
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_spatial_landmark_shuffle(layer):
+class layer_spatial_landmark_shuffle(Layer):
     def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, rand_seed:int|None):
         self.face_mesh = face_mesh
         self.rand_seed = rand_seed

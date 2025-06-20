@@ -125,7 +125,7 @@ def get_facial_color_means(input_dir:str, output_dir:str, color_space: int|str =
         raise ValueError("Extract_color_channel_means: parameter min_tracking_confidence must be in the range [0,1].")
     
     # Logging input parameters
-    logger.info("Now entering function extract_face_color_means().")
+    logger.info("Now entering function get_facial_color_means().")
     
     if isinstance(color_space, str):
         logger.info(f"Input parameters: color_space: {color_space}, with_sub_dirs = {with_sub_dirs}.")

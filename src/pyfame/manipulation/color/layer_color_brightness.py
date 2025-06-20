@@ -1,23 +1,32 @@
 from pyfame.util.util_constants import *
 from pyfame.mesh import get_mask_from_path
 from pyfame.mesh.get_mesh_landmarks import *
-from pyfame.layer import layer
+from pyfame.layer import Layer
 from pyfame.util.util_exceptions import *
+from pyfame.timing.timing_curves import timing_constant
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
 import logging
+from typing import Callable
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_color_brightness(layer):
-    def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, magnitude:float = 20.0):
+class layer_color_brightness(Layer):
+    def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, magnitude:float = 20.0, 
+                 timing_func:Callable[...,float] = timing_constant, **timing_kwargs):
         self.magnitude = magnitude
         self.face_mesh = face_mesh
+        self.timing_func = timing_func
+        self.timing_kwargs = timing_kwargs
     
-    def apply_layer(self, frame, weight, roi):
+    def __get_timing_weight(self, dt:float) -> float:
+        return self.timing_func(dt, **self.timing_kwargs)
+    
+    def apply_layer(self, frame:cv.typing.MatLike, roi:list[list[tuple]], dt:float):
         roi_mask = get_mask_from_path(frame, roi, self.face_mesh)
+        weight = self.__get_timing_weight(dt)
 
         # Otsu thresholding to seperate foreground and background
         grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
