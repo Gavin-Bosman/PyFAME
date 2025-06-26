@@ -2,31 +2,28 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import get_mask_from_path
 from pyfame.mesh.get_mesh_landmarks import *
 from pyfame.layer import Layer
-from pyfame.util.util_exceptions import *
-from pyfame.timing.timing_curves import timing_constant
+from pyfame.util.util_checks import *
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
 import logging
-from typing import Callable
+
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_color_brightness(Layer):
-    def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, magnitude:float = 20.0, 
-                 timing_func:Callable[...,float] = timing_constant, **timing_kwargs):
+class LayerColorBrightness(Layer):
+    def __init__(self, magnitude:float = 20.0):
+        check_type(magnitude, [float])
+        check_value(magnitude, min=0.0)
+
         self.magnitude = magnitude
-        self.face_mesh = face_mesh
-        self.timing_func = timing_func
-        self.timing_kwargs = timing_kwargs
     
-    def __get_timing_weight(self, dt:float) -> float:
-        return self.timing_func(dt, **self.timing_kwargs)
-    
-    def apply_layer(self, frame:cv.typing.MatLike, roi:list[list[tuple]], dt:float):
-        roi_mask = get_mask_from_path(frame, roi, self.face_mesh)
-        weight = self.__get_timing_weight(dt)
+    def supports_weight(self):
+        return True
+
+    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+        mask = get_mask_from_path(frame, roi, face_mesh)
 
         # Otsu thresholding to seperate foreground and background
         grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -43,6 +40,6 @@ class layer_color_brightness(Layer):
         floodfilled = cv.bitwise_not(floodfilled)
         foreground = cv.bitwise_or(thresholded, floodfilled)
 
-        img_brightened = np.where(roi_mask == 255, cv.convertScaleAbs(src=frame, alpha=1, beta=(weight * self.magnitude)), frame)
+        img_brightened = np.where(mask == 255, cv.convertScaleAbs(src=frame, alpha=1, beta=(weight * self.magnitude)), frame)
         img_brightened[foreground == 0] = frame[foreground == 0]
         return img_brightened

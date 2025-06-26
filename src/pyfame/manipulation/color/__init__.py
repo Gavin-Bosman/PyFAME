@@ -1,7 +1,7 @@
-from .layer_color import layer_color
-from .layer_color_saturation import layer_color_saturation
-from .layer_color_brightness import layer_color_brightness
+from .layer_color import LayerColor
+from .layer_color_saturation import LayerColorSaturation
+from .layer_color_brightness import LayerColorBrightness
 
 __all__ = [
-    "layer_color", "layer_color_saturation", "layer_color_brightness",
+    "LayerColor", "LayerColorSaturation", "LayerColorBrightness",
 ]

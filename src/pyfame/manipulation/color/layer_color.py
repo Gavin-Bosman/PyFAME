@@ -2,41 +2,32 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import get_mask_from_path
 from pyfame.layer import Layer
 from pyfame.util.util_exceptions import *
-from pyfame.timing.timing_curves import timing_constant
 from pyfame.util.util_checks import *
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
 import logging
-from typing import Callable
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_color(Layer):
-    def __init__(self, face_mesh:mp.solutions.face_mesh.FaceMesh, color:str|int, magnitude:float = 10.0, 
-                 timing_func:Callable[..., float] = timing_constant, **timing_kwargs):
+class LayerColor(Layer):
+
+    def __init__(self, focus_color:str|int, magnitude:float = 10.0):
         
-        check_has_callable_attr(face_mesh, 'process')
-        check_type(color, [str,int])
-        check_value(color, ["red", "green", "blue", "yellow", 4, 5, 6, 7])
+        check_type(focus_color, [str,int])
+        check_value(focus_color, ["red", "green", "blue", "yellow", 4, 5, 6, 7])
         check_type(magnitude, [float])
         check_value(magnitude, min=0)
-        check_type(timing_func, Callable)
-        check_return_type(timing_func, 0.0, [float])
 
-        self.face_mesh = face_mesh
         self.magnitude = magnitude
-        self.color = color
-        self.timing_func = timing_func
-        self.timing_kwargs = timing_kwargs
+        self.color = focus_color
     
-    def __get_timing_weight(self, dt:float) -> float:
-        return self.timing_func(dt, **self.timing_kwargs)
+    def supports_weight(self) -> bool:
+        return True
     
-    def apply_layer(self, frame:cv.typing.MatLike, roi:list[list[tuple]], dt:float):
-        mask = get_mask_from_path(frame, roi, self.face_mesh)
-        weight = self.__get_timing_weight(dt)
+    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+        mask = get_mask_from_path(frame, roi, face_mesh)
 
         # Convert input image to CIE La*b* color space (perceptually uniform space)
         img_LAB = cv.cvtColor(frame, cv.COLOR_BGR2LAB).astype(np.float32)

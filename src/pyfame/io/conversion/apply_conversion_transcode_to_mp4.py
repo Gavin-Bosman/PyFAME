@@ -1,5 +1,5 @@
 from pyfame.io import *
-import cv2 as cv
+from pyfame.util.util_checks import *
 import os
 
 def apply_conversion_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:bool = False) -> None:
@@ -28,18 +28,13 @@ def apply_conversion_video_to_mp4(input_dir:str, output_dir:str, with_sub_dirs:b
     """
 
     # Type checking input parameters
-    if not isinstance(input_dir, str):
-        raise TypeError("Transcode_video: parameter input_dir must be of type str.")
-    if not os.path.exists(input_dir):
-        raise OSError("Transcode_video: parameter input_dir must be a valid path string.")
+    check_type(input_dir, [str])
+    check_valid_path(input_dir)
 
-    if not isinstance(output_dir, str):
-        raise TypeError("Transcode_video: parameter output_dir must be of type str.")
-    if not os.path.exists(output_dir):
-        raise OSError("Transcode_video: parameter output_dir must be a valid path string.")
-    
-    if not isinstance(with_sub_dirs, bool):
-        raise TypeError("Transcode_video: parameter with_sub_dirs must be of type bool.")
+    check_type(output_dir, [str])
+    check_valid_path(output_dir)
+
+    check_type(with_sub_dirs, [bool])
 
     files_to_process = get_directory_walk(input_dir, with_sub_dirs)
     

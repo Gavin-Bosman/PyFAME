@@ -1,19 +1,23 @@
 from .util_exceptions import *
 from typing import Any, Callable
-from .util_general_utilities import get_variable_name
 import os
 
 def check_has_callable_attr(obj:Any, attr_name:str) -> None:
     if not (hasattr(obj, attr_name) and callable(getattr(obj,attr_name))):
         raise ValueError(f"Object must have a callable {attr_name} attribute.")
 
-def check_type(param:Any, accepted_types:list[type]) -> None:
-    if not any(isinstance(param, t) for t in accepted_types):
-        accepted_names = ", ".join(t.__name__ for t in accepted_types)
-        raise TypeError(f"parameter of type {type(param).__name__} is invalid, expected one of: {accepted_names}.")
+def check_type(param:Any, accepted_types:list[type], iterable:bool=False) -> None:
+    if not iterable:
+        if not any(isinstance(param, t) for t in accepted_types):
+            accepted_names = ", ".join(t.__name__ for t in accepted_types)
+            raise TypeError(f"parameter of type {type(param).__name__} is invalid, expected one of: {accepted_names}.")
+    else:
+        for i in param:
+            if not any(isinstance(i, t) for t in accepted_types):
+                accepted_names = ", ".join(t.__name__ for t in accepted_types)
+                raise TypeError(f"parameter of type {type(i).__name__} is invalid, expected one of: {accepted_names}.")
 
-def check_value(param:Any, expected_values:list[Any], **kwargs) -> None:
-    param_name = get_variable_name(param, globals())
+def check_value(param:Any, expected_values:list[Any]=None, **kwargs) -> None:
     min = None
     max = None
     full_range = False
@@ -27,16 +31,16 @@ def check_value(param:Any, expected_values:list[Any], **kwargs) -> None:
     
     if expected_values is not None:
         if not any(param == val for val in expected_values):
-            raise ValueError(f"Unrecognized value for parameter {param_name}.")
+            raise ValueError(f"Unrecognized value for input parameter.")
     elif full_range:
         if param < min or param > max:
-            raise ValueError(f"Parameter {param_name} must fall in the range [{min},{max}].")
+            raise ValueError(f"Parameter must fall in the range [{min},{max}].")
     elif min is not None:
         if param < min:
-            raise ValueError(f"Parameter {param_name} must be >{min}.")
+            raise ValueError(f"Parameter must be >{min}.")
     elif max is not None:
         if param > max:
-            raise ValueError(f"Parameter {param_name} must be <{max}.")
+            raise ValueError(f"Parameter must be <{max}.")
 
 def check_valid_path(path:str) -> None:
     if not os.path.exists(path):

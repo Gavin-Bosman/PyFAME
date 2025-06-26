@@ -1,3 +1,3 @@
-from .layer_mask import layer_mask
+from .layer_mask import LayerMask
 
-__all__ = ["layer_mask"]
+__all__ = ["LayerMask"]

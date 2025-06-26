@@ -1,16 +1,16 @@
 from pyfame.util.util_exceptions import *
+from pyfame.util.util_checks import *
 from pyfame.util.util_constants import *
 from pyfame.util.util_general_utilities import get_variable_name
-from pyfame.io import create_output_directory, get_video_capture, get_video_writer, get_directory_walk
+from pyfame.io import create_output_directory, get_video_writer, get_directory_walk
 import numpy as np
 import cv2 as cv
-import os
 import logging
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color:tuple[int] = (255,255,255),
+def equate_image_sizes(input_dir:str, method:int|str = EQUATE_IMAGES_CROP, pad_color:tuple[int] = (255,255,255),
                           with_sub_dirs:bool = False) -> None:
     """ Takes in an input directory of static images, then scans through the directory to compute the maximal and minimal 
     image dimensions. Depending on the equalization method provided, each image in the directory will be either padded to the maximal 
@@ -53,47 +53,23 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
     """
     
     logger.info("Now entering function Equate_image_sizes.")
+    check_type(input_dir, [str])
+    check_valid_path(input_dir)
 
-    # Performing input parameter checks
-    if not isinstance(input_dir, str):
-        logger.warning("Function encountered a TypeError for input parameter input_dir. "
-                       "Message: parameter input_dir must be of type str.")
-        raise TypeError("Equate_image_sizes: parameter input_dir must be of type str.")
-    elif not os.path.exists(input_dir):
-        logger.warning("Function encountered an OSError for input parameter input_dir. "
-                       "Message: input_dir is not a valid path, or the directory does not exist.")
-        raise OSError("Equate_image_sizes: input directory path is not a valid path, or the directory does not exist.")
+    check_type(method, [int,str])
+    check_value(method, [EQUATE_IMAGES_CROP, EQUATE_IMAGES_PAD, "crop", "pad"])
 
-    if not isinstance(method, int):
-        logger.warning("Function encountered a TypeError for input parameter method. "
-                       "Message: parameter normalization_method must be an int.")
-        raise TypeError("Equate_image_sizes: parameter method must be an int.")
-    elif method not in [EQUATE_IMAGES_CROP, EQUATE_IMAGES_PAD]:
-        logger.warning("Function encountered a ValueError for input parameter method. "
-                       "Message: unrecognized value for parameter method.")
-        raise ValueError("Equate_image_sizes: unrecognized value for parameter method.")
-    
-    if not isinstance(pad_color, tuple):
-        logger.warning("Function encountered a TypeError for input parameter pad_color. "
-                       "Message: parameter pad_color must be a tuple of int.")
-        raise TypeError("Equate_image_sizes: parameter pad_color must be a tuple of int.")
-    for val in pad_color:
-        if not isinstance(val, int):
-            logger.warning("Function encountered a TypeError for input parameter pad_color. "
-                       "Message: parameter pad_color must be a tuple of int.")
-            raise TypeError("Equate_image_sizes: parameter pad_color must be a tuple of int.")
-        if val < 0 or val > 255:
-            logger.warning("Function encountered a ValueError for input parameter pad_color. "
-                           "Message: parameter pad_color must contain integers in the range 0-255.")
-            raise ValueError("Equate_image_sizes: BGR values may only fall in the range 0-255.")
-    
-    if not isinstance(with_sub_dirs, bool):
-        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
-                       "Message: parameter with_sub_dirs must be of type bool.")
-        raise TypeError("Equate_image_sizes: parameter with_sub_dirs must be of type bool.")
+    check_type(pad_color, [tuple])
+    check_type(pad_color, [int], iterable=True)
+
+    check_type(with_sub_dirs, [bool])
     
     # Logging input parameters
-    eq_meth_name = get_variable_name(method, globals())
+    eq_meth_name = None
+    if not isinstance(method, str):
+        eq_meth_name = get_variable_name(method, globals())
+    else:
+        eq_meth_name = method
     logger.info(f"Input Parameters: input_dir = {input_dir}, method = {eq_meth_name}, pad_color = {pad_color}, with_sub_dirs = {with_sub_dirs}.")
 
     # Creating a list of file path strings to iterate through when processing
@@ -131,108 +107,114 @@ def equate_image_sizes(input_dir:str, method:int = EQUATE_IMAGES_CROP, pad_color
             max_size[1] = cur_size[1]
 
     # resizing the images
-    if method == EQUATE_IMAGES_CROP:
-        for file in files_to_process:
-            img = cv.imread(file, cv.IMREAD_COLOR_BGR)
-            if img is None:
-                debug_logger.error("Function has encountered a FileReadError. "
-                               "Message: Function encountered an error attempting to call cv2.imread() over"
-                               f"file {file}.")
-                raise FileReadError()
-            
-            h, w, ch = img.shape
-            h2, w2, ch2 = min_size
-            diff_h = abs(h-h2)
-            diff_w = abs(w-w2)
-
-            crop_margin_h = diff_h/2
-            crop_margin_w = diff_w/2
-            margin_l = 0
-            margin_r = 0
-            margin_t = 0
-            margin_b = 0
-
-            if isinstance(crop_margin_h, float):
-                margin_t = int(np.ceil(crop_margin_h))
-                margin_b = int(np.floor(crop_margin_h))
-            else:
-                margin_t = crop_margin_h
-                margin_b = crop_margin_h
-
-            if isinstance(crop_margin_w, float):
-                margin_l = int(np.ceil(crop_margin_w))
-                margin_r = int(np.floor(crop_margin_w))
-            else:
-                margin_l = crop_margin_w
-                margin_r = crop_margin_w
-
-            if diff_h > 0:
-                img = img[margin_t:(h-margin_b), :]
-            if diff_w > 0:    
-                img = img[:, margin_l:(w-margin_r)]
+    match method:
+        case 41 | "crop":
+            for file in files_to_process:
+                img = cv.imread(file, cv.IMREAD_COLOR_BGR)
+                if img is None:
+                    debug_logger.error("Function has encountered a FileReadError. "
+                                "Message: Function encountered an error attempting to call cv2.imread() over"
+                                f"file {file}.")
+                    raise FileReadError()
                 
-            # writing output image
-            success = cv.imwrite(file, img)
-            if not success:
-                raise FileWriteError()
-    else:
-        for file in files_to_process:
-            img = cv.imread(file, cv.IMREAD_COLOR_BGR)
-            if img is None:
-                debug_logger.error("Function has encountered a FileReadError. "
-                               "Message: Function encountered an error attempting to call cv2.imread() over"
-                               f"file {file}.")
-                raise FileReadError()
-            
-            h, w, ch = img.shape
-            h2, w2, ch2 = max_size
-            diff_h = abs(h-h2)
-            diff_w = abs(w-w2)
-            
-            pad_margin_h = diff_h/2
-            pad_margin_w = diff_w/2
-            margin_l = 0
-            margin_r = 0
-            margin_t = 0
-            margin_b = 0
+                h, w, ch = img.shape
+                h2, w2, ch2 = min_size
+                diff_h = abs(h-h2)
+                diff_w = abs(w-w2)
 
-            if isinstance(pad_margin_h, float):
-                margin_t = int(np.ceil(pad_margin_h))
-                margin_b = int(np.floor(pad_margin_h))
-            else:
-                margin_t = pad_margin_h
-                margin_b = pad_margin_h
+                crop_margin_h = diff_h/2
+                crop_margin_w = diff_w/2
+                margin_l = 0
+                margin_r = 0
+                margin_t = 0
+                margin_b = 0
 
-            if isinstance(pad_margin_w, float):
-                margin_l = int(np.ceil(pad_margin_w))
-                margin_r = int(np.floor(pad_margin_w))
-            else:
-                margin_l = pad_margin_w
-                margin_r = pad_margin_w
+                if isinstance(crop_margin_h, float):
+                    margin_t = int(np.ceil(crop_margin_h))
+                    margin_b = int(np.floor(crop_margin_h))
+                else:
+                    margin_t = crop_margin_h
+                    margin_b = crop_margin_h
 
-            if diff_h > 0:
-                bordered = cv.copyMakeBorder(img, margin_t, margin_b, margin_t, margin_b, cv.BORDER_CONSTANT, value=pad_color)
-                bordered = bordered.astype(np.uint8)
-                h = h + margin_t + margin_b
-                img = bordered[:, margin_t:w + margin_t]
-            if diff_w > 0:
-                bordered = cv.copyMakeBorder(img, margin_l, margin_r, margin_l, margin_r, cv.BORDER_CONSTANT, value=pad_color)
-                bordered = bordered.astype(np.uint8)
-                img = bordered[margin_l:h + margin_l, :]
+                if isinstance(crop_margin_w, float):
+                    margin_l = int(np.ceil(crop_margin_w))
+                    margin_r = int(np.floor(crop_margin_w))
+                else:
+                    margin_l = crop_margin_w
+                    margin_r = crop_margin_w
 
-            # writing output image
-            success = cv.imwrite(file, img)
-            if not success:
-                debug_logger.error("Function encountered a FileWriteError. "
-                           "Message: function encountered an error attempting to call cv2.imwrite over "
-                           f"file {file}.")
-                raise FileWriteError()
+                if diff_h > 0:
+                    img = img[margin_t:(h-margin_b), :]
+                if diff_w > 0:    
+                    img = img[:, margin_l:(w-margin_r)]
+                    
+                # writing output image
+                success = cv.imwrite(file, img)
+                if not success:
+                    debug_logger.error("Function encountered a FileWriteError. "
+                            "Message: function encountered an error attempting to call cv2.imwrite over "
+                            f"file {file}.")
+                    raise FileWriteError()
+                
+        case 42 | "pad":
+            for file in files_to_process:
+                img = cv.imread(file, cv.IMREAD_COLOR_BGR)
+                if img is None:
+                    debug_logger.error("Function has encountered a FileReadError. "
+                                "Message: Function encountered an error attempting to call cv2.imread() over"
+                                f"file {file}.")
+                    raise FileReadError()
+                
+                h, w, ch = img.shape
+                h2, w2, ch2 = max_size
+                diff_h = abs(h-h2)
+                diff_w = abs(w-w2)
+                
+                pad_margin_h = diff_h/2
+                pad_margin_w = diff_w/2
+                margin_l = 0
+                margin_r = 0
+                margin_t = 0
+                margin_b = 0
+
+                if isinstance(pad_margin_h, float):
+                    margin_t = int(np.ceil(pad_margin_h))
+                    margin_b = int(np.floor(pad_margin_h))
+                else:
+                    margin_t = pad_margin_h
+                    margin_b = pad_margin_h
+
+                if isinstance(pad_margin_w, float):
+                    margin_l = int(np.ceil(pad_margin_w))
+                    margin_r = int(np.floor(pad_margin_w))
+                else:
+                    margin_l = pad_margin_w
+                    margin_r = pad_margin_w
+
+                if diff_h > 0:
+                    bordered = cv.copyMakeBorder(img, margin_t, margin_b, margin_t, margin_b, cv.BORDER_CONSTANT, value=pad_color)
+                    bordered = bordered.astype(np.uint8)
+                    h = h + margin_t + margin_b
+                    img = bordered[:, margin_t:w + margin_t]
+                if diff_w > 0:
+                    bordered = cv.copyMakeBorder(img, margin_l, margin_r, margin_l, margin_r, cv.BORDER_CONSTANT, value=pad_color)
+                    bordered = bordered.astype(np.uint8)
+                    img = bordered[margin_l:h + margin_l, :]
+
+                # writing output image
+                success = cv.imwrite(file, img)
+                if not success:
+                    debug_logger.error("Function encountered a FileWriteError. "
+                            "Message: function encountered an error attempting to call cv2.imwrite over "
+                            f"file {file}.")
+                    raise FileWriteError()
+    
     logger.info("Function execution completed successfully.")
 
 
 def apply_conversion_image_to_video(input_dir:str, output_dir:str, output_filename:str, fps:int = 30, repeat_duration:int = 1000, 
     blend_images:bool = True, blended_frames_prop:float = 0.2, equate_sizes:bool = False, 
-    equalization_method:int = EQUATE_IMAGES_CROP, pad_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False) -> None:
+    equalization_method:int|str = EQUATE_IMAGES_CROP, pad_color:tuple[int] = (255,255,255), with_sub_dirs:bool = False) -> None:
     """ Takes a series of static images contained in input_dir, and converts them into a video sequence by repeating
     and interpolating frames. Output "movie" files will be written to output_dir. The output video file will have the images
     written in the order they appear within the input directory.
@@ -299,87 +281,42 @@ def apply_conversion_image_to_video(input_dir:str, output_dir:str, output_filena
     """
     logger.info("Now entering function convert_images_to_video.")
 
-    # Performing input parameter checks
-    if not isinstance(input_dir, str):
-        logger.warning("Function encountered a TypeError for input parameter input_dir. "
-                       "Message: parameter input_dir must be of type str.")
-        raise TypeError("Convert_images_to_video: parameter input_dir must be of type str.")
-    elif not os.path.exists(input_dir):
-        logger.warning("Function encountered an OSError for input parameter input_dir. "
-                       "Message: input_dir is not a valid path, or the directory does not exist.")
-        raise OSError("Convert_images_to_video: input directory path is not a valid path, or the directory does not exist.")
+    check_type(input_dir, [str])
+    check_valid_path(input_dir)
+
+    check_type(output_dir, [str])
+    check_valid_path(output_dir)
+    check_is_dir(output_dir)
+
+    check_type(output_filename, [str])
+
+    check_type(fps, [int])
+    check_value(fps, min=1, max=120) 
+
+    check_type(repeat_duration, [int])
+    check_value(repeat_duration, min=100)
+
+    check_type(blend_images, [bool])
     
-    if not isinstance(output_dir, str):
-        logger.warning("Function encountered a TypeError for input parameter output_dir. "
-                       "Message: parameter output_dir must be of type str.")
-        raise TypeError("Convert_images_to_video: parameter output_dir must be of type str.")
-    elif not os.path.exists(output_dir):
-        logger.warning("Function encountered an OSError for input parameter input_dir. "
-                       "Message: input_dir is not a valid path, or the directory does not exist.")
-        raise OSError("Convert_images_to_video: output directory path is not a valid path, or the directory does not exist.")
-    elif not os.path.isdir(output_dir):
-        logger.warning("Function encountered a ValueError for input parameter output_dir. "
-                       "Message: output_dir must be a valid path to a directory.")
-        raise ValueError("Convert_images_to_video: output_dir must be a valid path to a directory.")
-    
-    if not isinstance(output_filename, str):
-        logger.warning("Function encountered a TypeError for input parameter output_filename. "
-                       "Message: parameter output_filename must be a str.")
-        raise TypeError("Convert_images_to_video: parameter output_filename must be of type str.")
-    
-    if not isinstance(fps, int):
-        logger.warning("Function encountered a TypeError for input parameter fps. "
-                       "Message: parameter fps must be an int.")
-        raise TypeError("Convert_images_to_video: parameter fps must be an int.")
-    elif fps < 0 or fps > 120:
-        logger.warning("Function encountered a ValueError for input parameter fps. "
-                       "Message: fps must lie in the range [1,120]. ")
-        raise ValueError("Convert_images_to_video: parameter fps must lie between 1-120. ")
-    
-    if not isinstance(repeat_duration, int):
-        logger.warning("Function encountered a TypeError for input parameter repeat_duration. "
-                       "Message: parameter repeat_duration must be an int.")
-        raise TypeError("Convert_images_to_video: parameter repeat_duration must be an int.")
-    elif repeat_duration < 100:
-        logger.warning("Function encountered a ValueError for input parameter repeat_duration. "
-                       "Message: parameter repeat_duration must be an int > 100.")
-        raise ValueError("Convert_images_to_video: parameter repeat_duration cannot be less than 100 msec.")
-    
-    if not isinstance(blend_images, bool):
-        logger.warning("Function encountered a TypeError for input parameter blend_images. "
-                       "Message: parameter blend_images must be of type bool.")
-        raise TypeError("Convert_images_to_video: parameter blend_images must be of type bool.")
-    
-    if not isinstance(blended_frames_prop, float):
-        logger.warning("Function encountered a TypeError for input parameter blended_frames_prop. "
-                       "Message: parameter blended_frames_prop must be of type float.")
-        raise TypeError("Convert_images_to_video: parameter blended_frames_prop must be of type float.")
-    elif blended_frames_prop < 0 or blended_frames_prop > 1:
-        logger.warning("Function encountered a ValueError for input parameter blended_frames_prop. "
-                       "Message: parameter blended_frames_prop must be a float in the range [0,1].")
-        raise ValueError("Convert_images_to_video: parameter blended_frames_prop must be a float in the range [0,1].")
-    
-    if not isinstance(equate_sizes, bool):
-        logger.warning("Function encountered a TypeError for input parameter normalize. "
-                       "Message: parameter normalize must be of type bool.")
-        raise TypeError("Convert_images_to_video: parameter normalize must be of type bool.")
-    
-    if not isinstance(equalization_method, int):
-        logger.warning("Function encountered a TypeError for input parameter normalization_method. "
-                       "Message: parameter normalization_method must be an int.")
-        raise TypeError("Convert_images_to_video: parameter normalization_method must be an int.")
-    elif equalization_method not in [EQUATE_IMAGES_CROP, EQUATE_IMAGES_PAD]:
-        logger.warning("Function encountered a ValueError for input parameter normalization_method. "
-                       "Message: unrecognized value for parameter normalization_method.")
-        raise ValueError("Convert_images_to_video: unrecognized value for parameter normalization_method.")
-    
-    if not isinstance(with_sub_dirs, bool):
-        logger.warning("Function encountered a TypeError for input parameter with_sub_dirs. "
-                       "Message: parameter with_sub_dirs must be of type bool.")
-        raise TypeError("Convert_images_to_video: parameter with_sub_dirs must be of type bool.")
+    check_type(blended_frames_prop, [float])
+    check_value(blended_frames_prop, min=0.0, max=1.0)
+
+    check_type(equate_sizes, [bool])
+
+    check_type(equalization_method, [int,str])
+    check_value(equalization_method, [EQUATE_IMAGES_CROP, EQUATE_IMAGES_PAD, "crop", "pad"])
+
+    check_type(pad_color, [tuple])
+    check_type(pad_color, [int], iterable=True)
+
+    check_type(with_sub_dirs, [bool])
     
     # Logging input parameters
-    norm_meth_name = get_variable_name(equalization_method, globals())
+    norm_meth_name = None
+    if not isinstance(equalization_method, str):
+        norm_meth_name = get_variable_name(equalization_method, globals())
+    else:
+        norm_meth_name = equalization_method
     logger.info(f"Input Parameters: input_dir = {input_dir}, output_dir = {output_dir}, output_filename = {output_filename}, "
                 f"fps = {fps}, repeat_duration = {repeat_duration}, blend_images = {blend_images}, blended_frames_prop = {blended_frames_prop}, "
                 f"normalize = {equate_sizes}, normalization_method = {norm_meth_name}, with_sub_dirs = {with_sub_dirs}.")

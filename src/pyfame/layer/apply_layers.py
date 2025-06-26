@@ -2,7 +2,8 @@ from pyfame.io import map_directory_structure, get_video_capture, get_video_writ
 from pyfame.util.util_exceptions import *
 from pyfame.timing.timing_curves import *
 from pyfame.mesh.get_mesh_landmarks import *
-from pyfame.layer import LayerPipeline, LayerConfig
+from .layer_config import LayerConfig
+from .layer_pipeline import LayerPipeline
 import cv2 as cv
 import os
 import logging
@@ -10,9 +11,8 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-### NOTE: think about adding functionality to handle multiple roi, and assigning each to a single manipulation
-#### MORE PREVALENT NOTE: Set up some sort of mid-loop conditional checks on manipulations that cannot be transitioned, 
-#### such as PLD, occlusion, or grid shuffle, where at onset/offset checkpoints, they specifically are passed a dt of zero.
+### NOTE: Add some method of enforcing strict ordering with manipulations that affect the entire image, rather than just a facial region
+### i.e. masking, PLD, shuffling
 
 def resolve_missing_timing(config:LayerConfig, video_duration:int) -> tuple[int,int]:
     onset = config.onset_t if config.onset_t is not None else 0
@@ -62,11 +62,14 @@ def apply_layers(layers:list[LayerConfig], input_dir:str, output_dir:str, with_s
     sub_dirs = []
 
     # Map the input dir structure to the output dir
-    map_directory_structure(input_dir, output_dir, with_sub_dirs)
-    if with_sub_dirs:
-        sub_dirs, files_to_process = get_directory_walk(input_dir, with_sub_dirs)
+    if os.path.isdir(input_dir):
+        map_directory_structure(input_dir, output_dir, with_sub_dirs)
+        if with_sub_dirs:
+            sub_dirs, files_to_process = get_directory_walk(input_dir, with_sub_dirs)
+        else:
+            files_to_process = get_directory_walk(input_dir, with_sub_dirs)
     else:
-        files_to_process = get_directory_walk(input_dir, with_sub_dirs)
+        files_to_process.append(input_dir)
 
     # Initialize the processing pipeline
     pipeline = LayerPipeline()

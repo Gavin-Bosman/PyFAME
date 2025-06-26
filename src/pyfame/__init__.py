@@ -5,11 +5,11 @@ from pyfame.analysis import get_facial_color_means, get_optical_flow
 from pyfame.io import get_directory_walk, create_output_directory, map_directory_structure, get_video_capture, get_video_writer
 from pyfame.io.conversion import apply_conversion_image_to_video, apply_conversion_video_to_mp4
 from pyfame.logging import setup_logging
-from pyfame.manipulation.color import layer_color, layer_color_brightness, layer_color_saturation
-from pyfame.manipulation.mask import layer_mask
-from pyfame.manipulation.occlusion import layer_occlusion_path, layer_occlusion_bar, layer_occlusion_blur, layer_occlusion_noise
-from pyfame.manipulation.spatial import layer_spatial_grid_shuffle, layer_spatial_landmark_shuffle
-from pyfame.manipulation.stylize import layer_stylize_point_light, apply_image_overlay
+from pyfame.manipulation.color import LayerColor, LayerColorBrightness, LayerColorSaturation
+from pyfame.manipulation.mask import LayerMask
+from pyfame.manipulation.occlusion import LayerOcclusionPath, layer_occlusion_bar, LayerOcclusionBlur, LayerOcclusionNoise
+from pyfame.manipulation.spatial import LayerSpatialGridShuffle, layer_spatial_landmark_shuffle
+from pyfame.manipulation.stylize import LayerStylizePointLight, apply_image_overlay
 from pyfame.manipulation.temporal import generate_shuffled_block_array, apply_frame_shuffle
 from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates, get_mesh_coordinates_from_path
 from pyfame.mesh.get_mesh_landmarks import *
@@ -24,11 +24,11 @@ __all__ = [
     "get_directory_walk", "create_output_directory", "map_directory_structure", "get_video_capture", "get_video_writer",
     "apply_conversion_image_to_video", "apply_conversion_video_to_mp4",
     "setup_logging",
-    "layer_color", "layer_color_brightness", "layer_color_saturation",
-    "layer_mask",
-    "layer_occlusion_path", "layer_occlusion_bar", "layer_occlusion_blur", "layer_occlusion_noise",
-    "layer_spatial_grid_shuffle", "layer_spatial_landmark_shuffle", 
-    "layer_stylize_point_light", "apply_image_overlay",
+    "LayerColor", "LayerColorBrightness", "LayerColorSaturation",
+    "LayerMask",
+    "LayerOcclusionPath", "layer_occlusion_bar", "LayerOcclusionBlur", "LayerOcclusionNoise",
+    "LayerSpatialGridShuffle", "layer_spatial_landmark_shuffle", 
+    "LayerStylizePointLight", "apply_image_overlay",
     "generate_shuffled_block_array", "apply_frame_shuffle",
     "get_mask_from_path", "get_mesh", "get_mesh_coordinates", "get_mesh_coordinates_from_path",
     "timing_constant", "timing_linear", "timing_sigmoid", "timing_gaussian",

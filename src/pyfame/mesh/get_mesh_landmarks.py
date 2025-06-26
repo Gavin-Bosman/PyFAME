@@ -1,4 +1,4 @@
-import pandas as pd
+from pandas import DataFrame
 
 def create_path(landmark_set:list[int]) -> list[tuple]:
     """Given a list of facial landmarks (int), returns a list of tuples, creating a closed path in the form 
@@ -19,7 +19,7 @@ def create_path(landmark_set:list[int]) -> list[tuple]:
     """
     
     # Connvert the input list to a two-column dataframe
-    landmark_dataframe = pd.DataFrame([(landmark_set[i], landmark_set[i+1]) for i in range(len(landmark_set) - 1)], columns=['p1', 'p2'])
+    landmark_dataframe = DataFrame([(landmark_set[i], landmark_set[i+1]) for i in range(len(landmark_set) - 1)], columns=['p1', 'p2'])
     closed_path = []
 
     # Initialise the first two points

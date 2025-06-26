@@ -6,14 +6,14 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def get_video_writer(dir_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:int = 30, isColor:bool = True) -> cv.VideoWriter:
+def get_video_writer(file_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:int = 30, isColor:bool = True) -> cv.VideoWriter:
     """ Returns a cv2.VideoWriter instance, instantiated over the directory path provided.
 
     Parameters
     ----------
 
     file_path: str
-        A path string to a directory.
+        A path string to an output file.
     
     size: tuple of int
         The desired frame dimensions (in pixels) of the output video.
@@ -44,20 +44,20 @@ def get_video_writer(dir_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:
     cv2.VideoWriter
     """
     
-    if not isinstance(dir_path, str):
-        logger.error("Function encountered a TypeError for input parameter dir_path."
-                     "Message: parameter dir_path expects a str.")
-        raise TypeError("Get_video_writer: parameter dir_path expects a str.")
-    elif not os.path.exists(dir_path):
-        logger.error("Function encountered an OSError for input parameter dir_path."
-                     "Message: parameter dir_path is not a valid path string.")
-        raise OSError("Get_video_writer: parameter dir_path must be a valid path in the current scope.")
-    elif not os.path.isdir(dir_path):
-        logger.error("Function encountered a ValueError for input parameter dir_path. "
-                     "Message: parameter dir_path must be a path string to a directory.")
-        raise ValueError("Get_video_writer: parameter dir_path must be a path string to a directory.")
+    if not isinstance(file_path, str):
+        logger.error("Function encountered a TypeError for input parameter file_path."
+                     "Message: parameter file_path expects a str.")
+        raise TypeError("Get_video_writer: parameter file_path expects a str.")
+    elif not os.path.exists(file_path):
+        logger.error("Function encountered an OSError for input parameter file_path."
+                     "Message: parameter file_path is not a valid path string.")
+        raise OSError("Get_video_writer: parameter file_path must be a valid path in the current scope.")
+    elif not os.path.isfile(file_path):
+        logger.error("Function encountered a ValueError for input parameter file_path. "
+                     "Message: parameter file_path must be a path string to a directory.")
+        raise ValueError("Get_video_writer: parameter file_path must be a path string to a directory.")
     
-    if not isinstance(tuple, size):
+    if not isinstance(size, tuple):
         logger.error("Function encountered a TypeError for input parameter size."
                      "Message: parameter size expects a tuple of integers.")
         raise TypeError("Get_video_writer: parameter size expects a tuple of integers.")
@@ -83,10 +83,10 @@ def get_video_writer(dir_path:str, size:tuple[int,int], codec:str = 'mp4v', fps:
         raise TypeError("Get_video_writer: parameter isColor expects a bool.")
 
 
-    vw = cv.VideoWriter(dir_path, cv.VideoWriter.fourcc(*codec), fps, size, isColor=isColor)
+    vw = cv.VideoWriter(file_path, cv.VideoWriter.fourcc(*codec), fps, size, isColor=isColor)
 
     if not vw.isOpened():
         raise util_exceptions.FileWriteError("Function encountered an error attempting to instantiate "
-                                        f"cv.VideoWriter() over file {dir_path}.")
+                                        f"cv.VideoWriter() over file {file_path}.")
     else:
         return vw
