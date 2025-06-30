@@ -3,8 +3,8 @@ from pyfame.mesh import *
 from pyfame.util.util_general_utilities import compute_rot_angle
 from pyfame.util.util_checks import *
 from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_linear
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 from operator import itemgetter
 import logging
@@ -13,7 +13,10 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerSpatialGridShuffle(Layer):
-    def __init__(self, rand_seed:int|None, method:int|str = HIGH_LEVEL_GRID_SHUFFLE, shuffle_threshold:int = 2, grid_square_size:int = 40):
+    def __init__(self, rand_seed:int|None, method:int|str = HIGH_LEVEL_GRID_SHUFFLE, shuffle_threshold:int = 2, grid_square_size:int = 40, 
+                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] = [FACE_OVAL_PATH], 
+                 fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
         check_type(rand_seed, [int, type(None)])
         check_type(method, [int, str])
         check_value(method, [LOW_LEVEL_GRID_SHUFFLE, HIGH_LEVEL_GRID_SHUFFLE, "fully_random", "semi_random"])
@@ -25,16 +28,27 @@ class LayerSpatialGridShuffle(Layer):
         self.method = method
         self.threshold = shuffle_threshold
         self.size = grid_square_size
+        self.roi = roi
+        self.min_tracking_confidence = min_tracking_confidence
+        self.min_detection_confidence = min_detection_confidence
+        self.static_image_mode = False
     
     def supports_weight(self):
         return False
     
-    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
+
+        if static_image_mode != self.static_image_mode:
+            self.static_image_mode = static_image_mode
+            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        
+        weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
         else:
-            mask = get_mask_from_path(frame, roi, face_mesh)
+            face_mesh = super().get_face_mesh()
+            mask = get_mask_from_path(frame, self.roi, face_mesh)
             output_frame = np.zeros_like(frame, dtype=np.uint8)
 
             # Computing shuffled grid positions

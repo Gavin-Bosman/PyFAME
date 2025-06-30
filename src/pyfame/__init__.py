@@ -7,9 +7,9 @@ from pyfame.io.conversion import apply_conversion_image_to_video, apply_conversi
 from pyfame.logging import setup_logging
 from pyfame.manipulation.color import LayerColor, LayerColorBrightness, LayerColorSaturation
 from pyfame.manipulation.mask import LayerMask
-from pyfame.manipulation.occlusion import LayerOcclusionPath, layer_occlusion_bar, LayerOcclusionBlur, LayerOcclusionNoise
-from pyfame.manipulation.spatial import LayerSpatialGridShuffle, layer_spatial_landmark_shuffle
-from pyfame.manipulation.stylize import LayerStylizePointLight, apply_image_overlay
+from pyfame.manipulation.occlusion import LayerOcclusionPath, LayerOcclusionBar, LayerOcclusionBlur, LayerOcclusionNoise
+from pyfame.manipulation.spatial import LayerSpatialGridShuffle, LayerSpatialLandmarkShuffle
+from pyfame.manipulation.stylize import LayerStylizePointLight, LayerStylizeOverlay
 from pyfame.manipulation.temporal import generate_shuffled_block_array, apply_frame_shuffle
 from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates, get_mesh_coordinates_from_path
 from pyfame.mesh.get_mesh_landmarks import *
@@ -26,9 +26,9 @@ __all__ = [
     "setup_logging",
     "LayerColor", "LayerColorBrightness", "LayerColorSaturation",
     "LayerMask",
-    "LayerOcclusionPath", "layer_occlusion_bar", "LayerOcclusionBlur", "LayerOcclusionNoise",
-    "LayerSpatialGridShuffle", "layer_spatial_landmark_shuffle", 
-    "LayerStylizePointLight", "apply_image_overlay",
+    "LayerOcclusionPath", "LayerOcclusionBar", "LayerOcclusionBlur", "LayerOcclusionNoise",
+    "LayerSpatialGridShuffle", "LayerSpatialLandmarkShuffle", 
+    "LayerStylizePointLight", "LayerStylizeOverlay",
     "generate_shuffled_block_array", "apply_frame_shuffle",
     "get_mask_from_path", "get_mesh", "get_mesh_coordinates", "get_mesh_coordinates_from_path",
     "timing_constant", "timing_linear", "timing_sigmoid", "timing_gaussian",

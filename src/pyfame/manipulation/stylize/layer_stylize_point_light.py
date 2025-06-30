@@ -2,8 +2,8 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_checks import *
 from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_linear
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 from skimage.util import *
 import logging
@@ -13,10 +13,15 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerStylizePointLight(Layer):
     def __init__(self, point_density:float = 1.0, point_color:tuple[int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
-                 history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_vec_color:tuple[int] = (0,0,255)):
+                 history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_vec_color:tuple[int] = (0,0,255), onset_t:float=None, 
+                 offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, 
+                 min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
         check_type(point_density, [float])
         check_type(point_color, [tuple])
         check_type(point_color, [int], iterable=True)
+        for i in point_color:
+            check_value(i, min=0, max=255)
         check_type(maintain_background, [bool])
         check_type(display_history_vectors, [bool])
         check_type(history_method, [int, str])
@@ -25,6 +30,8 @@ class LayerStylizePointLight(Layer):
         check_value(history_window_msec, min=0)
         check_type(history_vec_color, [tuple])
         check_type(history_vec_color, [int], iterable=True)
+        for i in history_vec_color:
+            check_value(i, min=0, max=255)
 
         self.density = point_density
         self.point_color = point_color
@@ -33,6 +40,10 @@ class LayerStylizePointLight(Layer):
         self.history_method = history_method
         self.window_msec = history_window_msec
         self.history_color = history_vec_color
+        self.roi = roi
+        self.min_tracking_confidence = min_tracking_confidence
+        self.min_detection_confidence = min_detection_confidence
+        self.static_image_mode = False
         self.frame_history = []
         self.prev_points = None
         self.idx_to_display = np.array([], dtype=np.uint8)
@@ -40,11 +51,18 @@ class LayerStylizePointLight(Layer):
     def supports_weight(self):
         return False
     
-    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
+
+        if static_image_mode != self.static_image_mode:
+            self.static_image_mode = static_image_mode
+            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        
+        weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
         else:
+            face_mesh = super().get_face_mesh()
             landmark_screen_coords = get_mesh_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), face_mesh)
             mask = np.zeros_like(frame, dtype=np.uint8)
             output_img = None
@@ -56,7 +74,7 @@ class LayerStylizePointLight(Layer):
                 output_img = np.zeros_like(frame, dtype=np.uint8)
 
             if self.idx_to_display.size == 0:
-                for lm_path in roi:
+                for lm_path in self.roi:
                     lm_mask = get_mask_from_path(frame, [lm_path], face_mesh)
                     lm_mask = lm_mask.astype(bool)
 

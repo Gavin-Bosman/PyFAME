@@ -2,8 +2,8 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_checks import *
 from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_linear
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 from operator import itemgetter
 import logging
@@ -11,15 +11,29 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-class layer_spatial_landmark_shuffle(Layer):
-    def __init__(self, rand_seed:int|None):
+class LayerSpatialLandmarkShuffle(Layer):
+    def __init__(self, rand_seed:int|None, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
+                 roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
         check_type(rand_seed, [int, type(None)])
+
         self.rand_seed = rand_seed
+        self.roi = roi
+        self.min_tracking_confidence = min_tracking_confidence
+        self.min_detection_confidence = min_detection_confidence
+        self.static_image_mode = False
     
     def supports_weight(self):
         return False
     
-    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float) -> cv.typing.MatLike:
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False) -> cv.typing.MatLike:
+
+        if static_image_mode != self.static_image_mode:
+            self.static_image_mode = static_image_mode
+            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        
+        weight = super().compute_weight(dt, self.supports_weight())
+
         if weight == 0.0:
             return frame
         else:
@@ -31,9 +45,10 @@ class layer_spatial_landmark_shuffle(Layer):
                 rng = np.random.default_rng()
 
             # Precomputing shuffled grid positions
+            face_mesh = super().get_face_mesh()
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_TIGHT_PATH)
-            fo_mask = get_mask_from_path(frame, roi, self.face_mesh)
+            fo_mask = get_mask_from_path(frame, self.roi, self.face_mesh)
 
             # Get x and y bounds of the face oval
             max_x = max(fo_screen_coords, key=itemgetter(0))[0]

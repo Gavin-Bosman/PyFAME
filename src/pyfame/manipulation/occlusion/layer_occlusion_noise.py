@@ -2,8 +2,8 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_checks import *
 from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_linear
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 from skimage.util import *
 import logging
@@ -12,8 +12,10 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerOcclusionNoise(Layer):
-    def __init__(self, rand_seed:int|None, method:int|str = "gaussian", noise_prob:float = 0.5, 
-                 pixel_size:int = 32, mean:float = 0.0, standard_dev:float = 0.5):
+    def __init__(self, rand_seed:int|None, method:int|str = "gaussian", noise_prob:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_dev:float = 0.5, 
+                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] = [FACE_OVAL_PATH], 
+                 fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
         check_type(method, [int, str])
         check_value(method, [18,19,20,"pixelate","salt and pepper","gaussian"])
         check_type(noise_prob, [float])
@@ -24,18 +26,26 @@ class LayerOcclusionNoise(Layer):
         check_type(standard_dev, [float])
 
         self.rand_seed = rand_seed
-
-        if isinstance(method, str):
-            self.method = str.lower(method)
-        else:
-            self.method = method
-        
+        self.method = method
         self.prob = noise_prob
         self.pixel_size = pixel_size
         self.mean = mean
         self.sd = standard_dev
+        self.roi = roi
+        self.min_tracking_confidence = min_tracking_confidence
+        self.min_detection_confidence = min_detection_confidence
+        self.static_image_mode = False
+    
+    def supports_weight(self):
+        return False
 
-    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
+
+        if static_image_mode != self.static_image_mode:
+            self.static_image_mode = static_image_mode
+            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        
+        weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
@@ -46,7 +56,8 @@ class LayerOcclusionNoise(Layer):
             else:
                 rng = np.random.default_rng()
 
-            mask = get_mask_from_path(frame, roi, face_mesh)
+            face_mesh = super().get_face_mesh()
+            mask = get_mask_from_path(frame, self.roi, face_mesh)
             mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
             output_frame = frame.copy()
 

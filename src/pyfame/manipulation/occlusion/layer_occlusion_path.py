@@ -2,8 +2,8 @@ from pyfame.util.util_constants import *
 from pyfame.mesh import *
 from pyfame.util.util_checks import *
 from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_linear
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 import logging
 
@@ -11,24 +11,34 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerOcclusionPath(Layer):
-    def __init__(self, fill_method:int|str = OCCLUSION_FILL_BLACK):
+    def __init__(self, fill_method:int|str = OCCLUSION_FILL_BLACK, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
+                 roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
         check_type(fill_method, [int,str])
         check_value(fill_method, expected_values=[8,9,"black","mean"])
 
-        if isinstance(fill_method, str):
-            self.fill = str.lower(fill_method)
-        else:
-            self.fill = fill_method
+        self.fill = fill_method
+        self.roi = roi
+        self.min_tracking_confidence = min_tracking_confidence
+        self.min_detection_confidence = min_detection_confidence
+        self.static_image_mode = False
     
     def supports_weight(self):
         return False
     
-    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
+        
+        if static_image_mode != self.static_image_mode:
+            self.static_image_mode = static_image_mode
+            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        
+        weight = super().compute_weight(dt, self.supports_weight())
+        face_mesh = super().get_face_mesh()
 
         if weight == 0.0:
             return frame
         else:
-            mask = get_mask_from_path(frame, roi, face_mesh)
+            mask = get_mask_from_path(frame, self.roi, face_mesh)
             mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
 
             match self.fill:
@@ -56,4 +66,3 @@ class LayerOcclusionPath(Layer):
                     mean_img[:] = mean[:3]
                     occluded = np.where(mask == 255, mean_img, frame)
                     return occluded
-

@@ -2,32 +2,47 @@ from pyfame.util.util_constants import *
 from pyfame.util.util_checks import *
 from pyfame.mesh import get_mask_from_path
 from pyfame.layer import Layer
+from pyfame.timing.timing_curves import timing_linear
+from pyfame.mesh.get_mesh_landmarks import FACE_OVAL_PATH
 import numpy as np
 import cv2 as cv
-import mediapipe as mp
 import logging
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerMask(Layer):
-    def __init__(self, background_color:tuple[int,int,int] = (0,0,0)):
+    def __init__(self, background_color:tuple[int,int,int] = (0,0,0), onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
+                 roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
         check_type(background_color, [tuple])
         check_type(background_color, [int], iterable=True)
         for i in background_color:
             check_value(i, min=0, max=255)
 
+        self.roi = roi
         self.background_color = background_color
+        self.min_tracking_confidence = min_tracking_confidence
+        self.min_detection_confidence = min_detection_confidence
+        self.static_image_mode = False
     
     def supports_weight(self):
         return False
     
-    def apply_layer(self, face_mesh:mp.solutions.face_mesh.FaceMesh, frame:cv.typing.MatLike, roi:list[list[tuple]], weight:float):
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
+        weight = None
+
+        if static_image_mode != self.static_image_mode:
+            self.static_image_mode = static_image_mode
+            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        
+        weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
         else:
-            mask = get_mask_from_path(frame, roi, face_mesh)
+            face_mesh = super().get_face_mesh()
+            mask = get_mask_from_path(frame, self.roi, face_mesh)
 
             # Otsu thresholding to seperate foreground and background
             grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)

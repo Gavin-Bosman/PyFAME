@@ -2,7 +2,7 @@ from pyfame.io import map_directory_structure, get_video_capture, get_video_writ
 from pyfame.util.util_exceptions import *
 from pyfame.timing.timing_curves import *
 from pyfame.mesh.get_mesh_landmarks import *
-from .layer_config import LayerConfig
+from .layer import Layer
 from .layer_pipeline import LayerPipeline
 import cv2 as cv
 import os
@@ -14,19 +14,19 @@ debug_logger = logging.getLogger("pyfame.debug")
 ### NOTE: Add some method of enforcing strict ordering with manipulations that affect the entire image, rather than just a facial region
 ### i.e. masking, PLD, shuffling
 
-def resolve_missing_timing(config:LayerConfig, video_duration:int) -> tuple[int,int]:
-    onset = config.onset_t if config.onset_t is not None else 0
-    offset = config.offset_t if config.offset_t is not None else video_duration
+def resolve_missing_timing(layer:Layer, video_duration:int) -> tuple[int,int]:
+    onset = layer.onset_t if layer.onset_t is not None else 0
+    offset = layer.offset_t if layer.offset_t is not None else video_duration
     return (onset, offset)
 
-def apply_layers(layers:list[LayerConfig], input_dir:str, output_dir:str, with_sub_dirs:bool = False):
+def apply_layers(layers:list[Layer], input_dir:str, output_dir:str, with_sub_dirs:bool = False):
     """ Takes in a list of layer objects, and applies each manipulation layer in sequence frame-by-frame, and file-by-file for each file provided within input_dir.
 
     Parameters
     ----------
 
-    layers: list of LayerConfig
-        A list of LayerConfig wrappers containing the specified layer and its parameters.
+    layers: list of Layer
+        A list of Layer objects containing the specified layer and its parameters.
     
     input_dir: str
         A path string to the directory containing all files to be processed.
@@ -73,8 +73,7 @@ def apply_layers(layers:list[LayerConfig], input_dir:str, output_dir:str, with_s
 
     # Initialize the processing pipeline
     pipeline = LayerPipeline()
-    for layer in layers:
-        pipeline.add_layer(layer)
+    pipeline.add_layers(layers)
 
     for file in files_to_process:
         filename, extension = os.path.splitext(os.path.basename(file))
@@ -110,8 +109,8 @@ def apply_layers(layers:list[LayerConfig], input_dir:str, output_dir:str, with_s
             fps = capture.get(cv.CAP_PROP_FPS)
             cap_duration = float(frame_count)/float(fps)
 
-            for config in pipeline.layers:
-                resolve_missing_timing(config, cap_duration)
+            for layer in pipeline.layers:
+                resolve_missing_timing(layer, cap_duration)
         
         # Loop over the current file until completion; (single iteration for static images)
         while(True):
@@ -135,7 +134,7 @@ def apply_layers(layers:list[LayerConfig], input_dir:str, output_dir:str, with_s
                 output_frame = pipeline.apply_layers(output_frame, dt)
                 result.write(output_frame)
             else:
-                output_frame = pipeline.apply_layers(output_frame)
+                output_frame = pipeline.apply_layers(output_frame, dt, static_image_mode=True)
                 success = cv.imwrite(dir_file_path, output_frame)
                 if not success:
                     raise FileWriteError()
