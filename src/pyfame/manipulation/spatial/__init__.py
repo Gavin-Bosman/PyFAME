@@ -1,6 +1,6 @@
-from .layer_spatial_grid_shuffle import LayerSpatialGridShuffle
-from .layer_spatial_landmark_shuffle import LayerSpatialLandmarkShuffle
+from .get_layer_spatial_grid_shuffle import get_layer_spatial_grid_shuffle
+from .get_layer_spatial_landmark_shuffle import get_layer_spatial_landmark_shuffle
 
 __all__ = [
-    "LayerSpatialGridShuffle", "LayerSpatialLandmarkShuffle"
+    "get_layer_spatial_grid_shuffle", "get_layer_spatial_landmark_shuffle"
 ]

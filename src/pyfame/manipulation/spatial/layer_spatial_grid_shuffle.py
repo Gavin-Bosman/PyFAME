@@ -115,7 +115,7 @@ class LayerSpatialGridShuffle(Layer):
             keys = list(grid_squares.keys())
 
             # Shuffle the keys of the grid_squares dict
-            if self.method == LOW_LEVEL_GRID_SHUFFLE:
+            if self.method == LOW_LEVEL_GRID_SHUFFLE or self.method == "semi_random":
                 shuffled_keys = keys.copy()
                 shuffled_keys = np.array(shuffled_keys, dtype="i,i")
                 shuffled_keys = shuffled_keys.reshape((rows, cols))
