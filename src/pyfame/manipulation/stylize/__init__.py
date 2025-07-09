@@ -1,6 +1,6 @@
-from .layer_stylize_image_overlay import LayerStylizeOverlay
-from .layer_stylize_point_light import LayerStylizePointLight
+from .get_layer_stylize_overlay import get_layer_stylize_overlay
+from .get_layer_stylize_point_light import get_layer_stylize_point_light
 
 __all__ = [
-    "LayerStylizeOverlay", "LayerStylizePointLight"
+    "get_layer_stylize_overlay", "get_layer_stylize_point_light"
 ]

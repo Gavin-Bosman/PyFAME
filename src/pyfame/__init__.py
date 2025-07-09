@@ -1,15 +1,15 @@
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 __author__ = "Gavin Bosman"
 
 from pyfame.analysis import get_facial_color_means, get_optical_flow
-from pyfame.io import get_directory_walk, create_output_directory, map_directory_structure, get_video_capture, get_video_writer
+from pyfame.io import get_directory_walk, create_output_directory, map_directory_structure, get_video_capture, get_video_writer, make_output_paths
 from pyfame.io.conversion import apply_conversion_image_to_video, apply_conversion_video_to_mp4
 from pyfame.logging import setup_logging
 from pyfame.manipulation.color import get_layer_color, get_layer_color_brightness, get_layer_color_saturation
 from pyfame.manipulation.mask import get_layer_mask
 from pyfame.manipulation.occlusion import get_layer_occlusion_path, get_layer_occlusion_bar, get_layer_occlusion_blur, get_layer_occlusion_noise
 from pyfame.manipulation.spatial import get_layer_spatial_grid_shuffle, get_layer_spatial_landmark_shuffle
-from pyfame.manipulation.stylize import LayerStylizePointLight, LayerStylizeOverlay
+from pyfame.manipulation.stylize import get_layer_stylize_point_light, get_layer_stylize_overlay
 from pyfame.manipulation.temporal import generate_shuffled_block_array, apply_frame_shuffle
 from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates, get_mesh_coordinates_from_path
 from pyfame.mesh.get_mesh_landmarks import *
@@ -21,14 +21,15 @@ from pyfame.util.util_display_parameter_options import *
 
 __all__ = [
     "get_facial_color_means", "get_optical_flow",
-    "get_directory_walk", "create_output_directory", "map_directory_structure", "get_video_capture", "get_video_writer",
+    "get_directory_walk", "create_output_directory", "map_directory_structure", 
+    "make_output_paths", "get_video_capture", "get_video_writer",
     "apply_conversion_image_to_video", "apply_conversion_video_to_mp4",
     "setup_logging",
     "get_layer_color", "get_layer_color_brightness", "get_layer_color_saturation",
     "get_layer_mask",
     "get_layer_occlusion_path", "get_layer_occlusion_bar", "get_layer_occlusion_blur", "get_layer_occlusion_noise",
     "get_layer_spatial_grid_shuffle", "get_layer_spatial_landmark_shuffle",
-    "LayerStylizePointLight", "LayerStylizeOverlay",
+    "get_layer_stylize_overlay", "get_layer_stylize_point_light",
     "generate_shuffled_block_array", "apply_frame_shuffle",
     "get_mask_from_path", "get_mesh", "get_mesh_coordinates", "get_mesh_coordinates_from_path",
     "timing_constant", "timing_linear", "timing_sigmoid", "timing_gaussian",
