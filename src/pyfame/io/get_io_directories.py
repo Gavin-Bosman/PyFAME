@@ -14,14 +14,16 @@ def make_output_paths(root_path:str = None) -> None:
 
         for dir in dir_names:
             path = os.path.join(root_path, dir)
-            os.mkdir(path)
+            if not os.path.exists(path):
+                os.mkdir(path)
 
     else:
         root_path = os.getcwd()
 
         for dir in dir_names:
             path = os.path.join(root_path, dir)
-            os.mkdir(path)
+            if not os.path.exists(path):
+                os.mkdir(path)
     
 def create_output_directory(root_path:str, dir_name:str) -> str:
     """ Creates a new directory appended to the root path provided, then returns the appended path string.
