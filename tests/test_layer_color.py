@@ -1,5 +1,5 @@
 import pytest
-from pyfame.manipulation.color import LayerColor
+from pyfame.manipulation.colour import LayerColor
 from pyfame.layer import Layer
 
 def test_layer_color():

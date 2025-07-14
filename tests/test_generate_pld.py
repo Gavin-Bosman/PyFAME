@@ -1,5 +1,5 @@
 import pytest
-from pyfame.util.util_exceptions import *
+from pyfame.utilities.util_exceptions import *
 from pyfame.manipulation.spatial.create_point_light_display import generate_point_light_display
 
 def test_exception_handling():

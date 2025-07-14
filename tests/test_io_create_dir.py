@@ -1,6 +1,6 @@
 import pytest
 import os
-from pyfame.io import create_output_directory
+from pyfame.file_access import create_output_directory
 
 def test_create_output_directory(valid_input_dir, invalid_input_dir, sample_video_path):
 

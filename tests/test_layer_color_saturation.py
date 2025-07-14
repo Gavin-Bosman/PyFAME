@@ -1,5 +1,5 @@
 import pytest
-from pyfame.manipulation.color import LayerColorSaturation
+from pyfame.manipulation.colour import LayerColorSaturation
 from pyfame.layer import Layer
 
 def test_layer_color_saturation(face_mesh):

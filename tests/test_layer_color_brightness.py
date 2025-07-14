@@ -1,5 +1,5 @@
 import pytest
-from pyfame.manipulation.color import LayerColorBrightness
+from pyfame.manipulation.colour import LayerColorBrightness
 from pyfame.layer import Layer
 
 def test_layer_color_brightness():

@@ -1,5 +1,5 @@
 import pytest
-from pyfame.io import map_directory_structure
+from pyfame.file_access import map_directory_structure
 
 def test_map_directory_structure(valid_input_dir, invalid_input_dir, valid_output_dir, invalid_output_dir, sample_video_path):
 

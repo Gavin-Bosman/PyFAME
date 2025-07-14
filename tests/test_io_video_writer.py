@@ -1,6 +1,6 @@
 import pytest
 import cv2 as cv
-from pyfame.io import get_video_writer
+from pyfame.file_access import get_video_writer
 
 def test_get_video_writer(valid_input_dir, invalid_input_dir, sample_video_path):
     valid_size = (500,700)
@@ -16,13 +16,13 @@ def test_get_video_writer(valid_input_dir, invalid_input_dir, sample_video_path)
         get_video_writer(sample_video_path, valid_size)
     
     with pytest.raises(TypeError):
-        get_video_writer(valid_input_dir, size=[12,34])
+        get_video_writer(valid_input_dir, frame_size=[12,34])
     with pytest.raises(TypeError):
-        get_video_writer(valid_input_dir, size=(2.5, True))
+        get_video_writer(valid_input_dir, frame_size=(2.5, True))
     
     with pytest.raises(TypeError):
-        get_video_writer(valid_input_dir, valid_size, codec=1)
+        get_video_writer(valid_input_dir, valid_size, video_codec=1)
     with pytest.raises(TypeError):
-        get_video_writer(valid_input_dir, valid_size, fps="none")
+        get_video_writer(valid_input_dir, valid_size, frame_rate="none")
     with pytest.raises(TypeError):
         get_video_writer(valid_input_dir, valid_size, isColor="none")

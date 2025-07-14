@@ -1,6 +1,6 @@
 from .get_mesh_landmarks import *
 from .get_mesh_coordinates import get_mesh, get_mesh_coordinates, get_mesh_coordinates_from_path
-from .apply_mesh_facial_mask import get_mask_from_path
+from .get_mask_from_landmarks import get_mask_from_path
 
 __all__ = [
     "FACE_OVAL_IDX", "FACE_OVAL_TIGHT_IDX", "LEFT_EYE_IDX", "LEFT_IRIS_IDX", "RIGHT_EYE_IDX", "RIGHT_IRIS_IDX", 

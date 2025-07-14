@@ -1,5 +1,5 @@
 import pytest
-from pyfame.io import get_directory_walk
+from pyfame.file_access import get_directory_walk
 
 def test_get_directory_walk(valid_input_dir, invalid_input_dir, sample_video_path):
 

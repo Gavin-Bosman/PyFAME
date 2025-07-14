@@ -1,6 +1,6 @@
-from pyfame.io import map_directory_structure, get_video_capture, get_video_writer, get_directory_walk
-from pyfame.util.util_exceptions import *
-from pyfame.timing.timing_curves import *
+from pyfame.file_access import get_video_capture, get_video_writer, get_directory_walk, make_output_paths, contains_sub_directories, create_output_directory
+from pyfame.utilities.util_exceptions import *
+from pyfame.layer.timing_curves import *
 from pyfame.mesh.get_mesh_landmarks import *
 from .layer import Layer
 from .layer_pipeline import LayerPipeline
@@ -12,14 +12,13 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 ### NOTE: Add some method of enforcing strict ordering with manipulations that affect the entire image, rather than just a facial region
-### i.e. masking, PLD, shuffling
 
 def resolve_missing_timing(layer:Layer, video_duration:int) -> tuple[int,int]:
     onset = layer.onset_t if layer.onset_t is not None else 0
     offset = layer.offset_t if layer.offset_t is not None else video_duration
     return (onset, offset)
 
-def apply_layers(layers:list[Layer], input_dir:str, output_dir:str, with_sub_dirs:bool = False):
+def apply_layers(layers:list[Layer]):
     """ Takes in a list of layer objects, and applies each manipulation layer in sequence frame-by-frame, and file-by-file for each file provided within input_dir.
 
     Parameters
@@ -27,15 +26,6 @@ def apply_layers(layers:list[Layer], input_dir:str, output_dir:str, with_sub_dir
 
     layers: list of Layer
         A list of Layer objects containing the specified layer and its parameters.
-    
-    input_dir: str
-        A path string to the directory containing all files to be processed.
-    
-    output_dir: str
-        A path string to a directory where the processed files will be written to.
-    
-    with_sub_dirs: bool
-        A boolean flag indicating if the input directory contains subdirectories.
     
     Raises
     ------
@@ -61,31 +51,49 @@ def apply_layers(layers:list[Layer], input_dir:str, output_dir:str, with_sub_dir
     files_to_process = []
     sub_dirs = []
 
-    # Map the input dir structure to the output dir
-    if os.path.isdir(input_dir):
-        map_directory_structure(input_dir, output_dir, with_sub_dirs)
-        if with_sub_dirs:
-            sub_dirs, files_to_process = get_directory_walk(input_dir, with_sub_dirs)
-        else:
-            files_to_process = get_directory_walk(input_dir, with_sub_dirs)
-    else:
-        files_to_process.append(input_dir)
+    cwd = os.getcwd()
+    test_path = os.path.join(cwd, "data")
 
+    if not os.path.isdir(test_path):
+        raise FileReadError(message="Unable to find the input 'data/' directory. Please call make_output_paths() to set up the output directory.")
+
+    input_directory = os.path.join(cwd, "data/raw")
+    output_directory = os.path.join(cwd, "data/results")
+
+    if contains_sub_directories(input_directory):
+        sub_dirs, files_to_process = get_directory_walk(input_directory, True)
+    else:
+        files_to_process = get_directory_walk(input_directory, False)
+    
+    if len(sub_dirs) >= 1:
+        sub_dirs = [os.path.basename(path) for path in sub_dirs]
+    
     # Initialize the processing pipeline
     pipeline = LayerPipeline()
     pipeline.add_layers(layers)
 
     for file in files_to_process:
+        if not os.path.isfile(file):
+            raise FileReadError(file_path=file)
+        
         filename, extension = os.path.splitext(os.path.basename(file))
         static_image_mode = False
         codec = "mp4v"
         capture = None
         result = None
         cap_duration = 0
-        dir_file_path = output_dir + f"\\{filename}_processed{extension}"
+
+        pre_path, *_ = os.path.split(file)
+        dir_name = os.path.basename(pre_path)
+
+        if dir_name in sub_dirs:
+            create_output_directory(output_directory, dir_name)
+            dir_file_path = os.path.join(output_directory, dir_name, f"{filename}_processed{extension}")
+        else:
+            dir_file_path = os.path.join(output_directory, f"{filename}_processed{extension}")
 
         # Using the file extension to sniff video codec or image container for images
-        match extension:
+        match str.lower(extension):
             case ".mp4":
                 static_image_mode = False
             case ".mov":
@@ -93,11 +101,7 @@ def apply_layers(layers:list[Layer], input_dir:str, output_dir:str, with_sub_dir
             case ".jpg" | ".jpeg" | ".png" | ".bmp":
                 static_image_mode = True
             case _:
-                logger.error("Function has encountered an unparseable file type. " 
-                             "Function exiting with status 1. Please see pyfameutils.transcode_video_to_mp4().")
-                debug_logger.error(f"Function has encountered an unparseable file type {extension}. "
-                                    "Consider using different input file formats, or transcoding video files with transcode_video_to_mp4().")
-                raise UnrecognizedExtensionError()
+                raise UnrecognizedExtensionError(extension=extension)
         
         if not static_image_mode:
             capture = get_video_capture(file)
@@ -107,7 +111,11 @@ def apply_layers(layers:list[Layer], input_dir:str, output_dir:str, with_sub_dir
             # Getting the video duration for weight calculations
             frame_count = capture.get(cv.CAP_PROP_FRAME_COUNT)
             fps = capture.get(cv.CAP_PROP_FPS)
-            cap_duration = float(frame_count)/float(fps)
+
+            if fps == 0:
+                raise FileReadError(message="Input video fps is zero. File may be corrupt or incorrectly encoded.")
+            else:
+                cap_duration = float(frame_count)/float(fps)
 
             for layer in pipeline.layers:
                 resolve_missing_timing(layer, cap_duration)

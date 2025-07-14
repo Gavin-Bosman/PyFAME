@@ -1,8 +1,8 @@
 from typing import Callable
 from abc import ABC, abstractmethod
 from cv2.typing import MatLike
-from pyfame.timing.timing_curves import timing_linear
-from pyfame.util.util_checks import *
+from pyfame.layer.timing_curves import timing_linear
+from pyfame.utilities.util_checks import *
 from pyfame.mesh.get_mesh_landmarks import FACE_OVAL_PATH
 from pyfame.mesh.get_mesh_coordinates import get_mesh
 

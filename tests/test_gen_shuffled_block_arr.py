@@ -1,5 +1,5 @@
 import pytest
-from pyfame.util.util_exceptions import *
+from pyfame.utilities.util_exceptions import *
 from pyfame.manipulation.temporal.apply_temporal_frame_shuffle import generate_shuffled_block_array
 
 def test_exception_handling():

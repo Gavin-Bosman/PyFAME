@@ -1,0 +1,10 @@
+from .get_analyse_facial_colour_means import analyse_facial_colour_means
+from .get_analyse_optical_flow import analyse_optical_flow_dense, analyse_optical_flow_sparse
+
+# U.S. spelling function name aliasing
+analyze_facial_color_means = analyse_facial_colour_means
+analyze_optical_flow_dense = analyse_optical_flow_dense
+analyze_optical_flow_sparse = analyse_optical_flow_sparse
+
+__all__ = ["analyse_facial_colour_means", "analyse_optical_flow_dense", "analyse_optical_flow_sparse",
+           "analyze_facial_color_means", "analyze_optical_flow_dense", "analyze_optical_flow_sparse"]

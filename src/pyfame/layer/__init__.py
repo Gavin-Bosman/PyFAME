@@ -1,7 +1,6 @@
 from .apply_layers import apply_layers
-from .layer import Layer
-from .layer_pipeline import LayerPipeline
+from .timing_curves import timing_constant, timing_linear, timing_gaussian, timing_sigmoid
+from .manipulations import *
 
-__all__ = [
-    "Layer", "LayerPipeline", "apply_layers",
-]
+
+__all__ = ["apply_layers", "timing_constant", "timing_linear", "timing_gaussian", "timing_sigmoid"] + manipulations.__all__

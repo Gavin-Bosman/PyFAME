@@ -1,4 +1,4 @@
-from pyfame.util.util_exceptions import *
+from pyfame.utilities.util_exceptions import *
 import cv2 as cv
 import mediapipe as mp
 import logging

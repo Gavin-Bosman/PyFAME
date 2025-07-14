@@ -1,7 +1,7 @@
 import pytest
 import cv2 as cv
-from pyfame.io import get_video_capture
-from pyfame.util import util_exceptions
+from pyfame.file_access import get_video_capture
+from pyfame.utilities import util_exceptions
 
 def test_get_video_capture(valid_input_dir, invalid_input_dir, sample_video_path, sample_image_path):
 
