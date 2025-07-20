@@ -1,7 +1,7 @@
-from pyfame.utilities.util_constants import *
+from pyfame.utilities.constants import *
 from pyfame.mesh import *
-from pyfame.utilities.util_general_utilities import compute_rot_angle
-from pyfame.utilities.util_checks import *
+from pyfame.utilities.general_utilities import compute_rot_angle
+from pyfame.utilities.checks import *
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
 import cv2 as cv
@@ -13,13 +13,16 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerOcclusionBar(Layer):
     def __init__(self, bar_color:tuple[int,int,int] = (0,0,0), onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+                 roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        # Initialise superclass
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        # Perform parameter checks
         check_type(bar_color, [tuple])
         check_type(bar_color, [int], iterable=True)
         for i in bar_color:
             check_value(i, min=0, max=255)
 
+        # Define class parameters
         self.color = bar_color
         self.min_x_lm_id = -1
         self.max_x_lm_id = -1
@@ -28,34 +31,51 @@ class LayerOcclusionBar(Layer):
         self.min_tracking_confidence = min_tracking_confidence
         self.min_detection_confidence = min_detection_confidence
         self.static_image_mode = False
-    
+
+        # Check for incompatible landmark paths, handle error cases
+        if isinstance(roi[0], list):
+            for lm in roi:
+                if lm not in self.compatible_paths:
+                    print("An incompatible landmark path has been provided to LayerOcclusionBar")
+                    raise ValueError()
+        else:
+            if roi not in self.compatible_paths:
+                print("An incompatible landmark path has been provided to LayerOcclusionBar")
+                raise ValueError()
+            
     def supports_weight(self):
         return False
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
 
+        # Update faceMesh when switching between image and video processing
         if static_image_mode != self.static_image_mode:
             self.static_image_mode = static_image_mode
             super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
         
+        # Bar occlusion does not support weight, so weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
         else:
+            # Get the faceMesh coordinate set
             face_mesh = super().get_face_mesh()
             lm_coords = get_mesh_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), face_mesh)
             masked_frame = np.zeros_like(frame, dtype=np.uint8)
             refactored_lms = []
-
-            for lm in self.roi:
-                if lm not in self.compatible_paths:
-                    raise ValueError("Function has encountered an incompatible landmark path in layer_occlusion_bar.")
-                elif lm == BOTH_EYES_PATH:
-                    refactored_lms.append(LEFT_EYE_PATH)
-                    refactored_lms.append(RIGHT_EYE_PATH)
-                else:
-                    refactored_lms.append(lm)
+            
+            # Replace placeholder concave path with its convex sub-paths
+            if isinstance(self.roi[0], list):
+                for lm in self.roi:
+                    if lm == BOTH_EYES_PATH:
+                        refactored_lms.append(LEFT_EYE_PATH)
+                        refactored_lms.append(RIGHT_EYE_PATH)
+                    else:
+                        refactored_lms.append(lm)
+            elif self.roi == BOTH_EYES_PATH:
+                refactored_lms.append(LEFT_EYE_PATH)
+                refactored_lms.append(RIGHT_EYE_PATH)
 
             for lm in refactored_lms:
 
@@ -97,6 +117,6 @@ class LayerOcclusionBar(Layer):
             return output_frame.astype(np.uint8)
 
 def layer_occlusion_bar(bar_color:tuple[int,int,int] = (0,0,0), time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                 region_of_interest:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionBar:
+                 region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionBar:
     
-    return LayerOcclusionBar(bar_color, time_onset, time_offset, timing_function, region_of_interest, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerOcclusionBar(bar_color, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

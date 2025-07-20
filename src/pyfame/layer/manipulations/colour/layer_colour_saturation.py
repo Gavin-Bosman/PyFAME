@@ -1,9 +1,10 @@
-from pyfame.utilities.util_constants import *
-from pyfame.utilities.util_checks import *
-from pyfame.mesh import get_mask_from_path
+from pyfame.utilities.constants import *
+from pyfame.utilities.checks import *
+from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
-from pyfame.mesh.get_mesh_landmarks import FACE_OVAL_PATH
+from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
+from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
 import cv2 as cv
 import numpy as np
 import logging
@@ -13,23 +14,54 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerColourSaturation(Layer):
 
-    def __init__(self, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] = [FACE_OVAL_PATH], 
-                 fade_duration:int = 500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    def __init__(self, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
+                 rise_duration:int=500, fall_duration:int=500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        # Initialise the superclass
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        # Perform parameter checks
         check_type(magnitude, [float])
-
-        self.roi = roi
+        
+        # Define class parameters
+        self.layer_type = type(self).__name__
+        self.time_onset = onset_t
+        self.time_offset = offset_t
+        self.timing_function = timing_func
+        self.region_of_interest = roi
+        self.rise_duration = rise_duration
+        self.fall_duration = fall_duration
         self.magnitude = magnitude
         self.min_tracking_confidence = min_tracking_confidence
         self.min_detection_confidence = min_detection_confidence
         self.static_image_mode = False
+        self.timing_kwargs = kwargs
     
     def supports_weight(self) -> bool:
         return True
     
+    def get_layer_parameters(self) -> dict:
+        params = {
+            "layer_type":self.layer_type,
+            "time_onset":self.time_onset,
+            "time_offset":self.time_offset,
+            "timing_function":self.timing_function,
+            "region_of_interest":get_roi_name(roi_value=self.region_of_interest),
+            "rise_duration":self.rise_duration,
+            "fall_duration":self.fall_duration,
+            "magnitude":self.magnitude,
+            "mediapipe_mesh_config": {
+                "min_detection_confidence":self.min_detection_confidence,
+                "min_tracking_confidence":self.min_tracking_confidence,
+                "static_image_mode":self.static_image_mode
+            },
+            "timing_kwargs":self.timing_kwargs
+        }
+    
+        return {k:sanitize_json_value(v) for k,v in params.items()}
+    
     def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
         weight = None
 
+        # Update the faceMesh when switching between image and video processing
         if static_image_mode != self.static_image_mode:
             self.static_image_mode = static_image_mode
             super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
@@ -39,11 +71,13 @@ class LayerColourSaturation(Layer):
         else:
             weight = super().compute_weight(dt, self.supports_weight())
         
+        # Occurs when the dt < onset_time, or > offset_time
         if weight == 0.0:
             return frame
         else:
+            # Mask out our region of interest
             face_mesh = super().get_face_mesh()
-            mask = get_mask_from_path(frame, self.roi, face_mesh)
+            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
 
             # Otsu thresholding to seperate foreground and background
             grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -60,17 +94,20 @@ class LayerColourSaturation(Layer):
             floodfilled = cv.bitwise_not(floodfilled)
             foreground = cv.bitwise_or(thresholded, floodfilled)
 
+            # Convert the image into the HSV space so we can manipulate the saturation
             img_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV).astype(np.float32)
+            # Split the image channels so only the saturation can be shifted
             h,s,v = cv.split(img_hsv)
             s = np.where(mask == 255, s + (weight * self.magnitude), s)
             np.clip(s,0,255)
             img_hsv = cv.merge([h,s,v])
-
+            
+            # Convert the HSV image back to BGR before returning the processed image
             img_bgr = cv.cvtColor(img_hsv.astype(np.uint8), cv.COLOR_HSV2BGR)
             img_bgr[foreground == 0] = frame[foreground == 0]
             return img_bgr
         
-def layer_colour_saturation(time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] = [FACE_OVAL_PATH], 
-                 fade_duration:int = 500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerColourSaturation:
+def layer_colour_saturation(time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
+                rise_duration:int=500, fall_duration:int = 500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerColourSaturation:
 
-    return LayerColourSaturation(time_onset, time_offset, timing_function, region_of_interest, fade_duration, magnitude, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerColourSaturation(time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, magnitude, min_tracking_confidence, min_detection_confidence, **kwargs)

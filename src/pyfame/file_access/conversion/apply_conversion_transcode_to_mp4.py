@@ -1,5 +1,5 @@
 from pyfame.file_access import *
-from pyfame.utilities.util_checks import *
+from pyfame.utilities.checks import *
 import os
 
 def apply_conversion_video_to_mp4(input_directory:str, output_directory:str, with_sub_dirs:bool = False) -> None:

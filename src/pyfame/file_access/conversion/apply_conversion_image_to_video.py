@@ -1,6 +1,6 @@
-from pyfame.utilities.util_exceptions import *
-from pyfame.utilities.util_checks import *
-from pyfame.utilities.util_constants import *
+from pyfame.utilities.exceptions import *
+from pyfame.utilities.checks import *
+from pyfame.utilities.constants import *
 from pyfame.file_access import create_output_directory, get_video_writer, get_directory_walk
 import numpy as np
 import cv2 as cv

@@ -1,34 +1,54 @@
 import os
 import logging
-from pyfame.utilities.util_checks import *
+from pyfame.utilities.checks import *
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def make_output_paths(root_path:str = None) -> None:
+def make_paths(root_path:str = None) -> None:
+    # The standard folder names for Pyfame input and output files. 
     dir_names = ["raw", "processed", "analysis", "logs"]
 
     if root_path is not None:
+        # If a root_path is provided, check that it is a valid path that exists in the CWD.
         check_valid_path(root_path)
         check_is_dir(root_path)
-        root_path = os.path.join(root_path, "data")
 
+        # For each directory name in dir_names, check if it already exists. 
+        # If not, create the directory at the specified path.
         for dir in dir_names:
             path = os.path.join(root_path, dir)
             if not os.path.exists(path):
                 os.mkdir(path)
+            else:
+                print(f"Directory {dir} already exists within {root_path}.")
 
     else:
+        # If no root_path is provided, the data/ folder will become the root for all of Pyfame's i/o.
         root_path = os.getcwd()
         root_path = os.path.join(root_path, "data")
 
+        # Check if the directory path already exists; if not then create it. 
+        if not os.path.isdir(root_path):
+            os.mkdir(root_path)
+
+        # For each directory name in dir_names, check if it already exists. 
+        # If not, create the directory at the specified path.
         for dir in dir_names:
             path = os.path.join(root_path, dir)
             if not os.path.exists(path):
                 os.mkdir(path)
+            else:
+                print(f"Directory {dir} already exists within {root_path}.")
 
 def contains_sub_directories(directory_path:str) -> bool:
-    
+    # Perform parameter checks
+    check_valid_path(directory_path)
+    check_is_dir(directory_path)
+
+    # Performs a top-down os walk, beginning at the directory path provided.
+    # Ignores everything in the first hierarchal level, and only checks if nested 
+    # directories exist. Upon the first encountered subdirectory, return true.
     for root, dirs, files in os.walk(directory_path, topdown=True):
         if root == directory_path:
             continue
@@ -39,45 +59,24 @@ def contains_sub_directories(directory_path:str) -> bool:
     return False
     
 def create_output_directory(root_path:str, directory_name:str) -> str:
-    """ Creates a new directory appended to the root path provided, then returns the appended path string.
-
-    Parameters
-    ----------
-    
-    root_path: str
-        A path string to the root folder location where the new directory will be created.
-    
-    dir_name: str
-        The name of the newly created directory.
-    
-    Raises
-    ------
-
-    TypeError
-
-    OSError
-
-    ValueError
-    
-    Returns
-    -------
-
-    combined_path: str
-        The new output directory name appended to the provided root_path.
-    """
-
+    # Perform parameter checks
     check_type(root_path, [str])
     check_valid_path(root_path)
     check_is_dir(root_path)
 
     check_type(directory_name, [str])
     
+    # If the provided path + directory does not exist, create it
     if not os.path.isdir(os.path.join(root_path, directory_name)):
         os.mkdir(os.path.join(root_path, directory_name))
-        
+    
+    # Return the newly combined path string
     return os.path.join(root_path, directory_name)
 
 def get_directory_walk(root_path:str, with_sub_dirs:bool = False) -> list[str] | tuple[list[str],list[str]]:
+    # return as pd dataframe
+    # two columns; one for absolute path, one for relative path
+    
     """ Takes the provided directory path and returns a full directory walk as a list of str.
 
     Parameters

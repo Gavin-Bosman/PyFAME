@@ -1,9 +1,10 @@
-from pyfame.utilities.util_constants import *
+from pyfame.utilities.constants import *
 from pyfame.mesh import *
-from pyfame.utilities.util_general_utilities import compute_rot_angle
-from pyfame.utilities.util_checks import *
+from pyfame.utilities.general_utilities import compute_rot_angle
+from pyfame.utilities.checks import *
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.manipulations.mask import mask_from_path 
 import cv2 as cv
 import numpy as np
 from operator import itemgetter
@@ -13,10 +14,12 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerSpatialGridShuffle(Layer):
-    def __init__(self, rand_seed:int|None, method:int|str = HIGH_LEVEL_GRID_SHUFFLE, shuffle_threshold:int = 2, grid_square_size:int = 40, 
-                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] = [FACE_OVAL_PATH], 
-                 fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    def __init__(self, rand_seed:int|None, method:int|str=HIGH_LEVEL_GRID_SHUFFLE, shuffle_threshold:int=2, grid_square_size:int=40, 
+                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, 
+                 rise_duration:int=500, fade_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
+        # Initialise superclass
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        # Perform input parameter checks
         check_type(rand_seed, [int, type(None)])
         check_type(method, [int, str])
         check_value(method, [LOW_LEVEL_GRID_SHUFFLE, HIGH_LEVEL_GRID_SHUFFLE, "fully_random", "semi_random"])
@@ -24,6 +27,7 @@ class LayerSpatialGridShuffle(Layer):
         check_value(shuffle_threshold, min=1, max=5)
         check_type(grid_square_size, [int])
 
+        # Declare class parameters
         self.rand_seed = rand_seed
         self.method = method
         self.threshold = shuffle_threshold
@@ -38,6 +42,7 @@ class LayerSpatialGridShuffle(Layer):
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
 
+        # Update the faceMesh when switching between image and video processing
         if static_image_mode != self.static_image_mode:
             self.static_image_mode = static_image_mode
             super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
@@ -47,11 +52,12 @@ class LayerSpatialGridShuffle(Layer):
         if weight == 0.0:
             return frame
         else:
+            # Mask out the roi
             face_mesh = super().get_face_mesh()
-            mask = get_mask_from_path(frame, self.roi, face_mesh)
+            mask = mask_from_path(frame, self.roi, face_mesh)
             output_frame = np.zeros_like(frame, dtype=np.uint8)
 
-            # Computing shuffled grid positions
+            # Get the pixel coordinates of the face oval
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
             fo_mask = mask.astype(bool)
@@ -159,7 +165,7 @@ class LayerSpatialGridShuffle(Layer):
                 # Ensure tuple(int) 
                 shuffled_keys = [tuple([int(x), int(y)]) for (x,y) in shuffled_keys]
             else:
-                # Scramble the keys of the grid_squares dict
+                # Fully-random shuffling of the keys of the grid_squares dict
                 shuffled_keys = keys.copy()
                 rng.shuffle(shuffled_keys)
             
@@ -209,8 +215,9 @@ class LayerSpatialGridShuffle(Layer):
             return output_frame
         
 def layer_spatial_grid_shuffle(rand_seed:int|None, method:int|str = "fully_random", shuffle_threshold:int = 2, grid_square_size:int = 40, 
-                 time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] = [FACE_OVAL_PATH], 
-                 fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerSpatialGridShuffle:
+                               time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
+                               region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int = 500, 
+                               min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerSpatialGridShuffle:
     
     return LayerSpatialGridShuffle(rand_seed, method, shuffle_threshold, grid_square_size, time_onset, time_offset, 
-                                   timing_function, region_of_interest, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+                                   timing_function, region_of_interest, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

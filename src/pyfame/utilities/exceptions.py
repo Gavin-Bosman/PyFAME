@@ -2,6 +2,19 @@ class PyFameError(Exception):
     """ Base exception class for all custom exceptions in PyFame."""
     pass
 
+class NamespaceError(PyFameError):
+    """ Raised when a pyfame specific name is already in use in the current namespace."""
+    def __init__(self, message:str=None, name:str=None):
+        if message is None:
+            if name is None:
+                self.message = "Pyfame has encountered a namespace collision (between an environment variable, directory name or file name)."
+            else:
+                self.name = name
+                self.message = f"Pyfame has encountered a namespace collision with name '{name}'."
+        else:
+            self.message = message
+            self.name = name
+
 class FaceNotFoundError(PyFameError):
     """ Raised when the mediapipe FaceMesh cannot successfully detect a face in a given frame."""
     def __init__(self, message:str="FaceMesh failed to identify a face in the provided image."):

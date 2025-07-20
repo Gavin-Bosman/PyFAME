@@ -1,5 +1,5 @@
 import pytest
-from pyfame.utilities.util_exceptions import *
+from pyfame.utilities.exceptions import *
 from pyfame.analyse import analyse_optical_flow_dense
 
 def test_exception_handling(valid_input_dir, valid_output_dir, invalid_input_dir, invalid_output_dir):

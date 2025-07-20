@@ -1,8 +1,8 @@
-from pyfame.utilities.util_constants import *
+from pyfame.utilities.constants import *
 from pyfame.mesh import *
 from pyfame.file_access import *
-from pyfame.utilities.util_general_utilities import get_variable_name
-from pyfame.utilities.util_exceptions import *
+from pyfame.utilities.general_utilities import get_variable_name
+from pyfame.utilities.exceptions import *
 import os
 import cv2 as cv
 import numpy as np

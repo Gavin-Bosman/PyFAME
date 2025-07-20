@@ -1,9 +1,10 @@
-from pyfame.utilities.util_constants import *
-from pyfame.utilities.util_checks import *
-from pyfame.mesh import get_mask_from_path
+from pyfame.utilities.constants import *
+from pyfame.utilities.checks import *
+from pyfame.utilities.general_utilities import get_roi_name, sanitize_json_value
+from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
-from pyfame.mesh.get_mesh_landmarks import FACE_OVAL_PATH
+from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
 import numpy as np
 import cv2 as cv
 import logging
@@ -13,36 +14,69 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerMask(Layer):
     def __init__(self, background_color:tuple[int,int,int] = (0,0,0), onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+                 roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        # Initialise the superclass
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        # Perform parameter checks
         check_type(background_color, [tuple])
         check_type(background_color, [int], iterable=True)
         for i in background_color:
             check_value(i, min=0, max=255)
 
-        self.roi = roi
-        self.background_color = background_color
+        # Define class parameters
+        self.layer_type = type(self).__name__
+        self.time_onset = onset_t
+        self.time_offset = offset_t
+        self.timing_function = timing_func
+        self.region_of_interest = roi
+        self.rise_duration = rise_duration
+        self.fall_duration = fall_duration
+        self.background_colour = background_color
         self.min_tracking_confidence = min_tracking_confidence
         self.min_detection_confidence = min_detection_confidence
         self.static_image_mode = False
+        self.timing_kwargs = kwargs
     
     def supports_weight(self):
         return False
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
-        weight = None
+    def get_layer_parameters(self) -> dict:
+        params = {
+            "layer_type":self.layer_type,
+            "time_onset":self.time_onset,
+            "time_offset":self.time_offset,
+            "timing_function":self.timing_func,
+            "region_of_interest":get_roi_name(roi_value=self.region_of_interest),
+            "rise_duration":self.rise_duration,
+            "fall_duration":self.fall_duration,
+            "background_colour":self.background_colour,
+            "mediapipe_mesh_config": {
+                "min_detection_confidence":self.min_detection_confidence,
+                "min_tracking_confidence":self.min_tracking_confidence,
+                "static_image_mode":self.static_image_mode
+            },
+            "timing_kwargs":self.timing_kwargs
+        }
 
+        return {k:sanitize_json_value(v) for k,v in params.items()}
+    
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
+
+        # Update the faceMesh when switching between image and video processing
         if static_image_mode != self.static_image_mode:
             self.static_image_mode = static_image_mode
             super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
         
+        # Masking does not support weight, so weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
 
+        # Occurs when the dt is less than the onset_time, or greater than the offset_time
         if weight == 0.0:
             return frame
         else:
+            # Mask out the region of interest
             face_mesh = super().get_face_mesh()
-            mask = get_mask_from_path(frame, self.roi, face_mesh)
+            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
 
             # Otsu thresholding to seperate foreground and background
             grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -62,11 +96,11 @@ class LayerMask(Layer):
             # Remove unwanted background inclusions in the masked area
             masked_frame = cv.bitwise_and(mask, foreground)
             masked_frame = np.reshape(masked_frame, (masked_frame.shape[0], masked_frame.shape[1], 1))
-            masked_frame = np.where(masked_frame == 255, frame, self.background_color)
+            masked_frame = np.where(masked_frame == 255, frame, self.background_colour)
             masked_frame = masked_frame.astype(np.uint8)
             return masked_frame
 
-def layer_mask(time_onset:float=None, time_offset:float=None, timing_func:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] = [FACE_OVAL_PATH], 
-               background_color:tuple[int,int,int] = (0,0,0), fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerMask:
+def layer_mask(time_onset:float=None, time_offset:float=None, timing_func:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple]= FACE_OVAL_PATH, 
+               background_colour:tuple[int,int,int] = (0,0,0), rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerMask:
     
-    return LayerMask(background_color, time_onset, time_offset, timing_func, region_of_interest, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerMask(background_colour, time_onset, time_offset, timing_func, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

@@ -1,4 +1,5 @@
-from pyfame.utilities.util_constants import *
+from pyfame.utilities.constants import *
+from pyfame.mesh import mesh_landmarks
 from math import atan
 import numpy as np
 
@@ -23,6 +24,59 @@ def get_variable_name(variable, namespace) -> str:
     """
 
     return [name for name, value in namespace.items() if value == variable][0]
+
+def sanitize_json_value(value):
+    """ Takes in a value of any type, and converts it to a JSON-serializable type
+    then returns it.
+
+    parameters
+    ----------
+
+    value: any
+        The value to be sanitized.
+    
+    returns
+    -------
+
+    sanitized_value: any
+        The input value converted to a compatible, JSON-serializable type.
+    """
+    if isinstance(value, (np.integer, np.floating)):
+        return value.item()
+    elif isinstance(value, np.ndarray):
+        return value.tolist()
+    elif callable(value):
+        return value.__name__
+    elif isinstance(value, dict):
+        return {k:sanitize_json_value(v) for k,v in value.items()}
+    elif isinstance(value, (list, tuple)):
+        return [sanitize_json_value(v) for v in value]
+    else:
+        return value
+
+def get_roi_name(roi_value, module_globals = vars(mesh_landmarks)):
+    """ Takes in a region of interest list, and returns its internal variable name. 
+        
+    """
+    # check for sublists
+    if isinstance(roi_value[0], list):
+        names = []
+        for i,roi in enumerate(roi_value, start=1):
+            for name, val in module_globals.items():
+                if isinstance(val, list) and val == roi:
+                    names.append(name)
+            
+            if len(names) < i:
+                names.append("UNKNOWN_ROI")
+        
+        return names
+    
+    else:
+        for name, val in module_globals.items():
+            if isinstance(val, list) and val == roi_value:
+                return name
+        
+        return "UNKNOWN_ROI"
 
 def compute_rot_angle(slope_1:float, slope_2:float = 0.0) -> float:
     """ Given the current and previous slope, this function uses the arctan function to compute the angle delta 

@@ -1,8 +1,9 @@
-from pyfame.utilities.util_constants import *
+from pyfame.utilities.constants import *
 from pyfame.mesh import *
-from pyfame.utilities.util_checks import *
+from pyfame.utilities.checks import *
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.manipulations.mask import mask_from_path
 import cv2 as cv
 import numpy as np
 from skimage.util import *
@@ -13,9 +14,11 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerOcclusionNoise(Layer):
     def __init__(self, rand_seed:int|None, method:int|str = "gaussian", noise_prob:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_dev:float = 0.5, 
-                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] = [FACE_OVAL_PATH], 
-                 fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
+                 rise_duration:int=500, fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+        # Initialising superclass
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        # Performing input parameter checks
         check_type(method, [int, str])
         check_value(method, [18,19,20,"pixelate","salt and pepper","gaussian"])
         check_type(noise_prob, [float])
@@ -25,6 +28,7 @@ class LayerOcclusionNoise(Layer):
         check_type(mean, [float])
         check_type(standard_dev, [float])
 
+        # Defining class parameters
         self.rand_seed = rand_seed
         self.method = method
         self.prob = noise_prob
@@ -41,15 +45,18 @@ class LayerOcclusionNoise(Layer):
 
     def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
 
+        # Update the faceMesh when switching between image and video processing
         if static_image_mode != self.static_image_mode:
             self.static_image_mode = static_image_mode
             super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
         
+        # This layer does not support weight; weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
         else:
+            # Create an rng instance to help generate random noise
             rng = None
             if self.rand_seed is not None:
                 rng = np.random.default_rng(self.rand_seed)
@@ -57,7 +64,7 @@ class LayerOcclusionNoise(Layer):
                 rng = np.random.default_rng()
 
             face_mesh = super().get_face_mesh()
-            mask = get_mask_from_path(frame, self.roi, face_mesh)
+            mask = mask_from_path(frame, self.roi, face_mesh)
             mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
             output_frame = frame.copy()
 
@@ -67,6 +74,7 @@ class LayerOcclusionNoise(Layer):
                     h = frame.shape[0]//self.pixel_size
                     w = frame.shape[1]//self.pixel_size
 
+                    # resizing the pixels of the image in the region of interest
                     temp = cv.resize(frame, (w, h), None, 0, 0, cv.INTER_LINEAR)
                     output_frame = cv.resize(temp, (width, height), None, 0, 0, cv.INTER_NEAREST)
 
@@ -93,7 +101,7 @@ class LayerOcclusionNoise(Layer):
                 case "gaussian" | 20:
                     var = self.sd**2
 
-                    # scikit-image's random_noise function works with floating point images, need to convert our frame's type
+                    # scikit-image's random_noise function works with floating point images; we need to pre-convert our frames to float64
                     output_frame = img_as_float64(output_frame)
                     output_frame = random_noise(image=output_frame, mode='gaussian', rng=rng, mean=self.mean, var=var)
                     output_frame = img_as_ubyte(output_frame)
@@ -103,8 +111,8 @@ class LayerOcclusionNoise(Layer):
             return output_frame
 
 def layer_occlusion_noise(rand_seed:int|None, method:int|str = "gaussian", noise_probability:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_deviation:float = 0.5, 
-                              time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] = [FACE_OVAL_PATH], 
-                              fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionNoise:
+                         time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
+                         rise_duration:int=500, fade_duration:int=500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionNoise:
     
     return LayerOcclusionNoise(rand_seed, method, noise_probability, pixel_size, mean, standard_deviation, time_onset, time_offset,
-                               timing_function, region_of_interest, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+                               timing_function, region_of_interest, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

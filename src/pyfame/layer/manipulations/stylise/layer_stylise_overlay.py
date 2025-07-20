@@ -1,8 +1,8 @@
 from pyfame.mesh import *
 from pyfame.file_access import *
 from pyfame.utilities import compute_rot_angle
-from pyfame.utilities.util_checks import *
-from pyfame.utilities.util_constants import OVERLAY_SUNGLASSES, OVERLAY_GLASSES, OVERLAY_SWEAT, OVERLAY_TEAR
+from pyfame.utilities.checks import *
+from pyfame.utilities.constants import OVERLAY_SUNGLASSES, OVERLAY_GLASSES, OVERLAY_SWEAT, OVERLAY_TEAR
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
 import cv2 as cv
@@ -14,11 +14,15 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerStyliseOverlay(Layer):
     def __init__(self, overlay_type:int|str = "sunglasses", onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        super().__init__(onset_t, offset_t, timing_func, roi, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+                 roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int=500, min_tracking_confidence:float=0.5, 
+                 min_detection_confidence:float=0.5, **kwargs):
+        # Initialise superclass
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        # Perform input parameter checks
         check_type(overlay_type, [str, int])
         check_value(overlay_type, ["sunglasses", "glasses", "tear", "sweat", OVERLAY_SUNGLASSES, OVERLAY_GLASSES, OVERLAY_SWEAT, OVERLAY_TEAR])
         
+        # Declare class parameters
         self.overlay_type = overlay_type
         self.previous_slope = None
         self.roi = roi
@@ -30,7 +34,8 @@ class LayerStyliseOverlay(Layer):
         return False
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
-
+        
+        # Update the faceMesh when switching between image and video processing
         if static_image_mode != self.static_image_mode:
             self.static_image_mode = static_image_mode
             super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
@@ -40,6 +45,7 @@ class LayerStyliseOverlay(Layer):
         if weight == 0.0:
             return frame
         else:
+            # Get the pixel coordinates of the full face and face-oval
             face_mesh = super().get_face_mesh()
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
@@ -68,6 +74,7 @@ class LayerStyliseOverlay(Layer):
 
                     # Rotating the overlay 
                     # lm's 227 and 447 are used as the bounds of the sunglasses
+                    # (left and right temples)
 
                     if self.previous_slope is None:
                         p1 = landmark_screen_coords[227]
@@ -95,7 +102,7 @@ class LayerStyliseOverlay(Layer):
                     padded_width = padded.shape[1]
                     padded_center = (overlay_width//2, overlay_height//2)
 
-                    # Perform rotation
+                    # Rotate the overlay to match the angle of inclination of the head
                     if self.previous_slope is None:
                         rot_mat = cv.getRotationMatrix2D(padded_center, rot_angle, 1)
                     else:
@@ -121,6 +128,7 @@ class LayerStyliseOverlay(Layer):
             return overlayed_frame
         
 def layer_stylise_overlay(overlay_type:int|str, time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                 region_of_interest:list[list[tuple]] = [FACE_OVAL_PATH], fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+                          region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int=500, 
+                          min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
 
-    return LayerStyliseOverlay(overlay_type, time_onset, time_offset, timing_function, region_of_interest, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerStyliseOverlay(overlay_type, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

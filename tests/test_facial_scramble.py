@@ -1,5 +1,5 @@
 import pytest
-from pyfame.utilities.util_exceptions import *
+from pyfame.utilities.exceptions import *
 from pyfame.manipulation.spatial.layer_spatial_grid_shuffle import apply_grid_shuffle
 
 def test_exception_handling():

@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-07-15T19-23-16",
+  "input_file": "C:\\Users\\gavin\\Desktop\\PyFAME\\ravdess_data\\Video_Song_Actors_01-24\\Video_Song_Actor_01\\Actor_01\\01-02-01-01-01-02-01.mp4",
+  "layers": [
+    {
+      "layer_type": "LayerColour",
+      "time_onset": 0.5,
+      "time_offset": 3.0,
+      "timing_func": "timing_linear",
+      "region_of_interest": [
+        "FACE_OVAL_PATH"
+      ],
+      "rise_duration": 500,
+      "fall_duration": 0.5,
+      "focus_colour": "red",
+      "magnitude": 10.0,
+      "mediapipe_parameters": {
+        "min_detection_confidence": 0.5,
+        "min_tracking_confidence": 0.5,
+        "static_image_mode": false
+      },
+      "timing_kwargs": {}
+    }
+  ]
+}

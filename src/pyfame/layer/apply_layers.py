@@ -1,9 +1,10 @@
-from pyfame.file_access import get_video_capture, get_video_writer, get_directory_walk, make_output_paths, contains_sub_directories, create_output_directory
-from pyfame.utilities.util_exceptions import *
+from pyfame.file_access import get_video_capture, get_video_writer, get_directory_walk, contains_sub_directories, create_output_directory
+from pyfame.utilities.exceptions import *
 from pyfame.layer.timing_curves import *
-from pyfame.mesh.get_mesh_landmarks import *
+from pyfame.mesh.mesh_landmarks import *
 from .layer import Layer
 from .layer_pipeline import LayerPipeline
+from ..logging.write_experiment_log import write_experiment_log
 import cv2 as cv
 import os
 import logging
@@ -51,11 +52,12 @@ def apply_layers(layers:list[Layer]):
     files_to_process = []
     sub_dirs = []
 
+    ### TODO need some way of permanently storing the named root output folder
     cwd = os.getcwd()
     test_path = os.path.join(cwd, "data")
 
     if not os.path.isdir(test_path):
-        raise FileReadError(message="Unable to find the input 'data/' directory. Please call make_output_paths() to set up the output directory.")
+        raise FileReadError(message="Unable to locate the input 'data/' directory. Please call make_output_paths() to set up the output directory.")
 
     input_directory = os.path.join(cwd, "data/raw")
     output_directory = os.path.join(cwd, "data/results")
@@ -148,6 +150,8 @@ def apply_layers(layers:list[Layer]):
                     raise FileWriteError()
                 
                 break
+        
+        write_experiment_log(layers, file)
         
         if not static_image_mode:
             capture.release()

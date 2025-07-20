@@ -1,9 +1,9 @@
 from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates
-from pyfame.mesh.get_mesh_landmarks import *
+from pyfame.mesh.mesh_landmarks import *
 from pyfame.file_access import get_video_capture, get_video_writer, get_directory_walk, create_output_directory
-from pyfame.utilities.util_exceptions import *
-from pyfame.utilities.util_constants import *
-from pyfame.utilities.util_checks import *
+from pyfame.utilities.exceptions import *
+from pyfame.utilities.constants import *
+from pyfame.utilities.checks import *
 import os
 import cv2 as cv
 import numpy as np

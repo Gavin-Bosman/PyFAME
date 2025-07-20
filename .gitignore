@@ -22,6 +22,7 @@ tests/data/outputs/.
 .pytest_cache
 .venv
 .tox
+.vscode
 .python-version
 docs/.vitepress/dist
 docs/.vitepress/cache

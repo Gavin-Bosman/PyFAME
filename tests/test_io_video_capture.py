@@ -1,7 +1,7 @@
 import pytest
 import cv2 as cv
 from pyfame.file_access import get_video_capture
-from pyfame.utilities import util_exceptions
+from pyfame.utilities import exceptions
 
 def test_get_video_capture(valid_input_dir, invalid_input_dir, sample_video_path, sample_image_path):
 
@@ -16,5 +16,5 @@ def test_get_video_capture(valid_input_dir, invalid_input_dir, sample_video_path
         get_video_capture(invalid_input_dir)
     with pytest.raises(ValueError):
         get_video_capture(valid_input_dir)
-    with pytest.raises(util_exceptions.UnrecognizedExtensionError):
+    with pytest.raises(exceptions.UnrecognizedExtensionError):
         get_video_capture(sample_image_path)

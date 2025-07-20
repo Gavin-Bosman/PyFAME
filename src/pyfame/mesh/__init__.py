@@ -1,6 +1,5 @@
-from .get_mesh_landmarks import *
+from .mesh_landmarks import *
 from .get_mesh_coordinates import get_mesh, get_mesh_coordinates, get_mesh_coordinates_from_path
-from .get_mask_from_landmarks import get_mask_from_path
 
 __all__ = [
     "FACE_OVAL_IDX", "FACE_OVAL_TIGHT_IDX", "LEFT_EYE_IDX", "LEFT_IRIS_IDX", "RIGHT_EYE_IDX", "RIGHT_IRIS_IDX", 
@@ -10,6 +9,5 @@ __all__ = [
     "HEMI_FACE_TOP_PATH", "HEMI_FACE_BOTTOM_PATH", "HEMI_FACE_LEFT_PATH", "HEMI_FACE_RIGHT_PATH", "CHEEKS_PATH", 
     "LEFT_CHEEK_PATH", "RIGHT_CHEEK_PATH", "CHEEKS_NOSE_PATH", "BOTH_EYES_PATH", "FACE_SKIN_PATH", "CHIN_PATH",
 
-    "create_path", "get_mesh", "get_mesh_coordinates", "get_mesh_coordinates_from_path",
-    "get_mask_from_path",
+    "create_path", "get_mesh", "get_mesh_coordinates", "get_mesh_coordinates_from_path", "mesh_landmarks"
 ]
