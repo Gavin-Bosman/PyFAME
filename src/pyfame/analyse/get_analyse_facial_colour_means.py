@@ -1,5 +1,6 @@
-from pyfame.mesh import get_mesh, get_mask_from_path
+from pyfame.mesh import get_mesh
 from pyfame.mesh.mesh_landmarks import *
+from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.file_access import get_video_capture, get_directory_walk, create_output_directory
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
@@ -152,14 +153,14 @@ def analyse_facial_colour_means(input_directory:str, output_directory:str, color
         chin_path = create_path(CHIN_IDX)
 
         # Creating masks
-        lc_mask = get_mask_from_path(frame, lc_path, face_mesh)
-        rc_mask = get_mask_from_path(frame, rc_path, face_mesh)
-        chin_mask = get_mask_from_path(frame, chin_path, face_mesh)
-        fo_tight_mask = get_mask_from_path(frame, FACE_OVAL_TIGHT_PATH, face_mesh)
-        le_mask = get_mask_from_path(frame, LEFT_EYE_PATH, face_mesh)
-        re_mask = get_mask_from_path(frame, RIGHT_EYE_PATH, face_mesh)
-        nose_mask = get_mask_from_path(frame, NOSE_PATH, face_mesh)
-        mouth_mask = get_mask_from_path(frame, MOUTH_PATH, face_mesh)
+        lc_mask = mask_from_path(frame, lc_path, face_mesh)
+        rc_mask = mask_from_path(frame, rc_path, face_mesh)
+        chin_mask = mask_from_path(frame, chin_path, face_mesh)
+        fo_tight_mask = mask_from_path(frame, FACE_OVAL_TIGHT_PATH, face_mesh)
+        le_mask = mask_from_path(frame, LEFT_EYE_PATH, face_mesh)
+        re_mask = mask_from_path(frame, RIGHT_EYE_PATH, face_mesh)
+        nose_mask = mask_from_path(frame, NOSE_PATH, face_mesh)
+        mouth_mask = mask_from_path(frame, MOUTH_PATH, face_mesh)
         masks = [lc_mask, rc_mask, chin_mask, fo_tight_mask, le_mask, re_mask, nose_mask, mouth_mask]
         
         # Convert masks to binary representation

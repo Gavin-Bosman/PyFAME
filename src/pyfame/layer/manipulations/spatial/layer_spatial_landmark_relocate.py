@@ -1,6 +1,7 @@
 from pyfame.utilities.constants import *
 from pyfame.mesh import *
 from pyfame.utilities.checks import *
+from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
 from pyfame.layer.layer import Layer
 from pyfame.layer.timing_curves import timing_linear
 from pyfame.layer.manipulations.mask import mask_from_path
@@ -14,21 +15,53 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerSpatialLandmarkRelocate(Layer):
     def __init__(self, rand_seed:int|None, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
+                 roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
         # Initialise the superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        self.static_image_mode = False
+        self._pre_attrs = []
+        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
+        
         # Perform input parameter checks
         check_type(rand_seed, [int, type(None)])
 
         # Declare class parameters
         self.rand_seed = rand_seed
-        self.roi = roi
+        self.time_onset = onset_t
+        self.time_offset = offset_t
+        self.timing_function = timing_func
+        self.region_of_interest = roi
+        self.rise_duration_msec = rise_duration
+        self.fall_duration_msec = fall_duration
         self.min_tracking_confidence = min_tracking_confidence
         self.min_detection_confidence = min_detection_confidence
-        self.static_image_mode = False
+        self.timing_kwargs = kwargs
+
+        self._capture_init_params()
+    
+    def _capture_init_params(self):
+        # Extracting total parameter list post init
+        post_attrs = set(self.__dict__.keys())
+
+        # Getting only the subclass parameters
+        new_attrs = post_attrs - self._pre_attrs
+
+        # Store only subclass level params; ignore self
+        params = {attr: getattr(self, attr) for attr in new_attrs}
+
+        # Handle non serializable types
+        if "region_of_interest" in params:
+            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
+
+        self._layer_parameters = {
+            k: sanitize_json_value(v) for k, v in params.items()
+        }
     
     def supports_weight(self):
         return False
+
+    def get_layer_parameters(self):
+        return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False) -> cv.typing.MatLike:
         # Update the faceMesh when switching between image and video processing
@@ -52,7 +85,7 @@ class LayerSpatialLandmarkRelocate(Layer):
             face_mesh = super().get_face_mesh()
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_TIGHT_PATH)
-            fo_mask = mask_from_path(frame, self.roi, self.face_mesh)
+            fo_mask = mask_from_path(frame, self.region_of_interest, self.face_mesh)
 
             # Get x and y bounds of the face oval
             max_x = max(fo_screen_coords, key=itemgetter(0))[0]
@@ -170,6 +203,6 @@ class LayerSpatialLandmarkRelocate(Layer):
             return output_frame
         
 def layer_spatial_landmark_relocate(rand_seed:int|None, time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                 region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerSpatialLandmarkRelocate:
+                 region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerSpatialLandmarkRelocate:
     
-    return LayerSpatialLandmarkRelocate(rand_seed, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerSpatialLandmarkRelocate(rand_seed, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

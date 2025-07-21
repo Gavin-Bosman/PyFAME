@@ -18,6 +18,10 @@ class LayerColourSaturation(Layer):
                  rise_duration:int=500, fall_duration:int=500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
         # Initialise the superclass
         super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        self.static_image_mode = False
+        self._pre_attrs = []
+        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
+        
         # Perform parameter checks
         check_type(magnitude, [float])
         
@@ -27,36 +31,38 @@ class LayerColourSaturation(Layer):
         self.time_offset = offset_t
         self.timing_function = timing_func
         self.region_of_interest = roi
-        self.rise_duration = rise_duration
-        self.fall_duration = fall_duration
+        self.rise_duration_msec = rise_duration
+        self.fall_duration_msec = fall_duration
         self.magnitude = magnitude
         self.min_tracking_confidence = min_tracking_confidence
         self.min_detection_confidence = min_detection_confidence
-        self.static_image_mode = False
         self.timing_kwargs = kwargs
+
+        self._capture_init_params()
+    
+    def _capture_init_params(self):
+        # Extracting total parameter list post init
+        post_attrs = set(self.__dict__.keys())
+
+        # Getting only the subclass parameters
+        new_attrs = post_attrs - self._pre_attrs
+
+        # Store only subclass level params; ignore self
+        params = {attr: getattr(self, attr) for attr in new_attrs}
+
+        # Handle non serializable types
+        if "region_of_interest" in params:
+            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
+
+        self._layer_parameters = {
+            k: sanitize_json_value(v) for k, v in params.items()
+        }
     
     def supports_weight(self) -> bool:
         return True
     
     def get_layer_parameters(self) -> dict:
-        params = {
-            "layer_type":self.layer_type,
-            "time_onset":self.time_onset,
-            "time_offset":self.time_offset,
-            "timing_function":self.timing_function,
-            "region_of_interest":get_roi_name(roi_value=self.region_of_interest),
-            "rise_duration":self.rise_duration,
-            "fall_duration":self.fall_duration,
-            "magnitude":self.magnitude,
-            "mediapipe_mesh_config": {
-                "min_detection_confidence":self.min_detection_confidence,
-                "min_tracking_confidence":self.min_tracking_confidence,
-                "static_image_mode":self.static_image_mode
-            },
-            "timing_kwargs":self.timing_kwargs
-        }
-    
-        return {k:sanitize_json_value(v) for k,v in params.items()}
+        return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
         weight = None

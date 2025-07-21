@@ -1,6 +1,6 @@
 from pyfame.mesh import *
 from pyfame.file_access import *
-from pyfame.utilities import compute_rot_angle
+from pyfame.utilities import compute_rot_angle, sanitize_json_value, get_roi_name
 from pyfame.utilities.checks import *
 from pyfame.utilities.constants import OVERLAY_SUNGLASSES, OVERLAY_GLASSES, OVERLAY_SWEAT, OVERLAY_TEAR
 from pyfame.layer.layer import Layer
@@ -14,24 +14,56 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerStyliseOverlay(Layer):
     def __init__(self, overlay_type:int|str = "sunglasses", onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int=500, min_tracking_confidence:float=0.5, 
+                 roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, 
                  min_detection_confidence:float=0.5, **kwargs):
         # Initialise superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        self.static_image_mode = False
+        self.previous_slope = None
+        self._pre_attrs = []
+        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
+        
         # Perform input parameter checks
         check_type(overlay_type, [str, int])
         check_value(overlay_type, ["sunglasses", "glasses", "tear", "sweat", OVERLAY_SUNGLASSES, OVERLAY_GLASSES, OVERLAY_SWEAT, OVERLAY_TEAR])
         
         # Declare class parameters
         self.overlay_type = overlay_type
-        self.previous_slope = None
-        self.roi = roi
+        self.time_onset = onset_t
+        self.time_offset = offset_t
+        self.timing_function = timing_func
+        self.region_of_interest = roi
+        self.rise_duration_msec = rise_duration
+        self.fall_duration_msec = fall_duration
         self.min_tracking_confidence = min_tracking_confidence
         self.min_detection_confidence = min_detection_confidence
-        self.static_image_mode = False
+        self.timing_kwargs = kwargs
+
+        self._capture_init_params()
     
+    def _capture_init_params(self):
+        # Extracting total parameter list post init
+        post_attrs = set(self.__dict__.keys())
+
+        # Getting only the subclass parameters
+        new_attrs = post_attrs - self._pre_attrs
+
+        # Store only subclass level params; ignore self
+        params = {attr: getattr(self, attr) for attr in new_attrs}
+
+        # Handle non serializable types
+        if "region_of_interest" in params:
+            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
+
+        self._layer_parameters = {
+            k: sanitize_json_value(v) for k, v in params.items()
+        }
+
     def supports_weight(self):
         return False
+
+    def get_layer_parameters(self):
+        return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
         
@@ -128,7 +160,7 @@ class LayerStyliseOverlay(Layer):
             return overlayed_frame
         
 def layer_stylise_overlay(overlay_type:int|str, time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                          region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fade_duration:int=500, 
+                          region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, 
                           min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
 
-    return LayerStyliseOverlay(overlay_type, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fade_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerStyliseOverlay(overlay_type, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

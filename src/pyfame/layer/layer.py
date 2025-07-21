@@ -5,6 +5,7 @@ from pyfame.layer.timing_curves import timing_linear
 from pyfame.utilities.checks import *
 from pyfame.mesh.get_mesh_coordinates import get_mesh
 
+
 class Layer(ABC): 
     """ An abstract base class to be extended by pyfame's manipulation layer classes. """
 
@@ -25,14 +26,14 @@ class Layer(ABC):
         self.face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, False)
         self.onset_t = onset_t
         self.offset_t = offset_t
-        self.timing_func = timing_func
-        self.rise_duration = rise_duration/1000
-        self.fall_duration = fall_duration/1000
-        self.timing_kwargs = kwargs
-    
+        self.timing = timing_func
+        self.rise = rise_duration/1000
+        self.fall = fall_duration/1000
+        self.time_kwargs = kwargs
+        
     def compute_weight(self, dt:float, supports_weight:bool) -> float:
         if supports_weight:
-            return self.timing_func(dt, self.onset_t, self.offset_t, self.rise_duration, self.fall_duration, **self.timing_kwargs)
+            return self.timing(dt, self.onset_t, self.offset_t, self.rise, self.fall, **self.time_kwargs)
         else:
             return 1.0
     

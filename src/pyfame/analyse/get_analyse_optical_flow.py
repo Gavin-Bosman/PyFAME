@@ -1,5 +1,6 @@
-from pyfame.mesh import get_mask_from_path, get_mesh, get_mesh_coordinates
+from pyfame.mesh import get_mesh, get_mesh_coordinates
 from pyfame.mesh.mesh_landmarks import *
+from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.file_access import get_video_capture, get_video_writer, get_directory_walk, create_output_directory
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
@@ -214,7 +215,7 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
             landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
             
             # Create face oval image mask
-            face_mask = get_mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
+            face_mask = mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
 
             if counter == 1:
                 mask = np.zeros_like(frame)
