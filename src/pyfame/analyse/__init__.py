@@ -1,5 +1,5 @@
-from .get_analyse_facial_colour_means import analyse_facial_colour_means
-from .get_analyse_optical_flow import analyse_optical_flow_dense, analyse_optical_flow_sparse
+from .analyse_facial_colour_means import analyse_facial_colour_means
+from .analyse_optical_flow import analyse_optical_flow_dense, analyse_optical_flow_sparse
 
 # U.S. spelling function name aliasing
 analyze_facial_color_means = analyse_facial_colour_means

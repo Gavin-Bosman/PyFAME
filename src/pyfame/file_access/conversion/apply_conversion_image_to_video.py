@@ -66,7 +66,8 @@ def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDI
     check_type(with_sub_dirs, [bool])
     
     # Creating a list of file path strings to iterate through when processing
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
+    files_df = get_directory_walk(input_directory)
+    files_to_process = files_df["Absolute Path"]
 
     min_size = None
     max_size = None
@@ -284,7 +285,8 @@ def apply_conversion_image_to_video(input_directory:str, output_directory:str, o
     check_type(with_sub_dirs, [bool])
     
     # Creating a list of file path strings to iterate through when processing
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
+    files_df = get_directory_walk(input_directory)
+    files_to_process = files_df["Absolute Path"]
     
     output_directory = create_output_directory(output_directory, "Image_To_Video")
     

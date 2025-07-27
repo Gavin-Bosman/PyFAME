@@ -1,5 +1,13 @@
 import pyfame as pf
 
-col = pf.layer_colour_recolour(0.5, 3.2, pf.timing_gaussian)
+root_data_folder = ".\\ravdess_data\\Video_Song_Actors_01-24\\Video_Song_Actor_01\\Actor_01"
 
-pf.write_experiment_log([col], "C:\\Users\\gavin\\Desktop\\PyFAME\\ravdess_data\\Video_Speech_Actors_01-24\\Video_Speech_Actor_03\\Actor_03\\01-01-01-01-01-02-03.mp4")
+# Create input and output subdirectories ['raw','processed',...]
+paths = pf.make_paths(exclude_directories=["processed", "logs"])
+
+optical_flow = pf.layer_stylise_optical_flow_sparse(time_onset=1.5, time_offset=3.0)
+
+pf.apply_layers(paths, [optical_flow])
+
+### TODO test dense optical flow layer
+### Test all layers performing as expected

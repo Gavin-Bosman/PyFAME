@@ -242,7 +242,7 @@ def apply_frame_shuffle(input_directory:str, output_directory:str, shuffle_metho
                 f"block_duration = {block_duration}, drop_last_block = {drop_last_block}, with_sub_dirs = {with_sub_dirs}.")
     
     # Creating a list of file path strings to iterate through when processing
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
+    files_to_process = get_paths(input_directory, with_sub_dirs)
         
     logger.info(f"Function has read in {len(files_to_process)} files from input directory {input_directory}.")
     

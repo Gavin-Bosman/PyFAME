@@ -34,7 +34,6 @@ class LayerOcclusionNoise(Layer):
         check_type(standard_dev, [float])
 
         # Defining class parameters
-        self.layer_type = type(self).__name__
         self.rand_seed = rand_seed
         self.noise_method = method
         self.noise_probability = noise_prob

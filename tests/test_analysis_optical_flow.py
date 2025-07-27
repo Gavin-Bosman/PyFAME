@@ -77,7 +77,7 @@ def test_exception_handling(valid_input_dir, valid_output_dir, invalid_input_dir
     
     # exception testing poly_sigma parameter
     with pytest.raises(TypeError):
-        analyse_optical_flow_dense(input_directory=valid_input_dir, output_directory=valid_output_dir, poly_sigma="test")
+        analyse_optical_flow_dense(input_directory=valid_input_dir, output_directory=valid_output_dir, gaussian_deviation="test")
     
     # exeption testing point_color parameter
     with pytest.raises(TypeError):

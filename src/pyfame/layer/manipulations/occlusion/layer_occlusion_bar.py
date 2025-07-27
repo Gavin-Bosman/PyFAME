@@ -30,7 +30,6 @@ class LayerOcclusionBar(Layer):
             check_value(i, min=0, max=255)
 
         # Define class parameters
-        self.layer_type = type(self).__name__
         self.bar_color = bar_color
         self.time_onset = onset_t
         self.time_offset = offset_t

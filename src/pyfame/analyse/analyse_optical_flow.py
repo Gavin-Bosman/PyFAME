@@ -1,24 +1,23 @@
 from pyfame.mesh import get_mesh, get_mesh_coordinates
 from pyfame.mesh.mesh_landmarks import *
 from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.file_access import get_video_capture, get_video_writer, get_directory_walk, create_output_directory
+from pyfame.file_access import get_video_capture
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
 from pyfame.utilities.checks import *
 import os
 import cv2 as cv
 import numpy as np
+import pandas as pd
 from skimage.util import *
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+# TODO investigate creating a dataclass for some of the param list
 
-def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landmarks_to_track:list[int]|None = None, max_corners:int = 20, 
-                                corner_quality_level:float = 0.3, min_corner_distance:int = 7, block_size:int = 5, search_window_size:tuple[int] = (15,15), 
-                                max_pyramid_level:int = 2, max_iterations:int = 10, accuracy_threshold:float = 0.03, point_colour:tuple[int] = (255,255,255),
-                                point_radius:int = 5, vector_colour:tuple[int]|None = None, with_sub_dirs:bool = False, csv_sample_frequency_msec:int = 1000,
-                                csv_detail_level:str = "summary", min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list[int]|None = None, max_corners:int = 20, corner_quality_level:float = 0.3, 
+                                min_corner_distance:int = 7, block_size:int = 5, search_window_size:tuple[int] = (15,15), max_pyramid_level:int = 2, 
+                                max_iterations:int = 10, accuracy_threshold:float = 0.03, point_colour:tuple[int] = (255,255,255),
+                                point_radius:int = 5, vector_colour:tuple[int]|None = None, output_sample_frequency_msec:int = 1000,
+                                output_detail_level:str = "summary", min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes each input video file provided within input_directory, and generates a sparse optical flow image, as well as a csv containing periodically
     sampled flow vector data. This function makes use of the Lucas-Kanadae optical flow algorithm, as well as the Shi-Tomasi good-corners algorithm to identify
     and track relevant points in the input video. Alternatively, specific facial landmarks to track can be passed in via landmarks_to_track.
@@ -72,11 +71,11 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
     with_sub_dirs: bool
         Indicates whether the input directory contains subfolders.
 
-    csv_sample_frequency_msec: int
+    output_sample_frequency_msec: int
         The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
         the value to increase the number of optical flow vector samples written to the output csv file.
     
-    csv_detail_level: str
+    output_detail_level: str
         Either "summary" specifying summary statisitics or "deep" specifying full descriptive output for each vector.
     
     min_detection_confidence: float
@@ -93,15 +92,9 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
     """
     
     # Performing parameter checks
-    check_type(input_directory, [str])
-    check_valid_path(input_directory)
-
-    check_type(output_directory, [str])
-    check_valid_path(output_directory)
-    check_is_dir(output_directory)
-
-    check_type(landmarks_to_track, [list])
-    check_type(landmarks_to_track, [int], iterable=True)
+    check_type(landmarks_to_track, [list, type(None)])
+    if landmarks_to_track is not None:
+        check_type(landmarks_to_track, [int], iterable=True)
 
     check_type(max_corners, [int])
     check_value(max_corners, min=0)
@@ -135,15 +128,13 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
     if vector_colour is not None:
         check_type(vector_colour, [tuple])
         check_type(vector_colour, [int], iterable=True)
-    
-    check_type(with_sub_dirs, [bool])
 
-    check_type(csv_sample_frequency_msec, [int])
-    check_value(csv_sample_frequency_msec, min=50, max=2000)
+    check_type(output_sample_frequency_msec, [int])
+    check_value(output_sample_frequency_msec, min=50, max=2000)
 
-    csv_detail_level = str.lower(csv_detail_level)
-    check_type(csv_detail_level, [str])
-    check_value(csv_detail_level, ["summary", "deep"])
+    output_detail_level = str.lower(output_detail_level)
+    check_type(output_detail_level, [str])
+    check_value(output_detail_level, ["summary", "full"])
 
     check_type(min_detection_confidence, [float])
     check_value(min_detection_confidence, min=0.0, max=1.0)
@@ -152,52 +143,65 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
     check_value(min_tracking_confidence, min=0.0, max=1.0)
     
     # Defining the mediapipe facemesh task
-    face_mesh = None
+    face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, False)
     
-    # Creating a list of file path strings to iterate through when processing
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
+    # Extracting the i/o paths from the file_paths dataframe
+    absolute_paths = file_paths["Absolute Path"]
+    relative_paths = file_paths["Relative Path"]
+
+    norm_path = os.path.normpath(absolute_paths[0])
+    norm_cwd = os.path.normpath(os.getcwd())
+    rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
+    parts = rel_dir_path.split(os.sep)
+    root_directory = None
+
+    if parts is not None:
+        root_directory = parts[0]
     
-    # Creating named output directories for video output
-    output_directory = create_output_directory(output_directory, "Optical_Flow")
+    if root_directory is None:
+        root_directory = "data"
+    
+    test_path = os.path.join(norm_cwd, root_directory)
 
-    for file in files_to_process:
+    if not os.path.isdir(test_path):
+        raise FileReadError(message=f"Unable to locate the input {root_directory} directory. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "raw")):
+        raise FileReadError(message=f"Unable to locate the 'raw' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "processed")):
+        raise FileReadError(message=f"Unable to locate the 'processed' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
 
+    # Create the outputs dict outside of the main loop so it maintains a larger scope
+    outputs = {}
+
+    for file in absolute_paths:
         # Filetype is used to determine the functions running mode
         filename, extension = os.path.splitext(os.path.basename(file))
-        codec = None
         capture = None
-        result = None
-        csv = None
-        dir_file_path = output_directory + f"\\{filename}_optical_flow{extension}"
 
         # Using the file extension to sniff video codec or image container for images
-        match extension:
-            case ".mp4":
-                codec = "mp4v"
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, False)
-            case ".mov":
-                codec = "mp4v"
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, False)
-            case _:
-                raise UnrecognizedExtensionError()
+        if extension not in [".mp4", ".mov"]:
+            print(f"Skipping unparseable file {os.path.basename(file)}.")
+            continue
         
         # Instantiating video read/writers
         capture = get_video_capture(file)
-        size = (int(capture.get(3)), int(capture.get(4)))
-        result = get_video_writer(dir_file_path, size, video_codec=codec)
         
-        csv = open(output_directory + "\\" + filename + "_optical_flow.csv", "w")
-        if csv_detail_level == "summary":
-            csv.write("Timestamp,Mean_Magnitude,Std_Magnitude,Mean_Angle,Std_Angle,Num_Vectors\n")
+        # creating lists to store output data
+        timestamps = []
+        magnitudes = []
+        mean_magnitudes = []
+        std_magnitudes = []
+        angles = []
+        mean_angles = []
+        std_angles = []
+        num_points = []
+        full_stats = []
         
         # Defining persistent loop params
         counter = 0
         init_points = None
-        mask = None
         old_gray = None
-        rolling_time_win = csv_sample_frequency_msec
-        output_img = None
-        colors = np.random.randint(0,255,(max_corners,3))
+        rolling_time_win = output_sample_frequency_msec
 
         # Parameters for lucas kanade optical flow
         lk_params = dict(winSize  = search_window_size,
@@ -210,7 +214,8 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
             success, frame = capture.read()
             if not success:
                 break    
-
+            
+            # Get the landmark screen coordinates
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
             
@@ -218,7 +223,6 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
             face_mask = mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
 
             if counter == 1:
-                mask = np.zeros_like(frame)
                 # Get initial tracking points
                 old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
@@ -244,8 +248,6 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
                     good_new_points = cur_points[st==1]
                     good_old_points = init_points[st==1]
                 
-                mags = []
-                angles = []
                 old_coords = []
                 new_coords = []
 
@@ -258,64 +260,62 @@ def analyse_optical_flow_sparse(input_directory:str, output_directory:str, landm
 
                     old_coords.append((x0, y0))
                     new_coords.append((x1, y1))
-                    mags.append(np.sqrt(dx**2 + dy**2))
+                    magnitudes.append(np.sqrt(dx**2 + dy**2))
                     angles.append(np.arctan2(dy, dx))
 
-                    # Draw optical flow vectors on output frame
-                    if vector_colour == None:
-                        mask = cv.line(mask, (int(x0), int(y0)), (int(x1), int(y1)), colors[i].tolist(), 2)
-                    else:
-                        mask = cv.line(mask, (int(x0), int(y0)), (int(x1), int(y1)), vector_colour, 2)
-
-                    frame = cv.circle(frame, (int(x1), int(y1)), point_radius, point_colour, -1)
-
                 if timestamp > rolling_time_win:
-                    # Write values to csv
-                    if csv_detail_level == "summary":
-                        mean_mag = np.mean(mags)
-                        std_mag = np.std(mags)
+                    # store summary statistics
+                    if output_detail_level == "summary":
+                        mean_mag = np.mean(magnitudes)
+                        std_mag = np.std(magnitudes)
                         mean_angle = np.mean(angles)
                         std_angle = np.std(angles)
 
-                        csv.write(f"{timestamp/1000:.5f},{mean_mag:.5f},{std_mag:.5f},{mean_angle:.5f},{std_angle:.5f},{len(good_new_points)}\n")
-                    else:
-                        out_row = "Timestamp,"
-                        for i in range(len(new_coords)):
-                            out_row += f"Old_Position_{i},New_Position_{i},Magnitude_{i},Angle_{i}"
-
-                            if i == (len(new_coords) - 1):
-                                out_row += "\n"
-                            else:
-                                out_row += ","
-
-                        csv.write(out_row)
-                        out_row = f"{timestamp:.5f},"
-                        for i, (old,new) in enumerate(zip(old_coords, new_coords)):
-                            out_row += f"{old},{new},{mags[i]:.5f},{angles[i]:.5f}"
-
-                            if i == (len(new_coords) - 1):
-                                out_row += "\n"
-                            else:
-                                out_row += ","
+                        # Dataframes are immutable, so we need to store as lists during execution
+                        timestamps.append(timestamp//1000)
+                        mean_magnitudes.append(mean_mag)
+                        std_magnitudes.append(std_mag)
+                        mean_angles.append(mean_angle)
+                        std_angles.append(std_angle)
+                        num_points.append(len(good_new_points))
                         
-                        csv.write(out_row)
-                            
-                    rolling_time_win += csv_sample_frequency_msec
-
-                output_img = cv.add(frame, mask)
-                result.write(output_img)
+                    else:
+                        for i, (old,new) in enumerate(zip(old_coords, new_coords)):
+                            sample_stats = []
+                            sample_stats.extend([timestamp//1000, old[0], old[1], new[0], new[1], magnitudes[i], angles[i]])
+                            full_stats.append(sample_stats)
+                      
+                    rolling_time_win += output_sample_frequency_msec
 
                 # Update previous frame and points
                 old_gray = gray_frame.copy()
                 init_points = good_new_points.reshape(-1, 1, 2)
 
         capture.release()
-        result.release()
-        csv.close()
 
-def analyse_optical_flow_dense(input_directory:str, output_directory:str, block_size:int = 5, search_window_size:int = 15, 
-                     max_pyramid_level:int = 2, pyramid_scale:float = 0.5, max_iterations:int = 10, poly_sigma:float = 1.2, 
-                     with_sub_dirs:bool = False, csv_sample_frequency_msec:int = 1000) -> None:
+        # Create and return dataframe
+        if output_detail_level == "summary":
+            output_df = pd.DataFrame({
+                "Timestamp":timestamps,
+                "Mean Magnitude":mean_magnitudes,
+                "Deviation Magnitude":std_magnitudes,
+                "Mean Angle":mean_angles,
+                "Deviation Angle":std_angles,
+                "Number of Points":num_points
+            })
+            
+            outputs.update({f"{filename}{extension}":output_df})
+        
+        else:
+            cols = ["Timestamp", "Old x", "Old y", "New x", "New y", "Magnitude", "Angle"]
+            output_df = pd.DataFrame(full_stats, columns=cols)
+            outputs.update({f"{filename}{extension}":output_df})
+    
+    return outputs
+        
+def analyse_optical_flow_dense(file_paths:pd.DataFrame, block_size:int = 5, search_window_size:int = 15, max_pyramid_level:int = 2, 
+                               pyramid_scale:float = 0.5, max_iterations:int = 10, gaussian_deviation:float = 1.2, 
+                               with_sub_dirs:bool = False, output_sample_frequency_msec:int = 1000) -> None:
     '''Takes an input video file, and computes the dense optical flow, outputting the visualised optical flow to output_dir.
     Dense optical flow uses Farneback's algorithm to track every point within a frame.
 
@@ -345,14 +345,14 @@ def analyse_optical_flow_dense(input_directory:str, output_directory:str, block_
     max_iterations: int
         The maximum number of iterations (over each frame) the optical flow algorithm will make before terminating.
 
-    poly_sigma: float
+    gaussian_deviation: float
         A floating point value representing the standard deviation of the Gaussian distribution used in the polynomial expansion of Farneback's
-        dense optical flow algorithm. Typically with block_sizes of 5 or 7, a poly_sigma of 1.2 or 1.5 are used respectively.
+        dense optical flow algorithm. Typically with block_sizes of 5 or 7, a gaussian_deviation of 1.2 or 1.5 are used respectively.
 
     with_sub_dirs: bool
         Indicates whether the input directory contains subfolders.
 
-    csv_sample_freq: int
+    output_sample_frequency_msec: int
         The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
         the value to increase the number of optical flow vector samples written to the output csv file.
     
@@ -363,17 +363,9 @@ def analyse_optical_flow_dense(input_directory:str, output_directory:str, block_
     '''
 
     # Performing parameter checks
-    check_type(input_directory, [str])
-    check_valid_path(input_directory)
-
-    check_type(output_directory, [str])
-    check_valid_path(output_directory)
-    check_is_dir(output_directory)
-
     check_type(block_size, [int])
 
-    check_type(search_window_size, [tuple])
-    check_type(search_window_size, [int], iterable=True)
+    check_type(search_window_size, [int])
 
     check_type(max_pyramid_level, [int])
     check_value(max_pyramid_level, min=1, max=5)
@@ -383,68 +375,77 @@ def analyse_optical_flow_dense(input_directory:str, output_directory:str, block_
     
     check_type(with_sub_dirs, [bool])
 
-    check_type(csv_sample_frequency_msec, [int])
-    check_value(csv_sample_frequency_msec, min=50, max=2000)
+    check_type(output_sample_frequency_msec, [int])
+    check_value(output_sample_frequency_msec, min=50, max=2000)
 
-    # Creating a list of file path strings to iterate through when processing
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
-    
-    
-    # Creating named output directories for video output
-    output_directory = create_output_directory(output_directory, "Optical_Flow")
+    # Extracting the i/o paths from the file_paths dataframe
+    absolute_paths = file_paths["Absolute Path"]
+    relative_paths = file_paths["Relative Path"]
 
-    for file in files_to_process:
+    norm_path = os.path.normpath(absolute_paths[0])
+    norm_cwd = os.path.normpath(os.getcwd())
+    rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
+    parts = rel_dir_path.split(os.sep)
+    root_directory = None
+
+    if parts is not None:
+        root_directory = parts[0]
+    
+    if root_directory is None:
+        root_directory = "data"
+    
+    test_path = os.path.join(norm_cwd, root_directory)
+
+    if not os.path.isdir(test_path):
+        raise FileReadError(message=f"Unable to locate the input {root_directory} directory. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "raw")):
+        raise FileReadError(message=f"Unable to locate the 'raw' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "processed")):
+        raise FileReadError(message=f"Unable to locate the 'processed' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+
+    # Create the outputs dict outside of the main loop so it maintains a larger scope
+    outputs = {}
+
+    for file in absolute_paths:
 
         # Filetype is used to determine the functions running mode
         filename, extension = os.path.splitext(os.path.basename(file))
-        codec = None
         capture = None
-        result = None
-        csv = None
-        dir_file_path = output_directory + f"\\{filename}_optical_flow{extension}"
 
         # Using the file extension to sniff video codec or image container for images
-        match extension:
-            case ".mp4":
-                codec = "mp4v"
-            case ".mov":
-                codec = "mp4v"
-            case _:
-                raise UnrecognizedExtensionError()
+        if extension not in [".mp4", ".mov"]:
+            print(f"Skipping unparseable file {os.path.basename(file)}.")
+            continue
         
         # Instantiating video read/writers
         capture = get_video_capture(file)
-        size = (int(capture.get(3)), int(capture.get(4)))
-        result = get_video_writer(dir_file_path, size, video_codec=codec)
-        
-        csv = open(output_directory + "\\" + filename + "_optical_flow.csv", "w")
-        csv.write("Timestamp,Mean_Magnitude,Std_Magnitude,Mean_Angle,Std_Angle\n")
+
+        # creating lists to store output data
+        timestamps = []
+        mean_magnitudes = []
+        std_magnitudes = []
+        mean_angles = []
+        std_angles = []
 
         # Defining persistent loop params
-        counter = 0
-        hsv = None
-        bgr = None
+        counter = 1
         old_gray = None
-        rolling_time_win = csv_sample_frequency_msec
+        rolling_time_win = output_sample_frequency_msec
 
         # Main Processing loop
         while True:
-            counter += 1
             success, frame = capture.read()
             if not success:
                 break    
 
-            if counter == 1:  
-                hsv = np.zeros_like(frame)
-                old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-                hsv[...,1] = 255
+            old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
                 
             if counter > 1:
                 gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
                 timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
 
                 # Calculate dense optical flow
-                flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyramid_scale, max_pyramid_level, search_window_size, max_iterations, block_size, poly_sigma, 0)
+                flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyramid_scale, max_pyramid_level, search_window_size, max_iterations, block_size, gaussian_deviation, 0)
 
                 # Get vector magnitudes and angles
                 magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])
@@ -455,17 +456,28 @@ def analyse_optical_flow_dense(input_directory:str, output_directory:str, block_
                     mean_angle = np.mean(angles)
                     std_angle = np.std(angles)
 
-                    csv.write(f"{timestamp:.5f},{mean_mag:.5f},{std_mag:.5f},{mean_angle:.5f},{std_angle:.5f}\n")
-                    rolling_time_win += csv_sample_frequency_msec
+                    # Dataframes are immutable, so we need to store as lists during execution
+                    timestamps.append(timestamp//1000)
+                    mean_magnitudes.append(mean_mag)
+                    std_magnitudes.append(std_mag)
+                    mean_angles.append(mean_angle)
+                    std_angles.append(std_angle)
 
-                hsv[...,0] = angles * (180/(np.pi/2))
-                hsv[...,2] = cv.normalize(magnitudes, None, 0, 255, cv.NORM_MINMAX)
-
-                bgr = cv.cvtColor(hsv, cv.COLOR_HSV2BGR)
-                result.write(bgr)
+                    rolling_time_win += output_sample_frequency_msec
 
                 old_gray = gray_frame.copy()
+            
+            counter += 1
 
         capture.release()
-        result.release()
-        csv.close()
+
+        output_df = pd.DataFrame({
+            "Timestamp":timestamps,
+            "Mean Magnitude":mean_magnitudes,
+            "Deviation Magnitude":std_magnitudes,
+            "Mean Angle":mean_angles,
+            "Deviation Angle":std_angles
+        })
+        outputs.update({f"{filename}{extension}":output_df})
+    
+    return outputs

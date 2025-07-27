@@ -1,20 +1,17 @@
 from pyfame.mesh import get_mesh
 from pyfame.mesh.mesh_landmarks import *
 from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.file_access import get_video_capture, get_directory_walk, create_output_directory
+from pyfame.file_access import get_video_capture, create_output_directory, get_directory_walk
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
 from pyfame.utilities.checks import *
 import os
 import cv2 as cv
 import numpy as np
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
 
-def analyse_facial_colour_means(input_directory:str, output_directory:str, color_space: int|str = COLOR_SPACE_BGR, with_sub_dirs:bool = False,
-                           min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+def analyse_facial_colour_means(input_directory:str, output_directory:str, color_space: int|str = COLOR_SPACE_BGR,
+                                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
     Creates a new directory 'Color_Channel_Means', where a csv file will be written to for each input video file provided.
 
@@ -65,7 +62,6 @@ def analyse_facial_colour_means(input_directory:str, output_directory:str, color
         low_str = str.lower(color_space)
         color_space = str_map.get(low_str)
 
-    check_type(with_sub_dirs, [bool])
     check_type(min_detection_confidence, [float])
     check_value(min_detection_confidence, min=0.0, max=1.0)
 
@@ -76,7 +72,8 @@ def analyse_facial_colour_means(input_directory:str, output_directory:str, color
     face_mesh = None
     
     # Creating a list of file path strings
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
+    files_df = get_directory_walk(input_directory)
+    files_to_process = files_df["Absolute Path"]
     
     
     # Create an output directory for the csv files

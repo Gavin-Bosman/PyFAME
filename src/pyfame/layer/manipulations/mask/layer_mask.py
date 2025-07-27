@@ -28,7 +28,6 @@ class LayerMask(Layer):
             check_value(i, min=0, max=255)
 
         # Define class parameters
-        self.layer_type = type(self).__name__
         self.time_onset = onset_t
         self.time_offset = offset_t
         self.timing_function = timing_func

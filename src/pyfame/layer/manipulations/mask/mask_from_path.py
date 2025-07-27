@@ -287,7 +287,7 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple]]
             case _:
                 cur_landmark_coords = []
                 # Converting landmark coords to screen coords
-                for cur_source, cur_target in path:
+                for cur_source, cur_target in region_of_interest:
                     source = landmark_screen_coords[cur_source]
                     target = landmark_screen_coords[cur_target]
                     cur_landmark_coords.append((source.get('x'),source.get('y')))

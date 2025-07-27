@@ -1,6 +1,7 @@
 from .exceptions import *
 from typing import Any, Callable
 import os
+from pathlib import Path
 
 def check_has_callable_attr(obj:Any, attr_name:str) -> None:
     if not (hasattr(obj, attr_name) and callable(getattr(obj,attr_name))):
@@ -43,8 +44,10 @@ def check_value(param:Any, expected_values:list[Any]=None, **kwargs) -> None:
             raise ValueError(f"Parameter must be <{max}.")
 
 def check_valid_path(path:str) -> None:
-    if not os.path.exists(path):
-        raise OSError(f"File path {path} does not exist in the current scope.")
+    try:
+        _ = Path(path)
+    except Exception as e:
+        raise ValueError(f"Invalid path format. Reason: {e}")
 
 def check_is_dir(path:str) -> None:
     if not os.path.isdir(path):

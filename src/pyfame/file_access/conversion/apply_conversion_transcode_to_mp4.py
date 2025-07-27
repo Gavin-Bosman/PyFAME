@@ -42,7 +42,8 @@ def apply_conversion_video_to_mp4(input_directory:str, output_directory:str, wit
 
     check_type(with_sub_dirs, [bool])
 
-    files_to_process = get_directory_walk(input_directory, with_sub_dirs)
+    files_df = get_directory_walk(input_directory)
+    files_to_process = files_df["Absolute Path"]
     
     for file in files_to_process:
         # Initialize capture and writer objects

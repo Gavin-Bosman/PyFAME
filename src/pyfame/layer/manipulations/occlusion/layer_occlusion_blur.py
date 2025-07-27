@@ -28,7 +28,6 @@ class LayerOcclusionBlur(Layer):
         check_value(kernel_size, min=5)
 
         # Define class parameters
-        self.layer_type = type(self).__name__
         self.blur_method = method
         self.kernel_size = kernel_size
         self.time_onset = onset_t

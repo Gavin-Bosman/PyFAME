@@ -11,7 +11,6 @@ def get_video_writer(file_path:str, frame_size:tuple[int,int], video_codec:str =
     # Perform parameter checks
     check_type(file_path, [str])
     check_valid_path(file_path)
-    check_is_file(file_path)
 
     check_type(frame_size, [tuple])
     check_type(frame_size, [int], iterable=True)
