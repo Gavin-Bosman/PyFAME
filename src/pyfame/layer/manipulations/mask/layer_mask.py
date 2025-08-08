@@ -1,63 +1,43 @@
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo
+from typing import Union, List, Tuple
 from pyfame.utilities.constants import *
-from pyfame.utilities.checks import *
-from pyfame.utilities.general_utilities import get_roi_name, sanitize_json_value
 from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
 import numpy as np
 import cv2 as cv
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class MaskingParameters(BaseModel):
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    background_colour:Tuple[int,int,int]
+
+    @field_validator("background_colour")
+    @classmethod
+    def check_in_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        for elem in value:
+            if not (0 <= elem <= 255):
+                raise ValueError(f"{field_name} values must lie between 0 and 255.")
 
 class LayerMask(Layer):
-    def __init__(self, background_color:tuple[int,int,int] = (0,0,0), onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
-        # Initialise the superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
+    def __init__(self, timing_configuration:TimingConfiguration, masking_parameters:MaskingParameters):
         
-        # Perform parameter checks
-        check_type(background_color, [tuple])
-        check_type(background_color, [int], iterable=True)
-        for i in background_color:
-            check_value(i, min=0, max=255)
+        self.time_config = timing_configuration
+        self.mask_params = masking_parameters
+
+        # Initialise the superclass
+        super().__init__(self.time_config)
 
         # Define class parameters
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration = rise_duration
-        self.fall_duration = fall_duration
-        self.background_colour = background_color
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
+        self.static_image_mode = False
+        self.region_of_interest = self.mask_params.region_of_interest
+        self.background_colour = self.mask_params.background_colour
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
 
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        # Dump pydantic models to get full param list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.mask_params.model_dump())
     
     def supports_weight(self):
         return False
@@ -105,7 +85,14 @@ class LayerMask(Layer):
             masked_frame = masked_frame.astype(np.uint8)
             return masked_frame
 
-def layer_mask(time_onset:float=None, time_offset:float=None, timing_func:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple]= FACE_OVAL_PATH, 
-               background_colour:tuple[int,int,int] = (0,0,0), rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerMask:
-    
-    return LayerMask(background_colour, time_onset, time_offset, timing_func, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+def layer_mask(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]]= FACE_OVAL_PATH, background_colour:tuple[int,int,int] = (0,0,0)) -> LayerMask:
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input parameters
+    try:
+        params = MaskingParameters(region_of_interest, background_colour)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerMask.__name__}: {e}")
+
+    return LayerMask(time_config, params)

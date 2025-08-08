@@ -16,17 +16,17 @@ def resolve_missing_timing(layer:Layer, video_duration:int) -> tuple[int,int]:
     offset = layer.offset_t if layer.offset_t is not None else video_duration
     return (onset, offset)
 
-def apply_layers(file_paths:pd.DataFrame, layers:list[Layer]):
+def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     """ Takes in a list of layer objects, and applies each manipulation layer in sequence frame-by-frame, and file-by-file for each file provided within input_dir.
 
     Parameters
     ----------
 
-    layers: list of Layer
-        A list of Layer objects containing the specified layer and its parameters.
-    
     file_paths: pandas.DataFrame
         A table of path strings returned by 
+    
+    layers: list of Layer
+        A list of Layer objects containing the specified layer and its parameters.
     
     Raises
     ------
@@ -48,10 +48,16 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer]):
 
     None
     """
+
+    # Ensure compatibility with Layer_Pipeline class
+    if isinstance(layers, Layer):
+        layers = [layers]
+
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
     relative_paths = file_paths["Relative Path"]
 
+    # Extracting the root directory name from the file paths
     norm_path = os.path.normpath(absolute_paths[0])
     norm_cwd = os.path.normpath(os.getcwd())
     rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
@@ -64,6 +70,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer]):
     if root_directory is None:
         root_directory = "data"
     
+    # Test that the directory provided actually exists in the file system before any read/writes
     test_path = os.path.join(norm_cwd, root_directory)
 
     if not os.path.isdir(test_path):
@@ -73,9 +80,10 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer]):
     if not os.path.isdir(os.path.join(test_path, "processed")):
         raise FileReadError(message=f"Unable to locate the 'processed' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
 
+    # Pre-made subdirectory structure in the project root
     input_directory = os.path.join(test_path, "raw")
     output_directory = os.path.join(test_path, "processed")
-    
+    # Map any scaffoled sub-organization from the input dir to the output dir
     map_directory_structure(input_directory, output_directory)
 
     # Initialize the processing pipeline

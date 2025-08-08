@@ -1,5 +1,4 @@
 import cv2 as cv
-import os
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.checks import *
 import logging

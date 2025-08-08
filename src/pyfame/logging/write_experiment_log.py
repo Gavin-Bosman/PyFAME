@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from pyfame.layer.layer import Layer
 from pyfame.utilities.exceptions import *
+from pyfame.utilities.general_utilities import get_roi_name
 
 def write_experiment_log(layers:list[Layer], input_file:str, root_directory_path:str) -> None:
     if os.getenv("PYTEST_RUNNING") == "1":
@@ -18,7 +19,15 @@ def write_experiment_log(layers:list[Layer], input_file:str, root_directory_path
         layer_dict = {}
         for layer in layers:
             layer_type = type(layer).__name__
-            layer_dict[layer_type] = layer.get_layer_parameters()
+            parameters = layer.get_layer_parameters()
+
+            if parameters.get("region_of_interest") is not None:
+                parameters.update({"region_of_interest":get_roi_name(parameters.get("region_of_interest"))})
+            
+            if parameters.get("timing_function") is not None:
+                parameters.update({"timing_function":parameters.get("timing_function").__name__})
+
+            layer_dict[layer_type] = parameters
 
         log_data = {
             "timestamp":timestamp,

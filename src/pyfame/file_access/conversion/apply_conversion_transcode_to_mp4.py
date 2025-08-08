@@ -1,30 +1,23 @@
 from pyfame.file_access import *
 from pyfame.utilities.checks import *
 import os
+import pandas as pd
 
-def apply_conversion_video_to_mp4(input_directory:str, output_directory:str, with_sub_dirs:bool = False) -> None:
+def apply_conversion_video_to_mp4(file_paths:pd.DataFrame) -> None:
     """ Given an input directory containing one or more video files, transcodes all video files from their current
-    container to mp4. This function can be used to preprocess older video file types before masking, occluding or color shifting.
+    container to mp4.
 
     Parameters
     ----------
 
-    input_directory: str
-        A path string to the directory containing the videos to be transcoded.
-    
-    output_directory: str
-        A path string to the directory where transcoded videos will be written too.
-    
-    with_sub_dirs: bool
-        A boolean flag indicating if the input directory contains sub-directories.
+    file_paths: DataFrame
+        A 2-column dataframe consisting of absolute and relative file paths (relative to the working directory root).
     
     Raises
     ------
 
-    TypeError
-        Given invalid parameter types.
-    OSError
-        Given invalid paths for input_dir or output_dir.
+    FileReadError:
+        If expected directory structure is missing, or input paths are invalid.
     
     Returns
     -------
@@ -33,24 +26,38 @@ def apply_conversion_video_to_mp4(input_directory:str, output_directory:str, wit
     
     """
 
-    # Type checking input parameters
-    check_type(input_directory, [str])
-    check_valid_path(input_directory)
+    # Extracting the i/o paths from the file_paths dataframe
+    absolute_paths = file_paths["Absolute Path"]
 
-    check_type(output_directory, [str])
-    check_valid_path(output_directory)
+    norm_path = os.path.normpath(absolute_paths[0])
+    norm_cwd = os.path.normpath(os.getcwd())
+    rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
+    parts = rel_dir_path.split(os.sep)
+    root_directory = None
 
-    check_type(with_sub_dirs, [bool])
-
-    files_df = get_directory_walk(input_directory)
-    files_to_process = files_df["Absolute Path"]
+    if parts is not None:
+        root_directory = parts[0]
     
-    for file in files_to_process:
+    if root_directory is None:
+        root_directory = "data"
+    
+    test_path = os.path.join(norm_cwd, root_directory)
+
+    if not os.path.isdir(test_path):
+        raise FileReadError(message=f"Unable to locate the input {root_directory} directory. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "raw")):
+        raise FileReadError(message=f"Unable to locate the 'raw' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "processed")):
+        raise FileReadError(message=f"Unable to locate the 'processed' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+    
+    output_directory = os.path.join(test_path, "processed")
+
+    for file in absolute_paths:
         # Initialize capture and writer objects
         filename, extension = os.path.splitext(os.path.basename(file))
         capture = get_video_capture(file)
         size = (int(capture.get(3)), int(capture.get(4)))
-        result = get_video_writer(output_directory + "\\" + filename + "_transcoded.mp4", size)
+        result = get_video_writer(file_path=os.path.join(output_directory, f"{filename}_transcoded.mp4"), frame_size=size)
         
         while True:
             success, frame = capture.read()

@@ -1,64 +1,64 @@
-from pyfame.utilities.constants import *
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveInt
+from typing import Union, List, Tuple
 from pyfame.mesh import *
-from pyfame.utilities.checks import *
-from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pyfame.utilities.constants import *
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
 import cv2 as cv
 import numpy as np
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class BlurringParameters(BaseModel):
+    blur_method:Union[str, int]
+    kernel_size:Tuple[PositiveInt, PositiveInt]
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+
+    @field_validator("blur_method", mode="before")
+    @classmethod
+    def check_compatible_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if isinstance(value, str):
+            value = str.lower(value)
+            if value not in {"average", "gaussian", "median"}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        elif isinstance(value, int):
+            if value not in {11, 12, 13}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        raise TypeError(f"{field_name} provided an invalid type. Must be one of int, str.")
+
+    @field_validator("kernel_size")
+    @classmethod
+    def check_odd_dims(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        # Ensures kernels provided are square, odd and greater or equal to (3,3)
+        if not (value[0] % 2 == 1 and value[1] % 2 == 1 and value[0] >= 3 and value[0] == value[1]):
+            raise ValueError(f"{field_name} expects odd, square kernel dimensions >= (3,3).")
 
 class LayerOcclusionBlur(Layer):
-    def __init__(self, method:str|int = "gaussian", kernel_size:int = 15, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, blurring_parameters:BlurringParameters):
+
+        self.time_config = timing_configuration
+        self.blur_params = blurring_parameters
+
         # Initialise superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
+        super().__init__(self.time_config)
         
-        # Perform parameter checks
-        check_type(method, [str, int])
-        check_value(method, [11,12,13,"average","gaussian","median"])
-        check_type(kernel_size, [int])
-        check_value(kernel_size, min=5)
-
         # Define class parameters
-        self.blur_method = method
-        self.kernel_size = kernel_size
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
-
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        self.blur_method = self.blur_params.blur_method
+        self.kernel_size = self.blur_params.kernel_size
+        self.region_of_interest = self.blur_params.region_of_interest
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.static_image_mode = False
+        
+        # Dump the pydantic models to get full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.blur_params.model_dump())
     
     def supports_weight(self):
         return False
@@ -87,20 +87,26 @@ class LayerOcclusionBlur(Layer):
             # Blur the input frame depending on user-specified blur method
             match self.blur_method:
                 case "average" | 11:
-                    frame_blurred = cv.blur(frame, (self.kernel_size, self.kernel_size))
+                    frame_blurred = cv.blur(frame, self.kernel_size)
                     output_frame = np.where(mask == 255, frame_blurred, frame)
                 
                 case "gaussian" | 12:
-                    frame_blurred = cv.GaussianBlur(frame, (self.kernel_size, self.kernel_size), 0)
+                    frame_blurred = cv.GaussianBlur(frame, self.kernel_size, 0)
                     output_frame = np.where(mask == 255, frame_blurred, frame)
                 
                 case "median" | 13:
-                    frame_blurred = cv.medianBlur(frame, self.kernel_size)
+                    frame_blurred = cv.medianBlur(frame, self.kernel_size[0])
                     output_frame = np.where(mask == 255, frame_blurred, frame)
             
             return output_frame
 
-def layer_occlusion_blur(time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, method:str|int = "gaussian", kernel_size:int = 15,
-                 region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionBlur:
-    
-    return LayerOcclusionBlur(method, kernel_size, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+def layer_occlusion_blur(timing_configuration:TimingConfiguration | None = None, blur_method:str|int = "gaussian", region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, kernel_size:tuple[int,int] = (15,15)) -> LayerOcclusionBlur:
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    try:
+        params = BlurringParameters(blur_method, kernel_size, region_of_interest)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerOcclusionBlur.__name__}: {e}")
+
+    return LayerOcclusionBlur(time_config, params) 

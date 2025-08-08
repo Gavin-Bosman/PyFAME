@@ -1,76 +1,59 @@
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo
+from typing import Union, Tuple, List
+from pyfame.utilities.general_utilities import compute_rot_angle
 from pyfame.utilities.constants import *
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.mesh import *
-from pyfame.utilities.general_utilities import compute_rot_angle, sanitize_json_value, get_roi_name
-from pyfame.utilities.checks import *
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
 import cv2 as cv
 import numpy as np
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class BarOcclusionParameters(BaseModel):
+    bar_colour:Tuple[int,int,int]
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+
+    @field_validator("bar_colour")
+    @classmethod
+    def check_in_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        for elem in value:
+            if not (0 <= elem <= 255):
+                raise ValueError(f"{field_name} values must lie between 0 and 255.")
+    
+    @field_validator("region_of_interest", mode='before')
+    @classmethod
+    def check_compatible_path(cls, value, info:ValidationInfo):
+        valid_paths = [LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH]
+        field_name = info.field_name
+
+        if isinstance(value[0], List):
+            for sublist in value:
+                if sublist not in valid_paths:
+                    raise ValueError(f"Incompatible path provided in {field_name}. Please provide one of: LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH.")
+        else:
+            if value not in valid_paths:
+                raise ValueError(f"Incompatible path provided in {field_name}. Please provide one of: LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH.")
 
 class LayerOcclusionBar(Layer):
-    def __init__(self, bar_color:tuple[int,int,int] = (0,0,0), onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, occlusion_parameters:BarOcclusionParameters):
+
+        self.time_config = timing_configuration
+        self.occlude_params = occlusion_parameters
+
         # Initialise superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        super().__init__(self.time_config)
+
+        # Define class parameters
+        self.bar_color = self.occlude_params.bar_colour
+        self.region_of_interest = self.occlude_params.region_of_interest
         self.min_x_lm_id = -1
         self.max_x_lm_id = -1
         self.static_image_mode = False
-        self.compatible_paths = [LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH]
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-        
-        # Perform parameter checks
-        check_type(bar_color, [tuple])
-        check_type(bar_color, [int], iterable=True)
-        for i in bar_color:
-            check_value(i, min=0, max=255)
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
 
-        # Define class parameters
-        self.bar_color = bar_color
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
-
-        # Check for incompatible landmark paths, handle error cases
-        if isinstance(roi[0], list):
-            for lm in roi:
-                if lm not in self.compatible_paths:
-                    print("An incompatible landmark path has been provided to LayerOcclusionBar")
-                    raise ValueError()
-        else:
-            if roi not in self.compatible_paths:
-                print("An incompatible landmark path has been provided to LayerOcclusionBar")
-                raise ValueError()
-        
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        # Dump the pydantic models to get full param list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.occlude_params.model_dump())
             
     def supports_weight(self):
         return False
@@ -130,7 +113,7 @@ class LayerOcclusionBar(Layer):
             p2 = lm_coords[self.max_x_lm_id]
             slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
             rot_angle = compute_rot_angle(slope_1=slope)
-
+            
             # Compute the center bisecting line of the landmark
             cx = round((p2.get('y') + p1.get('y'))/2)
             cy = round((p2.get('x') + p1.get('x'))/2)
@@ -148,7 +131,14 @@ class LayerOcclusionBar(Layer):
             output_frame = np.where(masked_frame == 255, self.bar_color, frame)
             return output_frame.astype(np.uint8)
 
-def layer_occlusion_bar(bar_color:tuple[int,int,int] = (0,0,0), time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                 region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionBar:
-    
-    return LayerOcclusionBar(bar_color, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+def layer_occlusion_bar(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, bar_colour:tuple[int,int,int] = (0,0,0)) -> LayerOcclusionBar:
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input parameters
+    try:
+        params = BarOcclusionParameters(bar_colour, region_of_interest)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerOcclusionBar.__name__}: {e}")
+
+    return LayerOcclusionBar(time_config, params)

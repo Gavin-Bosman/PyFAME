@@ -19,11 +19,11 @@ def test_exception_handling(valid_input_dir, valid_output_dir, invalid_input_dir
     
     # exception testing color_space parameter
     with pytest.raises(TypeError):
-        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, color_space=2.5)
+        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, colour_space=2.5)
     with pytest.raises(ValueError):
-        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, color_space=100)
+        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, colour_space=100)
     with pytest.raises(ValueError):
-        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, color_space="test")
+        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, colour_space="test")
     
     # exception testing with_sub_dirs parameter
     with pytest.raises(TypeError):

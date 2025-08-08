@@ -1,97 +1,82 @@
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt, PositiveInt, PositiveFloat, NonNegativeFloat
+from typing import List, Tuple, Optional
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.mesh import *
-from pyfame.utilities.general_utilities import get_roi_name, sanitize_json_value
-from pyfame.utilities.checks import *
 from pyfame.utilities.exceptions import *
-from typing import Callable
 import cv2 as cv
 import numpy as np
 
-# TODO after creating dataclass, add vector line width param
+class SparseFlowParameters(BaseModel):
+    landmarks_to_track:Optional[List[NonNegativeInt]]
+    max_points:PositiveInt
+    point_quality_threshold:PositiveFloat
+    min_point_distance:NonNegativeInt = 7
+    pixel_neighborhood_size:Tuple[NonNegativeInt, NonNegativeInt] = (5,5)
+    search_window_size:Tuple[NonNegativeInt, NonNegativeInt] = (15,15)
+    max_pyramid_level:NonNegativeInt = 2
+    pyramid_scale:PositiveFloat = 0.5
+    gaussian_deviation:NonNegativeFloat = 1.2
+    max_iterations:PositiveInt
+    flow_accuracy_threshold:PositiveFloat
+    point_colour:Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
+    point_radius:PositiveInt
+    vector_colour:Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
+    vector_line_width:PositiveInt
+
+    @field_validator("pyramid_scale", "point_quality_threshold", "flow_accuracy_threshold")
+    @classmethod
+    def check_normal_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if not (0.0 < value <= 1.0):
+            raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
+
+    @field_validator("point_colour", "vector_colour")
+    @classmethod
+    def check_in_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        for elem in value:
+            if not (0 <= elem <= 255):
+                raise ValueError(f"{field_name} values must lie between 0 and 255.")
 
 class LayerStyliseOpticalFlowSparse(Layer):
-    def __init__(self, time_onset:float = None, time_offset:float = None, rise_duration:float = 500, fall_duration:float = 500, 
-                 timing_function:Callable[...,float] = timing_linear, landmarks_to_track:list[int] | None = None, 
-                 max_corners:int = 20, corner_quality_level:float = 0.3, min_corner_distance:int = 7, block_size:tuple[int] = (5,5), 
-                 search_window_size:tuple[int] = (15,15), max_pyramid_level:int = 2, pyramid_scale:float = 0.5, gaussian_deviation:float = 1.2, 
-                 max_iterations:int = 10, accuracy_threshold:float = 0.03, point_colour:tuple[int] = (0,0,0), point_radius:int = 4, 
-                 vector_colour:tuple[int] = (0,0,255), min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **timing_kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, flow_parameters:SparseFlowParameters):
+
+        self.time_config = timing_configuration
+        self.flow_params = flow_parameters
+
         # Initialise superclass
-        super().__init__(time_onset, time_offset, timing_function, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **timing_kwargs)
-        self.static_image_mode = False
+        super().__init__(self.time_config)
         self.initial_points = []
         self.previous_grey_frame = None
         self.vector_mask = None
         self.loop_counter = 1
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-
-        # Perform parameter checks
-        if landmarks_to_track is not None:
-            check_type(landmarks_to_track, [int], iterable=True)
-        check_type(max_corners, [int])
-        check_type(corner_quality_level, [float])
-        check_value(corner_quality_level, min=0.0, max=1.0)
-        check_type(min_corner_distance, [int])
-        check_type(block_size, [int], iterable=True)
-        check_type(search_window_size, [int], iterable=True)
-        check_type(max_pyramid_level, [int])
-        check_type(pyramid_scale, [float])
-        check_value(pyramid_scale, min=0.0, max=1.0)
-        check_type(gaussian_deviation, [float])
-        check_type(max_iterations, [int])
-        check_type(accuracy_threshold, [float])
-        check_value(accuracy_threshold, min=0.0, max=1.0)
-        check_type(point_colour, [int], iterable=True)
-        check_type(point_radius, [int])
-        check_type(vector_colour, [int], iterable=True)
 
         # Declare class parameters
-        self.time_onset = time_onset
-        self.time_offset =  time_offset
-        self.rise_duration = rise_duration
-        self.fall_duration = fall_duration
-        self.timing_function = timing_function
-        self.landmark_idx_to_track = landmarks_to_track
-        self.max_points = max_corners
-        self.point_quality_threshold = corner_quality_level
-        self.min_point_distance = min_corner_distance
-        self.pixel_neighborhood_size = block_size
-        self.search_window_size = search_window_size
-        self.max_pyramid_level = max_pyramid_level
-        self.pyramid_scale = pyramid_scale
-        self.gaussian_deviation = gaussian_deviation
-        self.max_iterations = max_iterations
-        self.flow_accuracy_threshold = accuracy_threshold
-        self.point_colour = point_colour
-        self.point_radius = point_radius
-        self.vector_colour = vector_colour
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = timing_kwargs
+        self.landmark_idx_to_track = self.flow_params.landmarks_to_track
+        self.max_points = self.flow_params.max_points
+        self.point_quality_threshold = self.flow_params.point_quality_threshold
+        self.min_point_distance = self.flow_params.min_point_distance
+        self.pixel_neighborhood_size = self.flow_params.pixel_neighborhood_size
+        self.search_window_size = self.flow_params.search_window_size
+        self.max_pyramid_level = self.flow_params.max_pyramid_level
+        self.pyramid_scale = self.flow_params.pyramid_scale
+        self.gaussian_deviation = self.flow_params.gaussian_deviation
+        self.max_iterations = self.flow_params.max_iterations
+        self.flow_accuracy_threshold = self.flow_params.flow_accuracy_threshold
+        self.point_colour = self.flow_params.point_colour
+        self.point_radius = self.flow_params.point_radius
+        self.vector_colour = self.flow_params.vector_colour
+        self.vector_line_width = self.flow_params.vector_line_width
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.static_image_mode = False
 
-        self._capture_init_params()
+        # Dump pydantic models to get full param list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.flow_params.model_dump())
 
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
-    
     def supports_weight(self):
         return False
     
@@ -161,8 +146,8 @@ class LayerStyliseOpticalFlowSparse(Layer):
                     x1, y1 = new.ravel()
 
                     # Draw optical flow vectors on output frame
-                    self.vector_mask = cv.line(self.vector_mask, (int(x0), int(y0)), (int(x1), int(y1)), self.vector_colour, 2)
-
+                    self.vector_mask = cv.line(self.vector_mask, (int(x0), int(y0)), (int(x1), int(y1)), self.vector_colour, self.vector_line_width)
+                    
                     frame = cv.circle(frame, (int(x1), int(y1)), self.point_radius, self.point_colour, -1)
                     
                 output_img = cv.add(frame, self.vector_mask)
@@ -173,13 +158,19 @@ class LayerStyliseOpticalFlowSparse(Layer):
 
                 return output_img
                 
-def layer_stylise_optical_flow_sparse(time_onset:float = None, time_offset:float = None, rise_duration:float = 500, fall_duration:float = 500, 
-                                      timing_function:Callable[...,float] = timing_linear, landmarks_to_track:list[int] | None = None, 
-                                      max_points:int = 20, point_quality_threshold:float = 0.3, min_point_distance:int = 7, pixel_neighborhood_size:tuple[int] = (5,5), 
-                                      search_window_size:tuple[int] = (15,15), max_pyramid_level:int = 2, pyramid_scale:float = 0.5, gaussian_deviation:float = 1.2, 
-                                      max_iterations:int = 10, flow_accuracy_threshold:float = 0.03, point_colour:tuple[int] = (0,0,0), point_radius:int = 4, 
-                                      vector_colour:tuple[int] = (0,0,255), min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5, **timing_kwargs) -> LayerStyliseOpticalFlowSparse:
+def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration | None = None, landmarks_to_track:list[int] | None = None, max_points:int = 20, 
+                                      point_quality_threshold:float = 0.3, max_iterations:int = 10, flow_accuracy_threshold:float = 0.03, point_colour:tuple[int,int,int] = (0,0,191), 
+                                      point_radius:int = 5, vector_colour:tuple[int,int,int] = (0,0,191), vector_line_width:int = 2) -> LayerStyliseOpticalFlowSparse:
     
-    return LayerStyliseOpticalFlowSparse(time_onset, time_offset, rise_duration, fall_duration, timing_function, landmarks_to_track, max_points, point_quality_threshold, 
-                                         min_point_distance, pixel_neighborhood_size, search_window_size, max_pyramid_level, pyramid_scale, gaussian_deviation, max_iterations, 
-                                         flow_accuracy_threshold, point_colour, point_radius, vector_colour, min_detection_confidence, min_tracking_confidence, **timing_kwargs)
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input params
+    try:
+        params = SparseFlowParameters(landmarks_to_track=landmarks_to_track, max_points=max_points, point_quality_threshold=point_quality_threshold,
+                                      max_iterations=max_iterations, flow_accuracy_threshold=flow_accuracy_threshold, point_colour=point_colour,
+                                      point_radius=point_radius, vector_colour=vector_colour, vector_line_width=vector_line_width)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowSparse.__name__}: {e}")
+    
+    return LayerStyliseOpticalFlowSparse(time_config, params)

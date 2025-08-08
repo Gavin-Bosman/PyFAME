@@ -1,67 +1,51 @@
-from pyfame.utilities.constants import *
+from pydantic import BaseModel, NonNegativeFloat, field_validator, ValidationInfo, ValidationError
+from typing import Union, List, Tuple
 from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.checks import *
-from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
+from pyfame.utilities.constants import *
 import cv2 as cv
-import numpy as np
-import logging
+import numpy as np 
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class RecolourParameters(BaseModel):
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    focus_colour:Union[str, int]
+    magnitude:NonNegativeFloat
+
+    @field_validator('focus_colour')
+    @classmethod
+    def check_compatible_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        if isinstance(value, int):
+            if value not in [4,5,6,7]:
+                raise ValueError(f"{field_name} has been provided an unrecognized value.")
+        elif isinstance(value, str):
+            if value not in ["red", "green", "blue", "yellow"]:
+                raise ValueError(f"{field_name} has been provided an unrecognized value.")
 
 class LayerColourRecolour(Layer):
 
-    def __init__(self, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]]|list[tuple] = FACE_OVAL_PATH, 
-                 rise_duration:int = 500, fall_duration:int = 500, focus_color:str|int = "red", magnitude:float = 10.0, min_tracking_confidence:float = 0.5, 
-                 min_detection_confidence:float = 0.5, **kwargs):
-        # Initialise the superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
+    def __init__(self, timing_configuration:TimingConfiguration, recolour_parameters:RecolourParameters):
         
-        # Perform parameter checks
-        check_type(focus_color, [str,int])
-        check_value(focus_color, ["red", "green", "blue", "yellow", 4, 5, 6, 7])
-        check_type(magnitude, [float])
-        check_value(magnitude, min=0)
+        self.time_config = timing_configuration
+        self.colour_params = recolour_parameters
+
+        # Initialise the superclass
+        super().__init__(configuration=self.time_config)
+        self.static_image_mode = False
         
         # Define class parameters
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.focus_colour = focus_color
-        self.magnitude = magnitude
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
-
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        self.region_of_interest = self.colour_params.region_of_interest
+        self.focus_colour = self.colour_params.focus_colour
+        self.magnitude = self.colour_params.magnitude
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        
+        # Dump the pydantic models to get dict of full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.colour_params.model_dump())
     
     def supports_weight(self) -> bool:
         return True
@@ -118,8 +102,14 @@ class LayerColourRecolour(Layer):
             result = cv.cvtColor(img_LAB.astype(np.uint8), cv.COLOR_LAB2BGR)
             return result
 
-def layer_colour_recolour(time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                 region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int = 500, fall_duration:int = 500, focus_colour:str|int = "red", 
-                 magnitude:float = 10.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **timing_kwargs) -> LayerColourRecolour:
+def layer_colour_recolour(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH,  focus_colour:str|int = "red", magnitude:float = 10.0) -> LayerColourRecolour:
+    # Populate with defaults if None
+    config = timing_configuration or TimingConfiguration()
+
+    # Validate input parameters
+    try:
+        params = RecolourParameters(region_of_interest=region_of_interest, focus_colour=focus_colour, magnitude=magnitude)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerColourRecolour.__name__}: {e}")
     
-    return LayerColourRecolour(time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, focus_colour, magnitude, min_tracking_confidence, min_detection_confidence, **timing_kwargs)
+    return LayerColourRecolour(config, params)

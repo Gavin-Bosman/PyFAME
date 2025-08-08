@@ -1,71 +1,62 @@
-from pyfame.utilities.constants import *
+from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveInt
+from typing import Union, List, Tuple, Optional
 from pyfame.mesh import *
-from pyfame.utilities.general_utilities import compute_rot_angle, sanitize_json_value, get_roi_name
-from pyfame.utilities.checks import *
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
-from pyfame.layer.manipulations.mask import mask_from_path 
+from pyfame.layer.layer import Layer, TimingConfiguration
+from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.utilities.constants import * 
+from pyfame.utilities.general_utilities import compute_rot_angle  
 import cv2 as cv
 import numpy as np
 from operator import itemgetter
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class GridShuffleParameters(BaseModel):
+    random_seed:Optional[int]
+    shuffle_method:Union[int,str]
+    shuffle_threshold:PositiveInt
+    grid_square_size:PositiveInt
+    output_mask:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+
+    @field_validator("shuffle_method", mode="before")
+    @classmethod
+    def check_accepted_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if isinstance(value, str):
+            value = str.lower(value)
+            if value not in {"full random", "semi random"}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        elif isinstance(value, int):
+            if value not in {27, 28}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+
+        raise TypeError(f"Invalid type for parameter {field_name}, Must be one of int or str.")
+    
 
 class LayerSpatialGridShuffle(Layer):
-    def __init__(self, rand_seed:int|None, method:int|str=HIGH_LEVEL_GRID_SHUFFLE, shuffle_threshold:int=2, grid_square_size:int=40, 
-                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, 
-                 rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, shuffle_parameters:GridShuffleParameters):
+
+        self.time_config = timing_configuration
+        self.shuffle_params = shuffle_parameters
+
         # Initialise superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-        
-        # Perform input parameter checks
-        check_type(rand_seed, [int, type(None)])
-        check_type(method, [int, str])
-        check_value(method, [LOW_LEVEL_GRID_SHUFFLE, HIGH_LEVEL_GRID_SHUFFLE, "fully_random", "semi_random"])
-        check_type(shuffle_threshold, [int])
-        check_value(shuffle_threshold, min=1, max=5)
-        check_type(grid_square_size, [int])
+        super().__init__(self.time_config)
 
         # Declare class parameters
-        self.rand_seed = rand_seed
-        self.shuffle_method = method
-        self.shuffle_threshold = shuffle_threshold
-        self.grid_square_size = grid_square_size
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
+        self.rand_seed = self.shuffle_params.random_seed
+        self.shuffle_method = self.shuffle_params.shuffle_method
+        self.shuffle_threshold = self.shuffle_params.shuffle_threshold
+        self.grid_square_size = self.shuffle_params.grid_square_size
+        self.output_mask = self.shuffle_params.output_mask
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.static_image_mode = False
 
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        # Sanitize values to be JSON compatible for logging
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        # Dump pydantic models to get full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.shuffle_params.model_dump())
 
     def supports_weight(self):
         return False
@@ -87,7 +78,7 @@ class LayerSpatialGridShuffle(Layer):
         else:
             # Mask out the roi
             face_mesh = super().get_face_mesh()
-            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask_from_path(frame, self.output_mask, face_mesh)
             output_frame = np.zeros_like(frame, dtype=np.uint8)
 
             # Get the pixel coordinates of the face oval
@@ -247,10 +238,15 @@ class LayerSpatialGridShuffle(Layer):
 
             return output_frame
         
-def layer_spatial_grid_shuffle(rand_seed:int|None, method:int|str = "fully_random", shuffle_threshold:int = 2, grid_square_size:int = 40, 
-                               time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                               region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int = 500, 
-                               min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerSpatialGridShuffle:
+def layer_spatial_grid_shuffle(timing_configuration:TimingConfiguration | None = None, output_mask:list[list[tuple[int,...]]] | list[tuple[int,...]]=FACE_OVAL_PATH, 
+                               random_seed:int|None = None, shuffle_method:int|str = "fully_random", shuffle_threshold:int = 2, grid_square_size:int = 40) -> LayerSpatialGridShuffle:
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input params
+    try:
+        params = GridShuffleParameters(random_seed, shuffle_method, shuffle_threshold, grid_square_size, output_mask)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerSpatialGridShuffle.__name__}: {e}")
     
-    return LayerSpatialGridShuffle(rand_seed, method, shuffle_threshold, grid_square_size, time_onset, time_offset, 
-                                   timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerSpatialGridShuffle(time_config, params)

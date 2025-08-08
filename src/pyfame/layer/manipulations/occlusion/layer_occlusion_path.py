@@ -1,61 +1,55 @@
-from pyfame.utilities.constants import *
+from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError
+from typing import Union, List, Tuple
 from pyfame.mesh import *
-from pyfame.utilities.checks import *
-from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+### Note: possibly expand fill_method options to include colour presets in the future
+
+class PathOcclusionParameters(BaseModel):
+    fill_method:Union[int,str]
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+
+    @field_validator("fill_method", mode="before")
+    @classmethod
+    def check_accepted_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if isinstance(value, str):
+            value = str.lower(value)
+            if value not in {"black", "mean"}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        elif isinstance(value, int):
+            if value not in {8,9}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        raise TypeError(f"Invalid type provided for {field_name}. Must be one of int or str.")
+        
 
 class LayerOcclusionPath(Layer):
-    def __init__(self, fill_method:int|str = OCCLUSION_FILL_BLACK, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, occlusion_parameters:PathOcclusionParameters):
+
+        self.time_config = timing_configuration
+        self.occlude_params = occlusion_parameters
+
         # Initialise superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-        
-        # Perform input parameter checks
-        check_type(fill_method, [int,str])
-        check_value(fill_method, expected_values=[8,9,"black","mean"])
+        super().__init__(self.time_config)
 
         # Declaring class parameters
-        self.fill_method = fill_method
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
+        self.fill_method = self.occlude_params.fill_method
+        self.region_of_interest = self.occlude_params.region_of_interest
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.static_image_mode = False
 
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.occlude_params.model_dump())
 
     def supports_weight(self):
         return False
@@ -106,8 +100,15 @@ class LayerOcclusionPath(Layer):
                     occluded = np.where(mask == 255, mean_img, frame)
                     return occluded
 
-def layer_occlusion_path(fill_method:int|str = OCCLUSION_FILL_BLACK, time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                         region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, 
-                         min_detection_confidence:float=0.5, **kwargs) -> LayerOcclusionPath:
+def layer_occlusion_path(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]]=FACE_OVAL_PATH, fill_method:int|str = OCCLUSION_FILL_BLACK) -> LayerOcclusionPath:
     
-    return LayerOcclusionPath(fill_method, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input parameters
+    try:
+        params = PathOcclusionParameters(fill_method, region_of_interest)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerOcclusionPath.__name__}: {e}")
+
+    return LayerOcclusionPath(time_config, params)

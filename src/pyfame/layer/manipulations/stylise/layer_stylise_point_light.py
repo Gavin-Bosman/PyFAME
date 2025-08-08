@@ -14,9 +14,9 @@ logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerStylisePointLight(Layer):
-    def __init__(self, point_density:float = 1.0, point_colour:tuple[int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
-                 history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_vec_colour:tuple[int] = (0,0,255), onset_t:float=None, 
-                 offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500,
+    def __init__(self, point_density:float = 1.0, point_colour:tuple[int,int,int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
+                 history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_vec_colour:tuple[int,int,int] = (0,0,255), onset_t:float=None, 
+                 offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, rise_duration:int=500,
                  fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
         # Initialise superclass
         super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
@@ -213,10 +213,10 @@ class LayerStylisePointLight(Layer):
 
             return output_img
         
-def layer_stylise_point_light(point_density:float = 1.0, point_colour:tuple[int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
-                 history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_colour:tuple[int] = (0,0,255), time_onset:float=None, 
-                 time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, 
-                 rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
+def layer_stylise_point_light(point_density:float = 1.0, point_colour:tuple[int,int,int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
+                              history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_colour:tuple[int,int,int] = (0,0,255), time_onset:float=None, 
+                              time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, 
+                              rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
     
     return LayerStylisePointLight(point_density, point_colour, maintain_background, display_history_vectors, history_method, history_window_msec, 
                                   history_colour, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

@@ -1,13 +1,17 @@
 import pyfame as pf
 
-root_data_folder = ".\\ravdess_data\\Video_Song_Actors_01-24\\Video_Song_Actor_01\\Actor_01"
-
 # Create input and output subdirectories ['raw','processed',...]
-paths = pf.make_paths(exclude_directories=["processed", "logs"])
+paths = pf.make_paths(exclude_directories=["processed", "logs", "conversion"])
 
-optical_flow = pf.layer_stylise_optical_flow_sparse(time_onset=1.5, time_offset=3.0)
+# Optionally, define a custom timing configuration
+timing_config = pf.TimingConfiguration(time_onset=0.5, time_offset=3.0, rise_duration=0.25, fall_duration=0.75)
 
-pf.apply_layers(paths, [optical_flow])
+# Define Layers
+recolour = pf.layer_colour_recolour(timing_config, pf.CHEEKS_NOSE_PATH, "blue", 12.0)
+# Notice we didnt pass timing config here; it will be populated with defaults internally
+mask = pf.layer_mask(background_colour=(255,255,255))
 
-### TODO test dense optical flow layer
-### Test all layers performing as expected
+# Best practice to apply weighted operations prior to non-weighted operations,
+# however layer_pipeline cleanly handles this internally so layer order in 
+# apply_layers call doesnt actually matter
+pf.apply_layers(paths, [recolour, mask])

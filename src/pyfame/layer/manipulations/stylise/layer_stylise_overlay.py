@@ -14,7 +14,7 @@ debug_logger = logging.getLogger("pyfame.debug")
 
 class LayerStyliseOverlay(Layer):
     def __init__(self, overlay_type:int|str = "sunglasses", onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, 
-                 roi:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, 
+                 roi:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, 
                  min_detection_confidence:float=0.5, **kwargs):
         # Initialise superclass
         super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
@@ -91,7 +91,7 @@ class LayerStyliseOverlay(Layer):
             match self.overlay_type:
                 case 43 | "sunglasses":
                     # Read in sunglasses image
-                    sunglasses = get_io_imread(".//overlay_images//sunglasses.png")
+                    sunglasses = get_imread(".//overlay_images//sunglasses.png")
 
                     # Rescaling the overlay image to match facial width
                     overlay_width = sunglasses.shape[1]
@@ -160,7 +160,7 @@ class LayerStyliseOverlay(Layer):
             return overlayed_frame
         
 def layer_stylise_overlay(overlay_type:int|str, time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, 
-                          region_of_interest:list[list[tuple]] | list[tuple]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, 
+                          region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, rise_duration:int=500, fall_duration:int=500, 
                           min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
 
     return LayerStyliseOverlay(overlay_type, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)

@@ -1,61 +1,43 @@
-from pyfame.utilities.constants import *
-from pyfame.utilities.checks import *
+from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError
+from typing import Union, List, Tuple
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
 from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
-from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
+from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class SaturationParameters(BaseModel):
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    magnitude:float
+
+    @field_validator("magnitude")
+    @classmethod
+    def check_value_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        if not (-25.0 <= value <= 25.0):
+            raise ValueError(f"{field_name} must lie between -25.0 and 25.0.")
 
 class LayerColourSaturation(Layer):
 
-    def __init__(self, onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
-                 rise_duration:int=500, fall_duration:int=500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, saturation_parameters:SaturationParameters):
+
+        self.time_config = timing_configuration
+        self.sat_params = saturation_parameters
+
         # Initialise the superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+        super().__init__(self.time_config)
         self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-        
-        # Perform parameter checks
-        check_type(magnitude, [float])
         
         # Define class parameters
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.magnitude = magnitude
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
+        self.region_of_interest = self.sat_params.region_of_interest
+        self.magnitude = self.sat_params.magnitude
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
 
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        # Dump the pydantic models to get full param list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.sat_params.model_dump())
     
     def supports_weight(self) -> bool:
         return True
@@ -112,7 +94,14 @@ class LayerColourSaturation(Layer):
             img_bgr[foreground == 0] = frame[foreground == 0]
             return img_bgr
         
-def layer_colour_saturation(time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
-                rise_duration:int=500, fall_duration:int = 500, magnitude:float = -12.0, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerColourSaturation:
+def layer_colour_saturation(timing_configuration:TimingConfiguration|None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, magnitude:float = -12.0) -> LayerColourSaturation:
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
 
-    return LayerColourSaturation(time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, magnitude, min_tracking_confidence, min_detection_confidence, **kwargs)
+    # Validate input parameters
+    try:
+        params = SaturationParameters(region_of_interest, magnitude)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerColourSaturation.__name__}: {e}")
+
+    return LayerColourSaturation(time_config, params)

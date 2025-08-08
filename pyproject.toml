@@ -4,7 +4,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "PyFAME"
-version = "0.7.2"
+version = "1.0.0"
 authors = [
     { name="Gavin Bosman", email="gavin.bosman12@gmail.com" },
 ]

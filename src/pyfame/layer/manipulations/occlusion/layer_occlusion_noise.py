@@ -1,74 +1,72 @@
-from pyfame.utilities.constants import *
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeFloat, PositiveInt
+from typing import Union, List, Tuple, Optional
 from pyfame.mesh import *
-from pyfame.utilities.checks import *
-from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
 from skimage.util import *
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class NoiseParameters(BaseModel):
+    random_seed:Optional[int]
+    noise_method:Union[int,str]
+    noise_probability:NonNegativeFloat
+    pixel_size:PositiveInt
+    gaussian_mean:float
+    gaussian_deviation:NonNegativeFloat
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+
+    @field_validator("noise_method", mode="before")
+    @classmethod
+    def check_compatible_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if isinstance(value, str):
+            value = str.lower(value)
+            if value not in {"pixelate", "salt and pepper", "gaussian"}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        elif isinstance(value, int):
+            if value not in {18,19,20}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        raise TypeError(f"{field_name} provided an invalid type. Must be one of int, str.")
+    
+    @field_validator("pixel_size")
+    @classmethod
+    def check_compatible_size(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if value < 4:
+            raise ValueError(f"{field_name} requires a size >= 4.")
 
 class LayerOcclusionNoise(Layer):
-    def __init__(self, rand_seed:int|None, method:int|str = "gaussian", noise_prob:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_dev:float = 0.5, 
-                 onset_t:float=None, offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
-                 rise_duration:int=500, fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, noise_parameters:NoiseParameters):
+
+        self.time_config = timing_configuration
+        self.noise_params = noise_parameters
+
         # Initialising superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-        
-        # Performing input parameter checks
-        check_type(method, [int, str])
-        check_value(method, [18,19,20,"pixelate","salt and pepper","gaussian"])
-        check_type(noise_prob, [float])
-        check_value(noise_prob, min=0.0, max=1.0)
-        check_type(pixel_size, [int])
-        check_value(pixel_size, min=4)
-        check_type(mean, [float])
-        check_type(standard_dev, [float])
+        super().__init__(self.time_config)
 
         # Defining class parameters
-        self.rand_seed = rand_seed
-        self.noise_method = method
-        self.noise_probability = noise_prob
-        self.pixel_size = pixel_size
-        self.mean = mean
-        self.standard_deviation = standard_dev
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.timing_function = timing_func
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
+        self.rand_seed = self.noise_params.random_seed
+        self.noise_method = self.noise_params.noise_method
+        self.noise_probability = self.noise_params.noise_probability
+        self.pixel_size = self.noise_params.pixel_size
+        self.mean = self.noise_params.gaussian_mean
+        self.standard_deviation = self.noise_params.gaussian_deviation
+        self.region_of_interest = self.noise_params.region_of_interest
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.static_image_mode = False
 
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        # Dump pydantic models to get full param list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.noise_params.model_dump())
     
     def supports_weight(self):
         return False
@@ -143,9 +141,16 @@ class LayerOcclusionNoise(Layer):
             
             return output_frame
 
-def layer_occlusion_noise(rand_seed:int|None, method:int|str = "gaussian", noise_probability:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_deviation:float = 0.5, 
-                         time_onset:float=None, time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple]] | list[tuple] = FACE_OVAL_PATH, 
-                         rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs) -> LayerOcclusionNoise:
+def layer_occlusion_noise(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, noise_method:int|str = "gaussian", 
+                          noise_probability:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_deviation:float = 0.5, random_seed:int|None = None) -> LayerOcclusionNoise:
     
-    return LayerOcclusionNoise(rand_seed, method, noise_probability, pixel_size, mean, standard_deviation, time_onset, time_offset,
-                               timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input parameters
+    try:
+        params = NoiseParameters(random_seed, noise_method, noise_probability, pixel_size, mean, standard_deviation, region_of_interest)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerOcclusionNoise.__name__}: {e}")
+    
+    return LayerOcclusionNoise(time_config, params)

@@ -4,13 +4,9 @@ from pyfame.utilities.constants import *
 from pyfame.file_access import create_output_directory, get_video_writer, get_directory_walk
 import numpy as np
 import cv2 as cv
-import logging
+import pandas as pd
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
-
-def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDISE_DIMS_CROP, pad_colour:tuple[int] = (255,255,255),
-                       with_sub_dirs:bool = False) -> None:
+def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDISE_DIMS_CROP, pad_colour:tuple[int,int,int] = (255,255,255)) -> None:
     """ Takes in an input directory of static images, then scans through the directory to compute the maximal and minimal 
     image dimensions. Depending on the equalization method provided, each image in the directory will be either padded to the maximal 
     dimensions, or cropped to the minimal dimensions.
@@ -26,9 +22,6 @@ def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDI
     
     pad_colour: tuple of int
         A BGR color code specifying the fill color of the padded region added to each image when using STANDARDIZE_DIMS_PAD.
-    
-    with_sub_dirs: bool
-        A boolean flag indicating if the input directory contains nested subdirectories.
 
     Raises:
     -------
@@ -51,7 +44,6 @@ def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDI
 
     """
     
-    logger.info("Now entering function Equate_image_sizes.")
     check_type(input_directory, [str])
     check_valid_path(input_directory)
 
@@ -62,8 +54,6 @@ def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDI
 
     check_type(pad_colour, [tuple])
     check_type(pad_colour, [int], iterable=True)
-
-    check_type(with_sub_dirs, [bool])
     
     # Creating a list of file path strings to iterate through when processing
     files_df = get_directory_walk(input_directory)
@@ -186,9 +176,8 @@ def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDI
                 if not success:
                     raise FileWriteError()
 
-def apply_conversion_image_to_video(input_directory:str, output_directory:str, output_filename:str, frame_rate:int = 30, repeat_duration_msec:int = 1000, 
-                                    blend_transition:bool = True, blended_frames_proportion:float = 0.2, standardize_dimensions:bool = False, 
-                                    standardize_method:int|str = STANDARDISE_DIMS_CROP, pad_colour:tuple[int] = (255,255,255), with_sub_dirs:bool = False) -> None:
+def apply_conversion_image_to_video(file_paths:pd.DataFrame, output_filename:str, frame_rate:int = 30, repeat_duration_msec:int = 1000, 
+                                    blend_transition:bool = True, blended_frames_proportion:float = 0.2) -> None:
     """ Takes a series of static images contained in input_dir, and converts them into a video sequence by repeating
     and interpolating frames. Output "movie" files will be written to output_dir. The output video file will have the images
     written in the order they appear within the input directory.
@@ -196,11 +185,8 @@ def apply_conversion_image_to_video(input_directory:str, output_directory:str, o
     Parameters:
     -----------
 
-    input_directory: str
-        The path string to the directory containing the images to be moviefied.
-
-    output_directory: str
-        The path string to the directory where the output video will be written too.
+    file_paths: DataFrame
+        A 2-column dataframe consisting of absolute and relative file paths.
 
     output_filename: str
         A string specifying the name of the output video file. 
@@ -217,19 +203,6 @@ def apply_conversion_image_to_video(input_directory:str, output_directory:str, o
     
     blended_frames_proportion: float
         A float in the range [0,1] specifying how much of an images repeat window should be used for the blending transition.
-    
-    standardize_dimensions: bool
-        A boolean flag specifying if the input image sizes need to be equalized.
-
-    standardize_method: int
-        An integer flag, one of EQUATE_IMAGES_CROP or EQUATE_IMAGES_PAD. Specifies the equalization_method to use
-        with equate_image_sizes().
-    
-    pad_color: tuple of int
-        A BGR color code specifying the color of the padded image borders added if equalization_method is set to EQUATE_IMAGES_PAD.
-    
-    with_sub_dirs: bool
-        A boolean flag specifying if the input directory contains nested sub directories.
     
     Raises:
     -------
@@ -254,13 +227,6 @@ def apply_conversion_image_to_video(input_directory:str, output_directory:str, o
     
     """
 
-    check_type(input_directory, [str])
-    check_valid_path(input_directory)
-
-    check_type(output_directory, [str])
-    check_valid_path(output_directory)
-    check_is_dir(output_directory)
-
     check_type(output_filename, [str])
 
     check_type(frame_rate, [int])
@@ -274,26 +240,40 @@ def apply_conversion_image_to_video(input_directory:str, output_directory:str, o
     check_type(blended_frames_proportion, [float])
     check_value(blended_frames_proportion, min=0.0, max=1.0)
 
-    check_type(standardize_dimensions, [bool])
+    # Extracting the i/o paths from the file_paths dataframe
+    absolute_paths = file_paths["Absolute Path"]
 
-    check_type(standardize_method, [int,str])
-    check_value(standardize_method, [STANDARDISE_DIMS_CROP, STANDARDISE_DIMS_PAD, "crop", "pad"])
+    norm_path = os.path.normpath(absolute_paths[0])
+    norm_cwd = os.path.normpath(os.getcwd())
+    rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
+    parts = rel_dir_path.split(os.sep)
+    root_directory = None
 
-    check_type(pad_colour, [tuple])
-    check_type(pad_colour, [int], iterable=True)
-
-    check_type(with_sub_dirs, [bool])
+    # extracting the root directory name to use in fileIO
+    if parts is not None:
+        root_directory = parts[0]
     
-    # Creating a list of file path strings to iterate through when processing
-    files_df = get_directory_walk(input_directory)
-    files_to_process = files_df["Absolute Path"]
+    if root_directory is None:
+        root_directory = "data"
     
-    output_directory = create_output_directory(output_directory, "Image_To_Video")
+    # Ensure the correct structure has been set up 
+    test_path = os.path.join(norm_cwd, root_directory)
+
+    if not os.path.isdir(test_path):
+        raise FileReadError(message=f"Unable to locate the input {root_directory} directory. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "raw")):
+        raise FileReadError(message=f"Unable to locate the 'raw' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+    if not os.path.isdir(os.path.join(test_path, "processed")):
+        raise FileReadError(message=f"Unable to locate the 'processed' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
+    
+    # Creating a unique subdirectory for image->video conversion outputs
+    output_directory = os.path.join(test_path, "processed")
+    output_directory = create_output_directory(output_directory, "image_to_video")
     
     image_list = []
     im_size = None
 
-    for file in files_to_process:
+    for file in absolute_paths:
         frame = cv.imread(file)
         if frame is None:
             raise FileReadError()
@@ -311,20 +291,19 @@ def apply_conversion_image_to_video(input_directory:str, output_directory:str, o
             im_shape = image.shape
         else:
             if im_shape != image.shape:
-                if standardize_dimensions:
-                    standardise_image_dimensions(input_directory=input_directory, method=standardize_method, pad_colour=pad_colour)
-                else:
-                    raise ImageShapeError()
+                raise ImageShapeError(message="Image shapes provided do not match. Please call standardise_image_dimensions() over the directory containing the input images.")
     
     # Instantiating our videowriter
-    writer = get_video_writer(output_directory + f"\\{output_filename}.mp4", frame_size=im_size)
+    writer = get_video_writer(file_path=os.path.join(output_directory, f"{output_filename}.mp4"), frame_size=im_size)
     
     num_repeats = int(np.floor((repeat_duration_msec/1000)*frame_rate))
     blend_window = round(num_repeats * blended_frames_proportion)
     blend_inc = 1/blend_window
     
+    # Iterate over the list of frames
     for i in range(len(image_list)):
         cur_inc = 0.0
+        # Each frame is repeated for a user-specified time duration
         for j in range(num_repeats):
             if blend_transition == True:
                 if j > (num_repeats-blend_window) and (i < (len(image_list) - 1)):

@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple]] | list[tuple], face_mesh:mp.solutions.face_mesh.FaceMesh) -> cv.typing.MatLike:
+def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]], face_mesh:mp.solutions.face_mesh.FaceMesh) -> cv.typing.MatLike:
     
     frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
     landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
