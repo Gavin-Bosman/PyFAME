@@ -29,9 +29,11 @@ class BarOcclusionParameters(BaseModel):
             for sublist in value:
                 if sublist not in valid_paths:
                     raise ValueError(f"Incompatible path provided in {field_name}. Please provide one of: LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH.")
-        else:
-            if value not in valid_paths:
-                raise ValueError(f"Incompatible path provided in {field_name}. Please provide one of: LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH.")
+                
+        elif value not in valid_paths:
+            raise ValueError(f"Incompatible path provided in {field_name}. Please provide one of: LEFT_EYE_PATH, RIGHT_EYE_PATH, BOTH_EYES_PATH, NOSE_PATH, LIPS_PATH, MOUTH_PATH.")
+        
+        return value
 
 class LayerOcclusionBar(Layer):
     def __init__(self, timing_configuration:TimingConfiguration, occlusion_parameters:BarOcclusionParameters):

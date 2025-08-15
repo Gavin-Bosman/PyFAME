@@ -1,85 +1,83 @@
-from pyfame.utilities.constants import *
+from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveFloat, NonNegativeInt
+from typing import Union, List, Tuple
 from pyfame.mesh import *
-from pyfame.utilities.checks import *
-from pyfame.utilities.general_utilities import sanitize_json_value, get_roi_name
-from pyfame.layer.layer import Layer
-from pyfame.layer.timing_curves import timing_linear
+from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
 from skimage.util import *
-import logging
 
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+class PointLightParameters(BaseModel):
+    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    point_density:PositiveFloat
+    point_colour:tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
+    display_history_vectors:bool
+    history_method:Union[int,str] = SHOW_HISTORY_ORIGIN
+    history_window_msec:NonNegativeInt = 500
+    history_vector_colour:tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
+    maintain_background:bool
+
+    @field_validator("point_colour", "history_vector_colour")
+    @classmethod
+    def check_in_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        for elem in value:
+            if not (0 <= elem <= 255):
+                raise ValueError(f"{field_name} values must lie between 0 and 255.")
+    
+    @field_validator("point_density")
+    @classmethod
+    def check_normal_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        if not (0.0 < value <= 1.0):
+            raise ValueError(f"Invalid value for parameter {field_name}. Must lie in the range 0.0 - 1.0.")
+    
+    @field_validator("history_method", mode="before")
+    @classmethod
+    def check_accepted_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if isinstance(value, str):
+            if value not in {"origin", "relative"}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        elif isinstance(value, int):
+            if value not in {32, 33}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        raise TypeError(f"Invalid type for parameter {field_name}. Expected int or str.")
 
 class LayerStylisePointLight(Layer):
-    def __init__(self, point_density:float = 1.0, point_colour:tuple[int,int,int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
-                 history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_vec_colour:tuple[int,int,int] = (0,0,255), onset_t:float=None, 
-                 offset_t:float=None, timing_func:Callable[...,float]=timing_linear, roi:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, rise_duration:int=500,
-                 fall_duration:int = 500, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, **kwargs):
+    def __init__(self, timing_configuration:TimingConfiguration, point_light_parameters:PointLightParameters):
+
+        self.time_config = timing_configuration
+        self.pl_params = point_light_parameters
+
         # Initialise superclass
-        super().__init__(onset_t, offset_t, timing_func, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
-        self.static_image_mode = False
+        super().__init__(self.time_config)
+
+        # Declare class parameters
         self.frame_history = []
         self.prev_points = None
         self.idx_to_display = np.array([], dtype=np.uint8)
-        self._pre_attrs = []
-        self._pre_attrs = set(self.__dict__) # snapshot of just the superclass parameters
-        
-        # Perform input parameter checks
-        check_type(point_density, [float])
-        check_type(point_colour, [tuple])
-        check_type(point_colour, [int], iterable=True)
-        for i in point_colour:
-            check_value(i, min=0, max=255)
-        check_type(maintain_background, [bool])
-        check_type(display_history_vectors, [bool])
-        check_type(history_method, [int, str])
-        check_value(history_method, [SHOW_HISTORY_ORIGIN, SHOW_HISTORY_RELATIVE, "origin", "relative"])
-        check_type(history_window_msec, [int])
-        check_value(history_window_msec, min=0)
-        check_type(history_vec_colour, [tuple])
-        check_type(history_vec_colour, [int], iterable=True)
-        for i in history_vec_colour:
-            check_value(i, min=0, max=255)
+        self.point_density = self.pl_params.point_density
+        self.point_colour = self.pl_params.point_colour
+        self.maintain_background = self.pl_params.maintain_background
+        self.display_history_vectors = self.pl_params.display_history_vectors
+        self.history_method = self.pl_params.history_method
+        self.history_window_msec = self.pl_params.history_window_msec
+        self.history_colour = self.pl_params.history_vector_colour
+        self.region_of_interest = self.pl_params.region_of_interest
+        self.min_tracking_confidence = self.time_config.min_tracking_confidence
+        self.min_detection_confidence = self.time_config.min_detection_confidence
+        self.static_image_mode = False
 
-        # Declare class parameters
-        self.point_density = point_density
-        self.point_colour = point_colour
-        self.maintain_background = maintain_background
-        self.display_history_vectors = display_history_vectors
-        self.history_method = history_method
-        self.history_window_msec = history_window_msec
-        self.history_colour = history_vec_colour
-        self.time_onset = onset_t
-        self.time_offset = offset_t
-        self.region_of_interest = roi
-        self.rise_duration_msec = rise_duration
-        self.fall_duration_msec = fall_duration
-        self.min_tracking_confidence = min_tracking_confidence
-        self.min_detection_confidence = min_detection_confidence
-        self.timing_kwargs = kwargs
-
-        self._capture_init_params()
-    
-    def _capture_init_params(self):
-        # Extracting total parameter list post init
-        post_attrs = set(self.__dict__.keys())
-
-        # Getting only the subclass parameters
-        new_attrs = post_attrs - self._pre_attrs
-
-        # Store only subclass level params; ignore self
-        params = {attr: getattr(self, attr) for attr in new_attrs}
-
-        # Handle non serializable types
-        if "region_of_interest" in params:
-            params["region_of_interest"] = get_roi_name(params["region_of_interest"])
-
-        self._layer_parameters = {
-            k: sanitize_json_value(v) for k, v in params.items()
-        }
+        # Dump pydantic models to get full param list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.pl_params.model_dump())
     
     def supports_weight(self):
         return False
@@ -213,10 +211,18 @@ class LayerStylisePointLight(Layer):
 
             return output_img
         
-def layer_stylise_point_light(point_density:float = 1.0, point_colour:tuple[int,int,int] = (255,255,255), maintain_background:bool = True, display_history_vectors:bool = False, 
-                              history_method:int|str = SHOW_HISTORY_ORIGIN, history_window_msec:int = 500, history_colour:tuple[int,int,int] = (0,0,255), time_onset:float=None, 
-                              time_offset:float=None, timing_function:Callable[...,float]=timing_linear, region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, 
-                              rise_duration:int=500, fall_duration:int=500, min_tracking_confidence:float=0.5, min_detection_confidence:float=0.5, **kwargs):
+def layer_stylise_point_light(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, 
+                              point_density:float = 1.0, point_colour:tuple[int,int,int] = (255,255,255), display_history_vectors:bool = False, 
+                              history_method:int|str = SHOW_HISTORY_ORIGIN, history_vector_colour:tuple[int,int,int] = (0,0,255), maintain_background:bool = True):
+    # Populate with defaults if None
+    time_config = timing_configuration or TimingConfiguration()
+
+    # Validate input params
+    try:
+        params = PointLightParameters(region_of_interest=region_of_interest, point_density=point_density, point_colour=point_colour, 
+                                      display_history_vectors=display_history_vectors, history_method=history_method, 
+                                      history_vector_colour=history_vector_colour, maintain_background=maintain_background)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {LayerStylisePointLight.__name__}: {e}")
     
-    return LayerStylisePointLight(point_density, point_colour, maintain_background, display_history_vectors, history_method, history_window_msec, 
-                                  history_colour, time_onset, time_offset, timing_function, region_of_interest, rise_duration, fall_duration, min_tracking_confidence, min_detection_confidence, **kwargs)
+    return LayerStylisePointLight(time_config, params)

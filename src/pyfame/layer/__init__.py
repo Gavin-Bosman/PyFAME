@@ -5,4 +5,4 @@ from .manipulations import *
 from .manipulations import __all__ as m__all__
 
 
-__all__ = ["apply_layers", "LayerConfig","timing_constant", "timing_linear", "timing_gaussian", "timing_sigmoid"] + m__all__
+__all__ = ["apply_layers", "TimingConfiguration", "timing_constant", "timing_linear", "timing_gaussian", "timing_sigmoid"] + m__all__

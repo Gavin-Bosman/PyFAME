@@ -1,16 +1,33 @@
 from pyfame.utilities.exceptions import *
 import cv2 as cv
 import mediapipe as mp
-import logging
-
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+import numpy as np
 
 def get_mesh(min_tracking_confidence:float, min_detection_confidence:float, static_image_mode:bool, max_num_faces:int = 1) -> mp.solutions.face_mesh.FaceMesh:
     return mp.solutions.face_mesh.FaceMesh(max_num_faces = max_num_faces, static_image_mode = static_image_mode, 
                                            min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
 
 def get_mesh_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh) -> list[dict]:
+
+    # Save the orignal dimensions for determining padding
+    original_h, original_w = frame_rgb.shape[:2]
+
+    if original_h > original_w:
+        pad = (original_h - original_w) // 2
+        padded_frame = cv.copyMakeBorder(frame_rgb, 0, 0, pad, pad, cv.BORDER_CONSTANT, value=(0,0,0))
+
+        vert_pad, horiz_pad = 0, pad
+    elif original_w > original_h:
+        pad = (original_w - original_h) // 2
+        padded_frame = cv.copyMakeBorder(frame_rgb, pad, pad, 0, 0, cv.BORDER_CONSTANT, value=(0,0,0))
+
+        vert_pad, horiz_pad = pad, 0
+    else:
+        padded_frame = frame_rgb
+        vert_pad, horiz_pad = 0, 0
+    
+    # Get the new image dimensions after padding
+    padded_h, padded_w = padded_frame.shape[:2]
 
     face_mesh_results = face_mesh.process(frame_rgb)
     landmark_screen_coords = []
@@ -20,12 +37,19 @@ def get_mesh_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.fac
 
             # Convert normalised landmark coordinates to x-y pixel coordinates
             for id,lm in enumerate(face_landmarks.landmark):
-                ih, iw, ic = frame_rgb.shape
-                x,y = int(lm.x * iw), int(lm.y * ih)
-                landmark_screen_coords.append({'id':id, 'x':x, 'y':y})
+                # Extract padded coordinates 
+                px = int(lm.x * padded_w)
+                py = int(lm.y * padded_h)
+
+                # Map back to original dim space
+                orig_x = px - horiz_pad
+                orig_y = py - vert_pad
+
+                orig_x = np.clip(orig_x, 0, original_w - 1)
+                orig_y = np.clip(orig_y, 0, original_h - 1)
+
+                landmark_screen_coords.append({'id':id, 'x':orig_x, 'y':orig_y})
     else:
-        logger.error("Face mesh detection error, function exiting with status 1.")
-        debug_logger.error("Function encountered an error attempting to call mediapipe.face_mesh.FaceMesh.process() on the current frame.")
         raise FaceNotFoundError()
     
     return landmark_screen_coords
