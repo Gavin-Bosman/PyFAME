@@ -274,7 +274,11 @@ def layer_stylise_overlay(timing_configuration:TimingConfiguration | None = None
 
     # Validate input parameters
     try:
-        params = OverlayParameters(overlay_name_or_path=overlay_name_or_path, overlay_centre_point=overlay_centre_point, overlay_scale_factor=overlay_scale_factor)
+        params = OverlayParameters(
+            overlay_name_or_path=overlay_name_or_path, 
+            overlay_centre_point=overlay_centre_point, 
+            overlay_scale_factor=overlay_scale_factor
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOverlay.__name__}: {e}")
     

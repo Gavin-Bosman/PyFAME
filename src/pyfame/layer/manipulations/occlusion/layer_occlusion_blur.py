@@ -105,7 +105,11 @@ def layer_occlusion_blur(timing_configuration:TimingConfiguration | None = None,
     time_config = timing_configuration or TimingConfiguration()
 
     try:
-        params = BlurringParameters(blur_method, kernel_size, region_of_interest)
+        params = BlurringParameters(
+            blur_method=blur_method, 
+            kernel_size=kernel_size, 
+            region_of_interest=region_of_interest
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerOcclusionBlur.__name__}: {e}")
 

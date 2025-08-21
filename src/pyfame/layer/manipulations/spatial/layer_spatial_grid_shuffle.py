@@ -245,7 +245,13 @@ def layer_spatial_grid_shuffle(timing_configuration:TimingConfiguration | None =
 
     # Validate input params
     try:
-        params = GridShuffleParameters(random_seed, shuffle_method, shuffle_threshold, grid_square_size, output_mask)
+        params = GridShuffleParameters(
+            random_seed=random_seed, 
+            shuffle_method=shuffle_method, 
+            shuffle_threshold=shuffle_threshold, 
+            grid_square_size=grid_square_size, 
+            output_mask=output_mask
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerSpatialGridShuffle.__name__}: {e}")
     

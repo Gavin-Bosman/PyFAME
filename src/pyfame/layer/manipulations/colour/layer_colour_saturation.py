@@ -100,7 +100,10 @@ def layer_colour_saturation(timing_configuration:TimingConfiguration|None = None
 
     # Validate input parameters
     try:
-        params = SaturationParameters(region_of_interest, magnitude)
+        params = SaturationParameters(
+            region_of_interest=region_of_interest, 
+            magnitude=magnitude
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerColourSaturation.__name__}: {e}")
 

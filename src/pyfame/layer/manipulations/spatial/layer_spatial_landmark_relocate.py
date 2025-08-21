@@ -181,7 +181,7 @@ def layer_spatial_landmark_relocate(timing_configuration:TimingConfiguration | N
 
     # Validate input parameters
     try:
-        params = RelocateParameters(random_seed)
+        params = RelocateParameters(random_seed=random_seed)
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerSpatialLandmarkRelocate.__name__}: {e}")
     

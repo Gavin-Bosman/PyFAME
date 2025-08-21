@@ -3,6 +3,7 @@ from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.utilities.exceptions import UnrecognizedExtensionError
 import cv2 as cv
 import numpy as np
+import matplotlib.pyplot as plt
 
 class DenseFlowParameters(BaseModel):
     pixel_neighborhood_size:PositiveInt
@@ -75,16 +76,29 @@ class LayerStyliseOpticalFlowDense(Layer):
                 grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
                 # Calculate dense optical flow
-                flow = cv.calcOpticalFlowFarneback(self.previous_grey_frame, grey_frame, None, self.pyramid_scale, self.max_pyramid_level, 
-                                                   self.search_window_size, self.max_iterations, self.pixel_neighborhood_size, self.gaussian_deviation, 0)
+                flow = cv.calcOpticalFlowFarneback(
+                    self.previous_grey_frame, 
+                    grey_frame,
+                    None, 
+                    self.pyramid_scale, 
+                    self.max_pyramid_level, 
+                    self.search_window_size, 
+                    self.max_iterations, 
+                    self.pixel_neighborhood_size, 
+                    self.gaussian_deviation, 
+                    0
+                )
 
                 # Get vector magnitudes and angles
-                magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])
+                magnitudes, _ = cv.cartToPolar(flow[...,0],flow[...,1])
 
-                self.hsv_mask[...,0] = angles * (180/(np.pi/2))
-                self.hsv_mask[...,2] = cv.normalize(magnitudes, None, 0, 255, cv.NORM_MINMAX)
+                # Normalise magnitudes to [0,1]
+                normal_mags = cv.normalize(magnitudes, None, 0, 1, cv.NORM_MINMAX)
 
-                output_img = cv.cvtColor(self.hsv_mask, cv.COLOR_HSV2BGR)
+                # Map magnitudes to viridis colour scale
+                cmap = plt.cm.get_cmap('viridis')
+                viridis = cmap(normal_mags)
+                output_img = (viridis[:, :, :3] * 255).astype(np.uint8)[:, :, ::-1]
 
                 self.previous_grey_frame = grey_frame.copy()
 
@@ -97,7 +111,14 @@ def layer_stylise_optical_flow_dense(timing_configuration:TimingConfiguration | 
 
     # Validate input parameters
     try:
-        params = DenseFlowParameters(pixel_neighborhood_size, search_window_size, max_pyramid_level, pyramid_scale, max_iterations, gaussian_deviation)
+        params = DenseFlowParameters(
+            pixel_neighborhood_size=pixel_neighborhood_size, 
+            search_window_size=search_window_size, 
+            max_pyramid_level=max_pyramid_level, 
+            pyramid_scale=pyramid_scale, 
+            max_iterations=max_iterations, 
+            gaussian_deviation=gaussian_deviation
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowDense.__name__}: {e}")
 

@@ -167,9 +167,17 @@ def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration |
 
     # Validate input params
     try:
-        params = SparseFlowParameters(landmarks_to_track=landmarks_to_track, max_points=max_points, point_quality_threshold=point_quality_threshold,
-                                      max_iterations=max_iterations, flow_accuracy_threshold=flow_accuracy_threshold, point_colour=point_colour,
-                                      point_radius=point_radius, vector_colour=vector_colour, vector_line_width=vector_line_width)
+        params = SparseFlowParameters(
+            landmarks_to_track=landmarks_to_track, 
+            max_points=max_points, 
+            point_quality_threshold=point_quality_threshold,
+            max_iterations=max_iterations, 
+            flow_accuracy_threshold=flow_accuracy_threshold, 
+            point_colour=point_colour,
+            point_radius=point_radius, 
+            vector_colour=vector_colour, 
+            vector_line_width=vector_line_width
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowSparse.__name__}: {e}")
     

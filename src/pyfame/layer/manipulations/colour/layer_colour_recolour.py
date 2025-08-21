@@ -108,7 +108,11 @@ def layer_colour_recolour(timing_configuration:TimingConfiguration | None = None
 
     # Validate input parameters
     try:
-        params = RecolourParameters(region_of_interest=region_of_interest, focus_colour=focus_colour, magnitude=magnitude)
+        params = RecolourParameters(
+            region_of_interest=region_of_interest, 
+            focus_colour=focus_colour, 
+            magnitude=magnitude
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerColourRecolour.__name__}: {e}")
     

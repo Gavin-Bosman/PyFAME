@@ -149,7 +149,15 @@ def layer_occlusion_noise(timing_configuration:TimingConfiguration | None = None
 
     # Validate input parameters
     try:
-        params = NoiseParameters(random_seed, noise_method, noise_probability, pixel_size, mean, standard_deviation, region_of_interest)
+        params = NoiseParameters(
+            random_seed=random_seed, 
+            noise_method=noise_method, 
+            noise_probability=noise_probability, 
+            pixel_size=pixel_size, 
+            gaussian_mean=mean, 
+            gaussian_deviation=standard_deviation, 
+            region_of_interest=region_of_interest
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerOcclusionNoise.__name__}: {e}")
     

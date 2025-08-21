@@ -91,7 +91,10 @@ def layer_mask(timing_configuration:TimingConfiguration | None = None, region_of
 
     # Validate input parameters
     try:
-        params = MaskingParameters(region_of_interest, background_colour)
+        params = MaskingParameters(
+            region_of_interest=region_of_interest, 
+            background_colour=background_colour
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerMask.__name__}: {e}")
 

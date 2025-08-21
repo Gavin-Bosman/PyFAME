@@ -93,7 +93,10 @@ def layer_colour_brightness(timing_configuration:TimingConfiguration | None = No
 
     # Validate input parameters
     try:
-        params = BrightnessParameters(region_of_interest, magnitude)
+        params = BrightnessParameters(
+            region_of_interest=region_of_interest, 
+            magnitude=magnitude
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerColourBrightness.__name__}: {e}")
         

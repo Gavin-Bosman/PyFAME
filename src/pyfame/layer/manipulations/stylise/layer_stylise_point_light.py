@@ -219,9 +219,15 @@ def layer_stylise_point_light(timing_configuration:TimingConfiguration | None = 
 
     # Validate input params
     try:
-        params = PointLightParameters(region_of_interest=region_of_interest, point_density=point_density, point_colour=point_colour, 
-                                      display_history_vectors=display_history_vectors, history_method=history_method, 
-                                      history_vector_colour=history_vector_colour, maintain_background=maintain_background)
+        params = PointLightParameters(
+            region_of_interest=region_of_interest, 
+            point_density=point_density, 
+            point_colour=point_colour, 
+            display_history_vectors=display_history_vectors, 
+            history_method=history_method, 
+            history_vector_colour=history_vector_colour, 
+            maintain_background=maintain_background
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStylisePointLight.__name__}: {e}")
     

@@ -139,7 +139,10 @@ def layer_occlusion_bar(timing_configuration:TimingConfiguration | None = None, 
 
     # Validate input parameters
     try:
-        params = BarOcclusionParameters(bar_colour, region_of_interest)
+        params = BarOcclusionParameters(
+            bar_colour=bar_colour, 
+            region_of_interest=region_of_interest
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerOcclusionBar.__name__}: {e}")
 

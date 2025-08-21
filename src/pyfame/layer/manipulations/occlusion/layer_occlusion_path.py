@@ -107,7 +107,10 @@ def layer_occlusion_path(timing_configuration:TimingConfiguration | None = None,
 
     # Validate input parameters
     try:
-        params = PathOcclusionParameters(fill_method, region_of_interest)
+        params = PathOcclusionParameters(
+            fill_method=fill_method, 
+            region_of_interest=region_of_interest
+        )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerOcclusionPath.__name__}: {e}")
 
