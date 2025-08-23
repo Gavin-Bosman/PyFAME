@@ -15,7 +15,6 @@ class SparseFlowParameters(BaseModel):
     pixel_neighborhood_size:Tuple[NonNegativeInt, NonNegativeInt] = (5,5)
     search_window_size:Tuple[NonNegativeInt, NonNegativeInt] = (15,15)
     max_pyramid_level:NonNegativeInt = 2
-    pyramid_scale:PositiveFloat = 0.5
     gaussian_deviation:NonNegativeFloat = 1.2
     max_iterations:PositiveInt
     flow_accuracy_threshold:PositiveFloat
@@ -24,7 +23,7 @@ class SparseFlowParameters(BaseModel):
     vector_colour:Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
     vector_line_width:PositiveInt
 
-    @field_validator("pyramid_scale", "point_quality_threshold", "flow_accuracy_threshold")
+    @field_validator("point_quality_threshold", "flow_accuracy_threshold")
     @classmethod
     def check_normal_range(cls, value, info:ValidationInfo):
         field_name = info.field_name
@@ -61,7 +60,6 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.pixel_neighborhood_size = self.flow_params.pixel_neighborhood_size
         self.search_window_size = self.flow_params.search_window_size
         self.max_pyramid_level = self.flow_params.max_pyramid_level
-        self.pyramid_scale = self.flow_params.pyramid_scale
         self.gaussian_deviation = self.flow_params.gaussian_deviation
         self.max_iterations = self.flow_params.max_iterations
         self.flow_accuracy_threshold = self.flow_params.flow_accuracy_threshold

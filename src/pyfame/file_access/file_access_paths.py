@@ -3,9 +3,9 @@ import pandas as pd
 from pyfame.utilities.checks import *
 from pathlib import Path
 
-def make_paths(root_path:str = None, exclude_directories:list[str] | None = ["processed", "logs", "conversion"]) -> pd.DataFrame:
+def make_paths(root_path:str = None, exclude_directories:list[str] | None = ["processed", "logs", "conversion", "analysis"]) -> pd.DataFrame:
     # The standard folder names for Pyfame input and output files. 
-    dir_names = ["raw", "processed", "logs", "conversion"]
+    dir_names = ["raw", "processed", "logs", "conversion", "analysis"]
     exclude_directories = set(exclude_directories or [])
 
     if root_path is not None:
@@ -81,4 +81,3 @@ def get_sub_directories_relative_to_path(file_path:str, anchor_directory:str) ->
         return Path(*relative_parts)
     except ValueError:
         raise ValueError(f"Anchor directory '{anchor_directory}' not found in path: {file_path}")
-

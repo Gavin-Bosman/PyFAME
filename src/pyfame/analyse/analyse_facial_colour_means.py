@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = COLOUR_SPACE_BGR,
-                                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+                                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> dict[str, pd.DataFrame]:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
     Creates a new directory 'Color_Channel_Means', where a csv file will be written to for each input video file provided.
 
@@ -21,7 +21,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
     file_paths: Dataframe
         A 2-column dataframe consisting of absolute and relative file paths.
     
-    color_space: int, str
+    colour_space: int, str
         A specifier for which color space to operate in. One of COLOR_SPACE_RGB, COLOR_SPACE_HSV or COLOR_SPACE_GRAYSCALE
     
     min_detection_confidence: float
@@ -263,7 +263,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 "mean chin blue": chin_blue_means
             })
 
-            outputs.update({f"{filename}{extension}":output_df})
+            outputs.update({f"{filename}":output_df})
 
         elif colour_space == COLOUR_SPACE_HSV:
             output_df = pd.DataFrame({
@@ -281,7 +281,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 "mean chin value": chin_val_means
             })
 
-            outputs.update({f"{filename}{extension}":output_df})
+            outputs.update({f"{filename}":output_df})
 
         else:
             output_df = pd.DataFrame({
@@ -291,6 +291,6 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 "mean chin value": chin_grey_means
             })
 
-            outputs.update({f"{filename}{extension}":output_df})
+            outputs.update({f"{filename}":output_df})
 
     return outputs    

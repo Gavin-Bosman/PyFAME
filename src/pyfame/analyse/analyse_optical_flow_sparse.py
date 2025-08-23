@@ -1,20 +1,52 @@
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt, PositiveFloat, PositiveInt
+from typing import Optional, List, Tuple
 from pyfame.mesh import get_mesh, get_mesh_coordinates
 from pyfame.mesh.mesh_landmarks import *
 from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.file_access import get_video_capture
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
-from pyfame.utilities.checks import *
 import os
 import cv2 as cv
 import numpy as np
 import pandas as pd
 from skimage.util import *
 
-def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list[int]|None = None, max_corners:int = 20, corner_quality_level:float = 0.3, 
-                                min_corner_distance:int = 7, block_size:int = 5, search_window_size:tuple[int] = (15,15), max_pyramid_level:int = 2, 
-                                max_iterations:int = 10, accuracy_threshold:float = 0.03, output_sample_frequency_msec:int = 1000,
-                                output_detail_level:str = "summary", min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> None:
+class SparseFlowAnalysisParameters(BaseModel):
+    landmarks_to_track:Optional[List[NonNegativeInt]]
+    max_points:PositiveInt
+    point_quality_threshold:PositiveFloat = 0.3
+    min_point_distance:NonNegativeInt = 7
+    pixel_neighborhood_size:Tuple[NonNegativeInt, NonNegativeInt] = (5,5)
+    search_window_size:Tuple[NonNegativeInt, NonNegativeInt] = (15,15)
+    max_pyramid_level:NonNegativeInt = 2
+    max_iterations:PositiveInt = 10
+    flow_accuracy_threshold:PositiveFloat
+    output_sample_frequency:PositiveInt = 1000
+    output_detail_level:str
+    min_detection_confidence:PositiveFloat
+    min_tracking_confidence:PositiveFloat
+
+    @field_validator("point_quality_threshold", "flow_accuracy_threshold", "min_detection_confidence", "min_tracking_confidence")
+    @classmethod
+    def check_normal_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if not (0.0 < value <= 1.0):
+            raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
+    
+    @field_validator("output_detail_level")
+    @classmethod
+    def check_accepted_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if value not in {"summary", "full"}:
+            raise ValueError(f"Unrecognized value for parameter {field_name}.")
+
+def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list[int]|None = None, max_points:int = 20, 
+                                flow_accuracy_threshold:float = 0.03, output_detail_level:str = "summary", output_sample_frequency:int = 1000,
+                                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> dict[str, pd.DataFrame]:
+    
     """Takes each input video file provided within input_directory, and generates a sparse optical flow image, as well as a csv containing periodically
     sampled flow vector data. This function makes use of the Lucas-Kanadae optical flow algorithm, as well as the Shi-Tomasi good-corners algorithm to identify
     and track relevant points in the input video. Alternatively, specific facial landmarks to track can be passed in via landmarks_to_track.
@@ -28,37 +60,17 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     landmarks_to_track: list of int
         A list of mediapipe FaceMesh landmark id's, specifying relevant facial landmarks to track.
     
-    max_corners: int
+    max_points: int
         The maximum number of corners or "good points" for the Shi-Tomasi corners algorithm.
 
-    corner_quality_level: float
-        The minimum quality of a found corner for it to be accepted. 
-    
-    min_corner_distance: int
-        The minimum distance between two corners for both corners to be accepted in the Shi-Tomasi corners algorithm.
-
-    block_size: int
-        The size of the search window used in the Shi-Tomasi corners algorithm.
-    
-    search_window_size: tuple of int
-        The size of the search window (in pixels) used at each pyramid level in Lucas-Kanade sparse optical flow.
-
-    max_pyramid_lvl: int
-        The maximum number of pyramid levels used in Lucas Kanade sparse optical flow. As you increase this parameter larger motions can be 
-        detected but consequently computation time increases.
-    
-    max_iterations: int
-        The maximum number of iterations (over each frame) the optical flow algorithm will make before terminating.
-
-    accuracy_threshold: float
+    flow_accuracy_threshold: float
         A termination criteria for Lucas-Kanadae optical flow; the algorithm will continue to iterate until this threshold is reached.
 
-    output_sample_frequency_msec: int
-        The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
-        the value to increase the number of optical flow vector samples written to the output csv file.
-    
     output_detail_level: str
         Either "summary" specifying summary statisitics or "deep" specifying full descriptive output for each vector.
+    
+    output_sample_frequency: int
+        The time duration (in msec) between successive samplings.
     
     min_detection_confidence: float
         A normalized float; an input parameter to the mediapipe FaceMesh solution.
@@ -73,46 +85,27 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
 
     """
     
-    # Performing parameter checks
-    check_type(landmarks_to_track, [list, type(None)])
-    if landmarks_to_track is not None:
-        check_type(landmarks_to_track, [int], iterable=True)
-
-    check_type(max_corners, [int])
-    check_value(max_corners, min=0)
-
-    check_type(corner_quality_level, [float])
-    check_value(corner_quality_level, min=0.0, max=1.0)
-
-    check_type(min_corner_distance, [int])
-    check_value(min_corner_distance, min=1)
-
-    check_type(block_size, [int])
-
-    check_type(search_window_size, [tuple])
-    check_type(search_window_size, [int], iterable=True)
-
-    check_type(max_pyramid_level, [int])
-    check_value(max_pyramid_level, min=1, max=5)
-
-    check_type(max_iterations, [int])
-    check_value(max_iterations, min=0)
-
-    check_type(accuracy_threshold, [float])
-    check_value(accuracy_threshold, min=0.0, max=1.0)
-
-    check_type(output_sample_frequency_msec, [int])
-    check_value(output_sample_frequency_msec, min=50, max=2000)
-
-    output_detail_level = str.lower(output_detail_level)
-    check_type(output_detail_level, [str])
-    check_value(output_detail_level, ["summary", "full"])
-
-    check_type(min_detection_confidence, [float])
-    check_value(min_detection_confidence, min=0.0, max=1.0)
-
-    check_type(min_tracking_confidence, [float])
-    check_value(min_tracking_confidence, min=0.0, max=1.0)
+    # Validate and assign input parameters
+    try:
+        input_parameters = SparseFlowAnalysisParameters(
+            landmarks_to_track=landmarks_to_track, 
+            max_points=max_points,
+            flow_accuracy_threshold=flow_accuracy_threshold,
+            output_detail_level=output_detail_level,
+            output_sample_frequency=output_sample_frequency,
+            min_detection_confidence=min_detection_confidence,
+            min_tracking_confidence=min_tracking_confidence
+        )
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {analyse_optical_flow_sparse.__name__}: {e}")
+    
+    output_sample_frequency_msec = input_parameters.output_sample_frequency
+    search_window_size = input_parameters.search_window_size
+    max_pyramid_level = input_parameters.max_pyramid_level
+    max_iterations = input_parameters.max_iterations
+    point_quality_threshold = input_parameters.point_quality_threshold
+    min_point_distance = input_parameters.min_point_distance
+    pixel_neighborhood_size = input_parameters.pixel_neighborhood_size
     
     # Defining the mediapipe facemesh task
     face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, False)
@@ -177,7 +170,7 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
         # Parameters for lucas kanade optical flow
         lk_params = dict(winSize  = search_window_size,
             maxLevel = max_pyramid_level,
-            criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, max_iterations, accuracy_threshold))
+            criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, max_iterations, flow_accuracy_threshold))
 
         # Main Processing loop
         while True:
@@ -203,7 +196,7 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
                     init_points = np.array([[lm.get('x'), lm.get('y')] for lm in landmark_screen_coords if lm.get('id') in landmarks_to_track], dtype=np.float32)
                     init_points = init_points.reshape(-1,1,2)
                 else:
-                    init_points = cv.goodFeaturesToTrack(old_gray, max_corners, corner_quality_level, min_corner_distance, block_size, mask=face_mask)
+                    init_points = cv.goodFeaturesToTrack(old_gray, max_points, point_quality_threshold, min_point_distance, pixel_neighborhood_size, mask=face_mask)
                 
             if counter > 1:
                 gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -275,11 +268,11 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
                 "Number of Points":num_points
             })
             
-            outputs.update({f"{filename}{extension}":output_df})
+            outputs.update({f"{filename}":output_df})
         
         else:
             cols = ["Timestamp", "Old x", "Old y", "New x", "New y", "Magnitude", "Angle"]
             output_df = pd.DataFrame(full_stats, columns=cols)
-            outputs.update({f"{filename}{extension}":output_df})
+            outputs.update({f"{filename}":output_df})
     
     return outputs

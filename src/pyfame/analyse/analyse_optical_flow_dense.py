@@ -1,3 +1,4 @@
+from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveInt, NonNegativeInt, PositiveFloat, NonNegativeFloat
 from pyfame.mesh.mesh_landmarks import *
 from pyfame.file_access import get_video_capture
 from pyfame.utilities.exceptions import *
@@ -9,45 +10,33 @@ import numpy as np
 import pandas as pd
 from skimage.util import *
 
-def analyse_optical_flow_dense(file_paths:pd.DataFrame, block_size:int = 5, search_window_size:int = 15, max_pyramid_level:int = 2, 
-                               pyramid_scale:float = 0.5, max_iterations:int = 10, gaussian_deviation:float = 1.2, 
-                               with_sub_dirs:bool = False, output_sample_frequency_msec:int = 1000) -> None:
+class DenseFlowAnalysisParameters(BaseModel):
+    pixel_neighborhood_size:PositiveInt = 5
+    search_window_size:PositiveInt = 15
+    max_pyramid_level:NonNegativeInt = 2
+    pyramid_scale:PositiveFloat = 0.5
+    max_iterations:PositiveInt = 10
+    gaussian_deviation:NonNegativeFloat = 1.2
+    output_sample_frequency:PositiveInt = 1000
+
+    @field_validator("pyramid_scale")
+    @classmethod
+    def check_normal_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if not (0.0 < value <= 1.0):
+            raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
+
+def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_msec:int = 1000) -> dict[str, pd.DataFrame]:
     '''Takes an input video file, and computes the dense optical flow, outputting the visualised optical flow to output_dir.
     Dense optical flow uses Farneback's algorithm to track every point within a frame.
 
     Parameters
     ----------
 
-    input_directory: str
-        A path string to a directory containing the video files to be processed.
-
-    output_directory: str
-        A path string to a directory where outputted csv files will be written to.
+    file_paths: pandas.DataFrame
+        An Nx2 dataframe of absolute and relative file paths, returned by the make_paths() function.
     
-    block_size: int
-        The size of the pixel neighborhood used in Farneback's dense optical flow algorithm.
-    
-    search_window_size: tuple of int
-        The size of the search window (in pixels) used at each pyramid level in Lucas-Kanade sparse optical flow.
-
-    max_pyramid_lvl: int
-        The maximum number of pyramid levels used in Lucas Kanade sparse optical flow. As you increase this parameter larger motions can be 
-        detected but consequently computation time increases.
-    
-    pyramid_scale: float
-        A float in the range [0,1] representing the downscale of the image at each pyramid level in Farneback's dense optical flow algorithm.
-        For example, with a pyr_scale of 0.5, at each pyramid level the image will be half the size of the previous image.
-    
-    max_iterations: int
-        The maximum number of iterations (over each frame) the optical flow algorithm will make before terminating.
-
-    gaussian_deviation: float
-        A floating point value representing the standard deviation of the Gaussian distribution used in the polynomial expansion of Farneback's
-        dense optical flow algorithm. Typically with block_sizes of 5 or 7, a gaussian_deviation of 1.2 or 1.5 are used respectively.
-
-    with_sub_dirs: bool
-        Indicates whether the input directory contains subfolders.
-
     output_sample_frequency_msec: int
         The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
         the value to increase the number of optical flow vector samples written to the output csv file.
@@ -55,24 +44,29 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, block_size:int = 5, sear
     Returns
     -------
 
-    None
+    dict[str, pd.DataFrame]
+
+    Raises
+    ------
+
+    ValueError
+        On the passing of unrecognized input parameter values.
+    UnrecognizedExtensionError
+        If an image file is passed; Farneback's dense flow requires video files.
     '''
 
-    # Performing parameter checks
-    check_type(block_size, [int])
+    # Validate and assign input parameters
+    try:
+        input_parameters = DenseFlowAnalysisParameters(output_sample_frequency=output_sample_frequency_msec)
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {analyse_optical_flow_dense.__name__}: {e}")
 
-    check_type(search_window_size, [int])
-
-    check_type(max_pyramid_level, [int])
-    check_value(max_pyramid_level, min=1, max=5)
-
-    check_type(max_iterations, [int])
-    check_value(max_iterations, min=0)
-    
-    check_type(with_sub_dirs, [bool])
-
-    check_type(output_sample_frequency_msec, [int])
-    check_value(output_sample_frequency_msec, min=50, max=2000)
+    pyramid_scale = input_parameters.pyramid_scale
+    max_pyramid_level = input_parameters.max_pyramid_level
+    search_window_size = input_parameters.search_window_size
+    max_iterations = input_parameters.max_iterations
+    pixel_neighborhood_size = input_parameters.pixel_neighborhood_size
+    gaussian_deviation = input_parameters.gaussian_deviation
 
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
@@ -140,7 +134,7 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, block_size:int = 5, sear
                 timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
 
                 # Calculate dense optical flow
-                flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyramid_scale, max_pyramid_level, search_window_size, max_iterations, block_size, gaussian_deviation, 0)
+                flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyramid_scale, max_pyramid_level, search_window_size, max_iterations, pixel_neighborhood_size, gaussian_deviation, 0)
 
                 # Get vector magnitudes and angles
                 magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])
@@ -173,6 +167,6 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, block_size:int = 5, sear
             "Mean Angle":mean_angles,
             "Deviation Angle":std_angles
         })
-        outputs.update({f"{filename}{extension}":output_df})
+        outputs.update({f"{filename}":output_df})
     
     return outputs

@@ -3,8 +3,8 @@ layout: doc
 title: Api Overview
 prev: false
 next: 
-    text: 'Moviefy'
-    link: '/reference/moviefy'
+    text: 'Analyse'
+    link: '/reference/analyse'
 ---
 
 # Overview
@@ -61,4 +61,4 @@ colour_layer = pf.layer_colour(timing_configuration = config)
 
 For more information on MediaPipe's FaceMesh solution, [see here.](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)
 
-If you would like to learn more about how to install PyFAME and it's dependencies, or you would like to jump right in to a quick example, please see the [Getting Started](../guide/getting_started.md) page.
+If you would like to learn more about how to install PyFAME and it's dependencies, or you would like to jump right into a simple example, please see the [Getting Started](../guide/getting_started.md) page.

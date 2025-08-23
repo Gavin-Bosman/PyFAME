@@ -45,8 +45,7 @@ export default withMermaid({
         text: 'Reference',
         items: [
           { text: 'Overview', link: '/reference/overview' },
-          { text: 'Moviefy', link: '/reference/moviefy' },
-          { text: 'Analysis', link: '/reference/analysis' },
+          { text: 'Analyse', link: '/reference/analyse' },
           { text: 'Coloring', link: '/reference/coloring' },
           { text: 'Occlusion', link: '/reference/occlusion' },
           { text: 'Point-Light Display', link: '/reference/pld' },
