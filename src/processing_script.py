@@ -1,15 +1,9 @@
 import pyfame as pf
 
 # Create input and output subdirectories ['raw','processed',...]
-paths = pf.make_paths(exclude_directories=["processed", "logs", "conversion"])
+paths = pf.make_paths()
+timing = pf.TimingConfiguration()
 
-# Optionally, define a custom timing configuration
-timing_config = pf.TimingConfiguration()
+recolour = pf.layer_colour_recolour(timing, pf.CHIN_PATH, magnitude=15.0)
 
-# Define Layers
-overlay = pf.layer_stylise_overlay(timing_config, )
-
-# Best practice to apply weighted operations prior to non-weighted operations,
-# however layer_pipeline cleanly handles this internally so layer order in 
-# apply_layers call doesnt actually matter
-pf.apply_layers(paths, [overlay])
+pf.apply_layers(paths.iloc[[0]], recolour)

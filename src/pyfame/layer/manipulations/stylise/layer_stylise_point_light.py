@@ -25,6 +25,8 @@ class PointLightParameters(BaseModel):
         for elem in value:
             if not (0 <= elem <= 255):
                 raise ValueError(f"{field_name} values must lie between 0 and 255.")
+        
+        return value
     
     @field_validator("point_density")
     @classmethod
@@ -32,6 +34,8 @@ class PointLightParameters(BaseModel):
         field_name = info.field_name
         if not (0.0 < value <= 1.0):
             raise ValueError(f"Invalid value for parameter {field_name}. Must lie in the range 0.0 - 1.0.")
+        
+        return value
     
     @field_validator("history_method", mode="before")
     @classmethod
@@ -75,22 +79,24 @@ class LayerStylisePointLight(Layer):
         self.min_detection_confidence = self.time_config.min_detection_confidence
         self.static_image_mode = False
 
-        # Dump pydantic models to get full param list
-        self._layer_parameters = self.time_config.model_dump()
-        self._layer_parameters.update(self.pl_params.model_dump())
+        # Snapshot of initial state
+        self._snapshot_state()
     
     def supports_weight(self):
         return False
     
-    def get_layer_parameters(self):
+    def get_layer_parameters(self) -> dict:
+        # Dump the pydantic models to get dict of full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.pl_params.model_dump())
+        self._layer_parameters["time_onset"] = self.onset_t
+        self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
 
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
 
         # Update the faceMesh when switching between image and video proccessing
-        if static_image_mode != self.static_image_mode:
-            self.static_image_mode = static_image_mode
-            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        face_mesh = super().get_face_mesh(static_image_mode)
         
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -98,7 +104,6 @@ class LayerStylisePointLight(Layer):
             return frame
         else:
             # Get the screen pixel coordinates of the frame/image
-            face_mesh = super().get_face_mesh()
             landmark_screen_coords = get_mesh_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), face_mesh)
             mask = np.zeros_like(frame, dtype=np.uint8)
             output_img = None

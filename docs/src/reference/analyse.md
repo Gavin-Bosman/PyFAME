@@ -65,26 +65,36 @@ pf.analyse_to_disk(colour_channel_analysis)
 ## analyse_optical_flow_sparse()
 
 ```Python
-
+analyse_optical_flow_sparse(
+    file_paths:pandas.DataFrame,
+    landmarks_to_track:list[int] | None,
+    max_points:int,
+    flow_accuracy_threshold:float, 
+    output_detail_level:str, 
+    frame_step:int,
+    min_detection_confidence:float,
+    min_tracking_confidence:float
+) -> dict[str, pandas.DataFrame]
 ```
-For each image or video provided in `input_dir`, the facial color means in the provided color space are extracted and written out as a CSV.
 
-This function will extract both the global (full-face) and local (landmark-specific) color channel values in the specified color space (determined by input parameter `color_space`). The color channel values of the full face, cheeks, nose, and chin, are recorded and written out in a CSV file. The function will create a new subdirectory under `output_dir` called `Color_Channel_Means/` where all CSV output files will be written.
+Takes in any number of file paths, and for each file compute and track the Lucas-Kanade sparse optical flow vectors. The vector magnitudes and angles are sampled at some interval of frames, determined by `frame_step`. Users may optionally pass a list of specific FaceMesh landmark id's, but by default up to `max_points` points will be automatically detected using the Shi-Tomasi corners algorithm. 
 
 ### Parameters
 
 | Parameter                  | Type           | Description                                               |
 | :------------------------- | :------------- | :-------------------------------------------------------- |
-| `input_dir` | `str` | A path string to the directory containing files to process. |
-| `output_dir` | `str` | A path string to the directory where processed files will be output. |
-| `color_space` | `int` or `str` | An integer specifier or string literal specifying the color space to operate in (One of COLOR_SPACE_RGB, COLOR_SPACE_HSV, COLOR_SPACE_GRAYSCALE, or "rgb", "hsv", "grayscale"). |
-| `with_sub_dirs` | `bool` | A boolean flag indicating if the input directory contains sub-directories. |
+| `file_paths` | `pandas.DataFrame` | An Nx2 dataframe of absolute and relative file paths, returned from the `make_paths()` function. |
+| `landmarks_to_track` | `list[int]` | An optional list of Mediapipe FaceMesh landmark id's. These points will be directly tracked or approximated with stronger points nearby. |
+| `max_points` | `int` | The maximum number of points for the Shi-Tomasi corners algorithm to detect. |
+| `flow_accuracy_threshold` | A termination criteria of the sparse optical flow calculation; defines the accuracy threshold at which the sparse flow calculation will stop iterating. |
+| `output_detail_level` | `str` | One of "summary" or "full". Determines whether the vector sampling records aggregate statistics or full-depth statistics (sampling of every vector). |
+| `frame_step` | `int` | The number of frames between successive optical flow calculations. Increase this value for more robust outputs. |
 | `min_detection_confidence` | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 | `min_tracking_confidence`  | `float` | A confidence measure in the range [0,1], passed on to the MediaPipe FaceMesh model. |
 
 ### Returns
 
-`None`
+`dict[str, pandas.DataFrame]`
 
 ### Exceptions Raised
 | Raises | Encountered Error |

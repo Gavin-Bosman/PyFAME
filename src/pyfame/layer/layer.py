@@ -3,8 +3,9 @@ from typing import Callable, Optional
 from abc import ABC, abstractmethod
 from cv2.typing import MatLike
 from pyfame.layer.timing_curves import timing_linear
-from pyfame.utilities.checks import *
+from pyfame.file_access.checks import *
 from pyfame.mesh.get_mesh_coordinates import get_mesh
+import copy
 
 class TimingConfiguration(BaseModel):
     time_onset:Optional[NonNegativeFloat] = None
@@ -32,13 +33,20 @@ class Layer(ABC):
         # if config is none, populate with defaults
         self.config = configuration or TimingConfiguration()
 
-        self.face_mesh = get_mesh(self.config.min_tracking_confidence, self.config.min_detection_confidence, False)
         self.onset_t = self.config.time_onset
         self.offset_t = self.config.time_offset
         self.timing = self.config.timing_function
         self.rise = self.config.rise_duration
         self.fall = self.config.fall_duration
         self.time_kwargs = self.config.model_extra
+    
+    def _snapshot_state(self):
+        self._initial_state = copy.deepcopy(self.__dict__)
+    
+    def _reset_state(self):
+        init_state = copy.deepcopy(self._initial_state)
+        init_state["_initial_state"] = self._initial_state
+        self.__dict__ = init_state
         
     def compute_weight(self, dt:float, supports_weight:bool) -> float:
         if supports_weight:
@@ -46,11 +54,13 @@ class Layer(ABC):
         else:
             return 1.0
     
-    def get_face_mesh(self):
-        return self.face_mesh
-    
-    def set_face_mesh(self, min_tracking_confidence:float = 0.5, min_detection_confidence:float = 0.5, static_image_mode:bool = False):
-        self.face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
+    def get_face_mesh(self, static_image_mode=False):
+        return get_mesh(
+            min_tracking_confidence=self.config.min_tracking_confidence, 
+            min_detection_confidence=self.config.min_detection_confidence,
+            static_image_mode=static_image_mode,
+            max_num_faces=1
+        )
 
     @abstractmethod
     def supports_weight(self) -> bool:

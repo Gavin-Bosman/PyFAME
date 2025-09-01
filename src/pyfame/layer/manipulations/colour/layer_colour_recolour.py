@@ -4,7 +4,7 @@ from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
 from pyfame.utilities.exceptions import *
-from pyfame.utilities.checks import *
+from pyfame.file_access.checks import *
 from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np 
@@ -24,6 +24,8 @@ class RecolourParameters(BaseModel):
         elif isinstance(value, str):
             if value not in ["red", "green", "blue", "yellow"]:
                 raise ValueError(f"{field_name} has been provided an unrecognized value.")
+        
+        return value
 
 class LayerColourRecolour(Layer):
 
@@ -42,25 +44,26 @@ class LayerColourRecolour(Layer):
         self.magnitude = self.colour_params.magnitude
         self.min_detection_confidence = self.time_config.min_detection_confidence
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        
-        # Dump the pydantic models to get dict of full parameter list
-        self._layer_parameters = self.time_config.model_dump()
-        self._layer_parameters.update(self.colour_params.model_dump())
+
+        # Snapshot of initial state
+        self._snapshot_state()
     
     def supports_weight(self) -> bool:
         return True
     
     def get_layer_parameters(self) -> dict:
+        # Dump the pydantic models to get dict of full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.colour_params.model_dump())
+        self._layer_parameters["time_onset"] = self.onset_t
+        self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
-        weight = None
 
         # Update the faceMesh when switching between image and video processing
-        if self.static_image_mode != static_image_mode:
-            self.static_image_mode = static_image_mode
-            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
-        
+        face_mesh = super().get_face_mesh(static_image_mode)
+
         # Since a static image is essentially one frame, perform the manipulation at maximal weight
         if self.static_image_mode:
             weight = 1.0
@@ -72,7 +75,6 @@ class LayerColourRecolour(Layer):
             return frame
         else:
             # Get a mask of our region of interest
-            face_mesh = super().get_face_mesh()
             mask = mask_from_path(frame, self.region_of_interest, face_mesh)
 
             # Convert input image to CIE La*b* color space (perceptually uniform space)

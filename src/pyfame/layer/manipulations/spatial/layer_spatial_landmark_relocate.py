@@ -25,22 +25,24 @@ class LayerSpatialLandmarkRelocate(Layer):
         self.min_detection_confidence = self.time_config.min_detection_confidence
         self.static_image_mode = False
 
-        # Dump pydantic models to get full param list
-        self._layer_parameters = self.time_config.model_dump()
-        self._layer_parameters.update(self.relocate_params.model_dump())
+        # Snapshot of initial state
+        self._snapshot_state()
     
     def supports_weight(self):
         return False
 
-    def get_layer_parameters(self):
+    def get_layer_parameters(self) -> dict:
+        # Dump the pydantic models to get dict of full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.relocate_params.model_dump())
+        self._layer_parameters["time_onset"] = self.onset_t
+        self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False) -> cv.typing.MatLike:
 
         # Update the faceMesh when switching between image and video processing
-        if static_image_mode != self.static_image_mode:
-            self.static_image_mode = static_image_mode
-            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
+        face_mesh = super().get_face_mesh(static_image_mode)
         
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -55,7 +57,6 @@ class LayerSpatialLandmarkRelocate(Layer):
                 rng = np.random.default_rng()
 
             # Get the face oval coordinates and mask out the roi
-            face_mesh = super().get_face_mesh()
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_TIGHT_PATH)
             fo_mask = mask_from_path(frame, FACE_OVAL_PATH, self.face_mesh)

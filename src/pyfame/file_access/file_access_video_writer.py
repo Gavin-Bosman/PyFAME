@@ -1,10 +1,6 @@
 import cv2 as cv
 from pyfame.utilities.exceptions import *
-from pyfame.utilities.checks import *
-import logging
-
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+from pyfame.file_access.checks import *
 
 def get_video_writer(file_path:str, frame_size:tuple[int,int], video_codec:str = 'mp4v', frame_rate:int = 30, isColor:bool = True) -> cv.VideoWriter:
     # Perform parameter checks

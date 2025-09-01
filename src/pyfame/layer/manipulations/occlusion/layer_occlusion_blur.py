@@ -38,6 +38,8 @@ class BlurringParameters(BaseModel):
         # Ensures kernels provided are square, odd and greater or equal to (3,3)
         if not (value[0] % 2 == 1 and value[1] % 2 == 1 and value[0] >= 3 and value[0] == value[1]):
             raise ValueError(f"{field_name} expects odd, square kernel dimensions >= (3,3).")
+        
+        return value
 
 class LayerOcclusionBlur(Layer):
     def __init__(self, timing_configuration:TimingConfiguration, blurring_parameters:BlurringParameters):
@@ -55,24 +57,26 @@ class LayerOcclusionBlur(Layer):
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
         self.min_detection_confidence = self.time_config.min_detection_confidence
         self.static_image_mode = False
-        
-        # Dump the pydantic models to get full parameter list
-        self._layer_parameters = self.time_config.model_dump()
-        self._layer_parameters.update(self.blur_params.model_dump())
+
+        # Snapshot of initial state
+        self._snapshot_state()
     
     def supports_weight(self):
         return False
     
-    def get_layer_parameters(self):
+    def get_layer_parameters(self) -> dict:
+        # Dump the pydantic models to get dict of full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.blur_params.model_dump())
+        self._layer_parameters["time_onset"] = self.onset_t
+        self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
 
         # Update faceMesh when switching between image and video processing
-        if static_image_mode != self.static_image_mode:
-            self.static_image_mode = static_image_mode
-            super().set_face_mesh(self.min_tracking_confidence, self.min_detection_confidence, self.static_image_mode)
-        
+        face_mesh = super().get_face_mesh(static_image_mode)
+
         # Blurring does not support weight, so weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -80,7 +84,6 @@ class LayerOcclusionBlur(Layer):
             return frame
         else:
             # Mask out region of interest
-            face_mesh = super().get_face_mesh()
             mask = mask_from_path(frame, self.region_of_interest, face_mesh)
             output_frame = np.zeros_like(frame, dtype=np.uint8)
 

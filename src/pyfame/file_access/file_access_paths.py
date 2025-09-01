@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from pyfame.utilities.checks import *
+from pyfame.file_access.checks import *
 from pathlib import Path
 
 def make_paths(root_path:str = None, exclude_directories:list[str] | None = ["processed", "logs", "conversion", "analysis"]) -> pd.DataFrame:

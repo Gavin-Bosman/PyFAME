@@ -3,7 +3,8 @@ from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.utilities.exceptions import UnrecognizedExtensionError
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.colors as mpcolors
 
 class DenseFlowParameters(BaseModel):
     pixel_neighborhood_size:PositiveInt
@@ -12,6 +13,7 @@ class DenseFlowParameters(BaseModel):
     pyramid_scale:PositiveFloat
     max_iterations:PositiveInt
     gaussian_deviation:NonNegativeFloat
+    legend:bool
 
     @field_validator("pyramid_scale")
     @classmethod
@@ -20,6 +22,8 @@ class DenseFlowParameters(BaseModel):
 
         if not (0.0 < value <= 1.0):
             raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
+        
+        return value
 
 class LayerStyliseOpticalFlowDense(Layer):
     def __init__(self, timing_configuration:TimingConfiguration, flow_parameters:DenseFlowParameters):
@@ -33,6 +37,9 @@ class LayerStyliseOpticalFlowDense(Layer):
         self.loop_counter = 1
         self.hsv_mask = None
         self.previous_grey_frame = None
+        self.cmap = cm.get_cmap("viridis")
+        self.norm = mpcolors.Normalize(vmin=0.0, vmax=20.0)
+        self.magnitude_max = 20.0
 
         # Declare class parameters
         self.pixel_neighborhood_size = self.flow_params.pixel_neighborhood_size
@@ -41,17 +48,22 @@ class LayerStyliseOpticalFlowDense(Layer):
         self.pyramid_scale = self.flow_params.pyramid_scale
         self.max_iterations = self.flow_params.max_iterations
         self.gaussian_deviation = self.flow_params.gaussian_deviation
+        self.legend = self.flow_params.legend
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
         self.min_detection_confidence = self.time_config.min_detection_confidence
 
-        # Dump pydantic models to extract param list
-        self._layer_parameters = self.time_config.model_dump()
-        self._layer_parameters.update(self.flow_params.model_dump())
+        # Snapshot of initial state
+        self._snapshot_state()
     
     def supports_weight(self):
         return False
     
-    def get_layer_parameters(self):
+    def get_layer_parameters(self) -> dict:
+        # Dump the pydantic models to get dict of full parameter list
+        self._layer_parameters = self.time_config.model_dump()
+        self._layer_parameters.update(self.flow_params.model_dump())
+        self._layer_parameters["time_onset"] = self.onset_t
+        self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
     def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
@@ -93,19 +105,19 @@ class LayerStyliseOpticalFlowDense(Layer):
                 magnitudes, _ = cv.cartToPolar(flow[...,0],flow[...,1])
 
                 # Normalise magnitudes to [0,1]
-                normal_mags = cv.normalize(magnitudes, None, 0, 1, cv.NORM_MINMAX)
+                normal_mags = self.norm(magnitudes)
 
                 # Map magnitudes to viridis colour scale
-                cmap = plt.cm.get_cmap('viridis')
-                viridis = cmap(normal_mags)
+                viridis = self.cmap(normal_mags)
                 output_img = (viridis[:, :, :3] * 255).astype(np.uint8)[:, :, ::-1]
+                ### DRAW LEGEND HERE
 
                 self.previous_grey_frame = grey_frame.copy()
 
                 return output_img
 
 def layer_stylise_optical_flow_dense(timing_configuration:TimingConfiguration | None = None, pixel_neighborhood_size:int = 5, search_window_size:int = 15, 
-                                     max_pyramid_level:int = 2, pyramid_scale:float = 0.5, max_iterations:int = 10, gaussian_deviation:float = 1.2) -> LayerStyliseOpticalFlowDense:
+                                     max_pyramid_level:int = 2, pyramid_scale:float = 0.5, max_iterations:int = 10, gaussian_deviation:float = 1.2, legend:bool = True) -> LayerStyliseOpticalFlowDense:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
@@ -117,7 +129,8 @@ def layer_stylise_optical_flow_dense(timing_configuration:TimingConfiguration | 
             max_pyramid_level=max_pyramid_level, 
             pyramid_scale=pyramid_scale, 
             max_iterations=max_iterations, 
-            gaussian_deviation=gaussian_deviation
+            gaussian_deviation=gaussian_deviation, 
+            legend=legend
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowDense.__name__}: {e}")

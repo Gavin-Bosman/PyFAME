@@ -1,20 +1,30 @@
-from pyfame.file_access import get_video_capture, get_video_writer, map_directory_structure
+from pyfame.file_access import get_video_capture, get_video_writer, map_directory_structure, create_output_directory
 from pyfame.utilities.exceptions import *
 from pyfame.layer.timing_curves import *
 from pyfame.mesh.mesh_landmarks import *
-from .layer import Layer
-from .layer_pipeline import LayerPipeline
+from pyfame.layer.layer import Layer
+from pyfame.layer.layer_pipeline import LayerPipeline
 from pyfame.logging.write_experiment_log import write_experiment_log
 import cv2 as cv
 import os
 import pandas as pd
-
-### TODO: consider adding a state-reset method to the layers, or call __init__ after each file processing is complete
+from datetime import datetime
 
 def resolve_missing_timing(layer:Layer, video_duration:int) -> tuple[int,int]:
     onset = layer.onset_t if layer.onset_t is not None else 0
     offset = layer.offset_t if layer.offset_t is not None else video_duration
-    return (onset, offset)
+
+    # Update timing config object
+    layer.config = layer.config.model_copy(update={
+        "time_onset": onset,
+        "time_offset": offset
+    })
+
+    # keep layer.self params in sync
+    layer.onset_t = onset
+    layer.offset_t = offset
+
+    return onset, offset
 
 def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     """ Takes in a list of layer objects, and applies each manipulation layer in sequence frame-by-frame, and file-by-file for each file provided within input_dir.
@@ -48,6 +58,10 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
 
     None
     """
+    # Get the current sys timestamp for a unique output folder
+    # name that will identify the processing session
+    timestamp = datetime.now().isoformat(timespec='seconds')
+    timestamp_str = timestamp.replace(":","-")
 
     # Ensure compatibility with Layer_Pipeline class
     if isinstance(layers, Layer):
@@ -83,6 +97,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     # Pre-made subdirectory structure in the project root
     input_directory = os.path.join(test_path, "raw")
     output_directory = os.path.join(test_path, "processed")
+    output_directory = create_output_directory(output_directory, timestamp_str)
     # Map any scaffoled sub-organization from the input dir to the output dir
     map_directory_structure(input_directory, output_directory)
 
@@ -109,7 +124,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
             if part not in (root_directory, "raw", os.path.basename(file))
         ]
 
-        dir_file_path = os.path.join(output_directory, *subdirectory_names, f"{filename}_processed{extension}")
+        dir_file_path = os.path.join(output_directory, *subdirectory_names, f"{filename}{extension}")
 
         # Using the file extension to sniff video codec or image container for images
         if str.lower(extension) not in [".mp4", ".mov", ".jpg", ".jpeg", ".png", ".bmp"]:
@@ -144,9 +159,6 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
                 success, frame = capture.read()
                 if not success:
                     break
-            
-            # declaring variables so they maintain their larger scope
-            dt = None
 
             if not static_image_mode:
                 # Getting the current video timestamp
@@ -155,7 +167,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
                 output_frame = output_frame.astype(np.uint8)
                 result.write(output_frame)
             else:
-                output_frame = pipeline.apply_layers(frame, dt, static_image_mode=True)
+                output_frame = pipeline.apply_layers(frame, None, static_image_mode=True)
                 output_frame = output_frame.astype(np.uint8)
                 success = cv.imwrite(dir_file_path, output_frame)
                 if not success:
@@ -168,3 +180,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         if not static_image_mode:
             capture.release()
             result.release()
+        
+        for layer in layers:
+            # Reset back to initial state after user construction
+            layer._reset_state()

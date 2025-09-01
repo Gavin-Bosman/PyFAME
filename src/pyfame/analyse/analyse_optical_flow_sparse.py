@@ -22,8 +22,8 @@ class SparseFlowAnalysisParameters(BaseModel):
     max_pyramid_level:NonNegativeInt = 2
     max_iterations:PositiveInt = 10
     flow_accuracy_threshold:PositiveFloat
-    output_sample_frequency:PositiveInt = 1000
     output_detail_level:str
+    frame_step:PositiveInt = 1
     min_detection_confidence:PositiveFloat
     min_tracking_confidence:PositiveFloat
 
@@ -34,6 +34,8 @@ class SparseFlowAnalysisParameters(BaseModel):
 
         if not (0.0 < value <= 1.0):
             raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
+        
+        return value
     
     @field_validator("output_detail_level")
     @classmethod
@@ -42,9 +44,11 @@ class SparseFlowAnalysisParameters(BaseModel):
 
         if value not in {"summary", "full"}:
             raise ValueError(f"Unrecognized value for parameter {field_name}.")
+        
+        return value
 
 def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list[int]|None = None, max_points:int = 20, 
-                                flow_accuracy_threshold:float = 0.03, output_detail_level:str = "summary", output_sample_frequency:int = 1000,
+                                flow_accuracy_threshold:float = 0.03, output_detail_level:str = "summary", frame_step:int = 5, 
                                 min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> dict[str, pd.DataFrame]:
     
     """Takes each input video file provided within input_directory, and generates a sparse optical flow image, as well as a csv containing periodically
@@ -69,8 +73,9 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     output_detail_level: str
         Either "summary" specifying summary statisitics or "deep" specifying full descriptive output for each vector.
     
-    output_sample_frequency: int
-        The time duration (in msec) between successive samplings.
+    frame_step: int
+        The number of frames between successive optical flow calculations. The flow values will be more consistent 
+        and robust as you increase this parameter. 
     
     min_detection_confidence: float
         A normalized float; an input parameter to the mediapipe FaceMesh solution.
@@ -92,14 +97,13 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
             max_points=max_points,
             flow_accuracy_threshold=flow_accuracy_threshold,
             output_detail_level=output_detail_level,
-            output_sample_frequency=output_sample_frequency,
+            frame_step=frame_step,
             min_detection_confidence=min_detection_confidence,
             min_tracking_confidence=min_tracking_confidence
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {analyse_optical_flow_sparse.__name__}: {e}")
     
-    output_sample_frequency_msec = input_parameters.output_sample_frequency
     search_window_size = input_parameters.search_window_size
     max_pyramid_level = input_parameters.max_pyramid_level
     max_iterations = input_parameters.max_iterations
@@ -165,7 +169,6 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
         counter = 0
         init_points = None
         old_gray = None
-        rolling_time_win = output_sample_frequency_msec
 
         # Parameters for lucas kanade optical flow
         lk_params = dict(winSize  = search_window_size,
@@ -197,63 +200,63 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
                     init_points = init_points.reshape(-1,1,2)
                 else:
                     init_points = cv.goodFeaturesToTrack(old_gray, max_points, point_quality_threshold, min_point_distance, pixel_neighborhood_size, mask=face_mask)
+            
+            # Only compute flow at every Nth step
+            if counter % frame_step != 0:
+                continue
+
+            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
+
+            # Calculate sparse optical flow
+            cur_points, st, err = cv.calcOpticalFlowPyrLK(old_gray, gray_frame, init_points, None, **lk_params)
+
+            # Select good points
+            good_new_points = None
+            good_old_points = None
+            if cur_points is not None:
+                good_new_points = cur_points[st==1]
+                good_old_points = init_points[st==1]
+            
+            old_coords = []
+            new_coords = []
+
+            # Draw optical flow vectors and write out values
+            for i, (new, old) in enumerate(zip(good_new_points, good_old_points)):
+                x0, y0 = old.ravel()
+                x1, y1 = new.ravel()
+                dx = x1 - x0
+                dy = y1 - y0
+
+                old_coords.append((x0, y0))
+                new_coords.append((x1, y1))
+                magnitudes.append(np.sqrt(dx**2 + dy**2))
+                angles.append(np.arctan2(dy, dx))
+           
+            # store summary statistics
+            if output_detail_level == "summary":
+                mean_mag = np.mean(magnitudes)
+                std_mag = np.std(magnitudes)
+                mean_angle = np.mean(angles)
+                std_angle = np.std(angles)
+
+                # Dataframes are immutable, so we need to store as lists during execution
+                timestamps.append(timestamp//1000)
+                mean_magnitudes.append(mean_mag)
+                std_magnitudes.append(std_mag)
+                mean_angles.append(mean_angle)
+                std_angles.append(std_angle)
+                num_points.append(len(good_new_points))
                 
-            if counter > 1:
-                gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-                timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
+            else:
+                for i, (old,new) in enumerate(zip(old_coords, new_coords)):
+                    sample_stats = []
+                    sample_stats.extend([timestamp//1000, old[0], old[1], new[0], new[1], magnitudes[i], angles[i]])
+                    full_stats.append(sample_stats)
 
-                # Calculate optical flow
-                cur_points, st, err = cv.calcOpticalFlowPyrLK(old_gray, gray_frame, init_points, None, **lk_params)
-
-                # Select good points
-                good_new_points = None
-                good_old_points = None
-                if cur_points is not None:
-                    good_new_points = cur_points[st==1]
-                    good_old_points = init_points[st==1]
-                
-                old_coords = []
-                new_coords = []
-
-                # Draw optical flow vectors and write out values
-                for i, (new, old) in enumerate(zip(good_new_points, good_old_points)):
-                    x0, y0 = old.ravel()
-                    x1, y1 = new.ravel()
-                    dx = x1 - x0
-                    dy = y1 - y0
-
-                    old_coords.append((x0, y0))
-                    new_coords.append((x1, y1))
-                    magnitudes.append(np.sqrt(dx**2 + dy**2))
-                    angles.append(np.arctan2(dy, dx))
-
-                if timestamp > rolling_time_win:
-                    # store summary statistics
-                    if output_detail_level == "summary":
-                        mean_mag = np.mean(magnitudes)
-                        std_mag = np.std(magnitudes)
-                        mean_angle = np.mean(angles)
-                        std_angle = np.std(angles)
-
-                        # Dataframes are immutable, so we need to store as lists during execution
-                        timestamps.append(timestamp//1000)
-                        mean_magnitudes.append(mean_mag)
-                        std_magnitudes.append(std_mag)
-                        mean_angles.append(mean_angle)
-                        std_angles.append(std_angle)
-                        num_points.append(len(good_new_points))
-                        
-                    else:
-                        for i, (old,new) in enumerate(zip(old_coords, new_coords)):
-                            sample_stats = []
-                            sample_stats.extend([timestamp//1000, old[0], old[1], new[0], new[1], magnitudes[i], angles[i]])
-                            full_stats.append(sample_stats)
-                      
-                    rolling_time_win += output_sample_frequency_msec
-
-                # Update previous frame and points
-                old_gray = gray_frame.copy()
-                init_points = good_new_points.reshape(-1, 1, 2)
+            # Update previous frame and points
+            old_gray = gray_frame.copy()
+            init_points = good_new_points.reshape(-1, 1, 2)
 
         capture.release()
 

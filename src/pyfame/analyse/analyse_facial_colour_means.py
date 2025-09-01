@@ -1,14 +1,55 @@
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveFloat
+from typing import Union
 from pyfame.mesh import get_mesh
 from pyfame.mesh.mesh_landmarks import *
 from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.file_access import get_video_capture, create_output_directory, get_directory_walk
+from pyfame.file_access import get_video_capture, create_output_directory
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
-from pyfame.utilities.checks import *
 import os
 import cv2 as cv
 import numpy as np
 import pandas as pd
+
+class ColourMeansParameters(BaseModel):
+    colour_space:Union[str, int]
+    min_detection_confidence:PositiveFloat
+    min_tracking_confidence:PositiveFloat
+
+    @field_validator("colour_space", mode="before")
+    @classmethod
+    def check_recognized_value(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+        value_mapping = {
+            "bgr":COLOR_SPACE_BGR, 
+            "rgb":COLOR_SPACE_BGR, 
+            "hsv":COLOR_SPACE_HSV, 
+            "greyscale":COLOUR_SPACE_GREYSCALE,
+            "grayscale":COLOUR_SPACE_GREYSCALE
+        }
+
+        if isinstance(value, str):
+            value = str.lower(value)
+            if value not in {"rgb", "bgr", "hsv", "greyscale", "grayscale"}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value_mapping.get(value)
+        
+        if isinstance(value, int):
+            if value not in {47, 48, 49}:
+                raise ValueError(f"Unrecognized value for parameter {field_name}.")
+            return value
+        
+        raise TypeError(f"Parameter {field_name} expects int or str.")
+    
+    @field_validator("min_detection_confidence", "min_tracking_confidence")
+    @classmethod
+    def check_valid_range(cls, value, info:ValidationInfo):
+        field_name = info.field_name
+
+        if not (0.0 < value <= 1.0):
+            raise ValueError(f"Invalid value for parameter {field_name}. The value must lie in the range [0, 1].")
+        
+        return value
 
 def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = COLOUR_SPACE_BGR,
                                 min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> dict[str, pd.DataFrame]:
@@ -41,19 +82,19 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
     # Global declarations and init
     static_image_mode = False
 
-    # Type and value checking input parameters
-    check_type(colour_space, [int, str])
-    check_value(colour_space, ["bgr", "hsv", "greyscale", "grayscale"].extend(COLOUR_SPACE_OPTIONS))
-    if isinstance(colour_space, str):
-        str_map = {"bgr":COLOUR_SPACE_BGR, "rgb":COLOUR_SPACE_BGR, "hsv":COLOUR_SPACE_HSV, "greyscale":COLOUR_SPACE_GREYSCALE, "grayscale":COLOUR_SPACE_GREYSCALE}
-        low_str = str.lower(colour_space)
-        colour_space = str_map.get(low_str)
-
-    check_type(min_detection_confidence, [float])
-    check_value(min_detection_confidence, min=0.0, max=1.0)
-
-    check_type(min_tracking_confidence, [float])
-    check_value(min_tracking_confidence, min=0.0, max=1.0)
+    # Validate input parameters
+    try:
+        input_params = ColourMeansParameters(
+            colour_space=colour_space,
+            min_detection_confidence=min_detection_confidence,
+            min_tracking_confidence=min_tracking_confidence
+        )
+    except ValidationError as e:
+        raise ValueError(f"Invalid parameters for {analyse_facial_colour_means.__name__}: {e}")
+    
+    colour_space = input_params.colour_space
+    min_detection_confidence = input_params.min_detection_confidence
+    min_tracking_confidence = input_params.min_tracking_confidence
     
     # Defining mediapipe facemesh task
     face_mesh = None
@@ -190,7 +231,6 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
 
             bin_chin_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
             bin_chin_mask[chin_mask] = 255
-
              
             if colour_space == COLOUR_SPACE_BGR:
                 # Extracting the color channel means
@@ -214,10 +254,10 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
 
             elif colour_space == COLOUR_SPACE_HSV:
                 # Extracting the color channel means
-                hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_fo_mask)
-                h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_cheeks_mask)
-                h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_nose_mask)
-                h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_chin_mask)
+                hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_fo_mask)
+                h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_cheeks_mask)
+                h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_nose_mask)
+                h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_chin_mask)
 
                 hue_means.append(hue)
                 sat_means.append(sat)
@@ -234,10 +274,10 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
             
             else:
                 # Extracting the color channel means
-                val, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_fo_mask)
-                v_cheeks, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_cheeks_mask)
-                v_nose, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_nose_mask)
-                v_chin, *_ = cv.mean(cv.cvtColor(frame, colour_space), bin_chin_mask)
+                val, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_fo_mask)
+                v_cheeks, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_cheeks_mask)
+                v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_nose_mask)
+                v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_chin_mask)
 
                 grey_means.append(val)
                 cheeks_grey_means.append(v_cheeks)

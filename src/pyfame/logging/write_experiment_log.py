@@ -31,7 +31,7 @@ def write_experiment_log(layers:list[Layer], input_file:str, root_directory_path
 
         log_data = {
             "timestamp":timestamp,
-            "input_file":input_file,
+            "input file":input_file,
             "layers": layer_dict
         }
 

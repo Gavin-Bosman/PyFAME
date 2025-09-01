@@ -1,11 +1,7 @@
-from .exceptions import *
-from typing import Any, Callable
+from pyfame.utilities.exceptions import *
+from typing import Any
 import os
 from pathlib import Path
-
-def check_has_callable_attr(obj:Any, attr_name:str) -> None:
-    if not (hasattr(obj, attr_name) and callable(getattr(obj,attr_name))):
-        raise ValueError(f"Object must have a callable {attr_name} attribute.")
 
 def check_type(param:Any, accepted_types:list[type], iterable:bool=False) -> None:
     if not iterable:
@@ -60,7 +56,3 @@ def check_is_file(path:str) -> None:
 def check_valid_file_extension(extension:str, allowed_extensions:list[str] = ['.mp4', '.mov', '.jpg', '.jpeg', '.png', '.bmp']) -> None:
     if extension not in allowed_extensions:
         raise UnrecognizedExtensionError(f"Unrecognized file extension {extension}.")
-
-def check_return_type(func:Callable, x:Any, accepted_types:list[type]) -> None:
-    y = func(x)
-    check_type(y, accepted_types)

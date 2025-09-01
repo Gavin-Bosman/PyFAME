@@ -1,5 +1,5 @@
 import cv2 as cv
-from pyfame.utilities.checks import *
+from pyfame.file_access.checks import *
 from pyfame.utilities.exceptions import FileReadError
 
 def get_imread(file_path:str, flag:int = cv.IMREAD_UNCHANGED) -> cv.typing.MatLike:

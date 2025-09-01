@@ -3,7 +3,7 @@ from pyfame.mesh.mesh_landmarks import *
 from pyfame.file_access import get_video_capture
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
-from pyfame.utilities.checks import *
+from pyfame.file_access.checks import *
 import os
 import cv2 as cv
 import numpy as np
@@ -26,6 +26,8 @@ class DenseFlowAnalysisParameters(BaseModel):
 
         if not (0.0 < value <= 1.0):
             raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
+        
+        return value
 
 def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_msec:int = 1000) -> dict[str, pd.DataFrame]:
     '''Takes an input video file, and computes the dense optical flow, outputting the visualised optical flow to output_dir.

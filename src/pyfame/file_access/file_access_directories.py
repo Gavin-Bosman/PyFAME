@@ -1,4 +1,4 @@
-from pyfame.utilities.checks import *
+from pyfame.file_access.checks import *
 import os
 
 def contains_sub_directories(directory_path:str) -> bool:

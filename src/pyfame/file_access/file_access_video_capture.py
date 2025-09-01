@@ -1,11 +1,7 @@
 import cv2 as cv
 import os
 from pyfame.utilities.exceptions import *
-from pyfame.utilities.checks import *
-import logging
-
-logger = logging.getLogger("pyfame")
-debug_logger = logging.getLogger("pyfame.debug")
+from pyfame.file_access.checks import *
 
 def get_video_capture(file_path:str) -> cv.VideoCapture:
     # Perform parameter checks
