@@ -39,6 +39,7 @@ class Layer(ABC):
         self.rise = self.config.rise_duration
         self.fall = self.config.fall_duration
         self.time_kwargs = self.config.model_extra
+        self.face_mesh = None
     
     def _snapshot_state(self):
         self._initial_state = copy.deepcopy(self.__dict__)
@@ -46,6 +47,7 @@ class Layer(ABC):
     def _reset_state(self):
         init_state = copy.deepcopy(self._initial_state)
         init_state["_initial_state"] = self._initial_state
+        init_state["face_mesh"] = None
         self.__dict__ = init_state
         
     def compute_weight(self, dt:float, supports_weight:bool) -> float:
@@ -55,12 +57,18 @@ class Layer(ABC):
             return 1.0
     
     def get_face_mesh(self, static_image_mode=False):
-        return get_mesh(
-            min_tracking_confidence=self.config.min_tracking_confidence, 
-            min_detection_confidence=self.config.min_detection_confidence,
-            static_image_mode=static_image_mode,
-            max_num_faces=1
-        )
+        if self.face_mesh is not None:
+            return self.face_mesh
+        else:
+            # Only instantiate when necessary (after state reset)
+            # otherwise lazy-load
+            self.face_mesh = get_mesh(
+                min_tracking_confidence=self.config.min_tracking_confidence, 
+                min_detection_confidence=self.config.min_detection_confidence,
+                static_image_mode=static_image_mode,
+                max_num_faces=1
+            )
+            return self.face_mesh
 
     @abstractmethod
     def supports_weight(self) -> bool:

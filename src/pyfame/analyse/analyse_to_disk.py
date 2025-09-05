@@ -5,10 +5,10 @@ from datetime import datetime
 from pyfame.file_access.checks import *
 from pyfame.file_access.file_access_directories import create_output_directory
 
-def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], working_directory_path:str, analysis_type:str) -> None:
+def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], analysis_label:str, working_directory_path:str) -> None:
 
     if not os.path.isdir(working_directory_path):
-        raise OSError("Analyse_to_disk: Invalid directory path provided.")
+        raise OSError(message=f"Unable to locate the input {os.path.basename(working_directory_path)} directory. Please call make_output_paths() to initialise the working directory.")
 
     # Get a unique folder identifier for this analysis session
     output_root = os.path.join(working_directory_path, "analysis")
@@ -26,7 +26,7 @@ def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], working_directo
         output_dict = {
             "timestamp":timestamp,
             "filename":filename,
-            "analysis":analysis_type,
+            "analysis":analysis_label,
             "results":analysis_dict
         }
 

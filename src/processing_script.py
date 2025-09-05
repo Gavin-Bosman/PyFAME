@@ -4,6 +4,6 @@ import pyfame as pf
 paths = pf.make_paths()
 timing = pf.TimingConfiguration()
 
-recolour = pf.layer_colour_recolour(timing, pf.CHIN_PATH, magnitude=15.0)
+flow = pf.layer_stylise_optical_flow_dense(timing)
 
-pf.apply_layers(paths.iloc[[0]], recolour)
+pf.apply_layers(paths, flow)

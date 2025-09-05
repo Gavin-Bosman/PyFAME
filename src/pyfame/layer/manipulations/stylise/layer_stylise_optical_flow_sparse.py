@@ -8,7 +8,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mpcolors
-from .draw_optical_flow_legend import draw_legend
+from pyfame.layer.manipulations.stylise.draw_optical_flow_legend import draw_legend
 
 def draw_scaled_flow_arrows(frame, origin_point, flow_vector, colour, arrow_length:int = 10, line_thickness:int = 1) -> cv.typing.MatLike:
 
@@ -42,8 +42,6 @@ class SparseFlowParameters(BaseModel):
     gaussian_deviation:NonNegativeFloat = 1.2
     max_iterations:PositiveInt
     flow_accuracy_threshold:PositiveFloat
-    point_colour:Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
-    point_radius:PositiveInt
     vector_colour:Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
     vector_line_width:PositiveInt
     legend:bool = True
@@ -58,7 +56,7 @@ class SparseFlowParameters(BaseModel):
         
         return value
 
-    @field_validator("point_colour", "vector_colour")
+    @field_validator("vector_colour")
     @classmethod
     def check_in_range(cls, value, info:ValidationInfo):
         field_name = info.field_name
@@ -96,8 +94,6 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.gaussian_deviation = self.flow_params.gaussian_deviation
         self.max_iterations = self.flow_params.max_iterations
         self.flow_accuracy_threshold = self.flow_params.flow_accuracy_threshold
-        self.point_colour = self.flow_params.point_colour
-        self.point_radius = self.flow_params.point_radius
         self.vector_colour = self.flow_params.vector_colour
         self.vector_line_width = self.flow_params.vector_line_width
         self.legend = self.flow_params.legend
@@ -199,16 +195,14 @@ class LayerStyliseOpticalFlowSparse(Layer):
                         colour_bgr = tuple(int(255*c) for c in colour[::-1])
                         output_img = draw_scaled_flow_arrows(output_img, (x0, y0), (dx, dy), colour_bgr, arrow_length, self.vector_line_width)
 
-                self.loop_counter += 1
-
                 if self.legend:
                     draw_legend(output_img, self.magnitude_max)
                     
                 return output_img
                 
 def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration | None = None, landmarks_to_track:list[int] | None = None, max_points:int = 20, 
-                                      point_quality_threshold:float = 0.3, max_iterations:int = 10, flow_accuracy_threshold:float = 0.03, point_colour:tuple[int,int,int] = (0,0,191), 
-                                      point_radius:int = 5, vector_colour:tuple[int,int,int] = (0,0,191), vector_line_width:int = 2, legend:bool = True) -> LayerStyliseOpticalFlowSparse:
+                                      point_quality_threshold:float = 0.3, max_iterations:int = 10, flow_accuracy_threshold:float = 0.03, 
+                                      vector_colour:tuple[int,int,int] = (0,0,191), vector_line_width:int = 2, legend:bool = True) -> LayerStyliseOpticalFlowSparse:
     
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
@@ -220,9 +214,7 @@ def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration |
             max_points=max_points, 
             point_quality_threshold=point_quality_threshold,
             max_iterations=max_iterations, 
-            flow_accuracy_threshold=flow_accuracy_threshold, 
-            point_colour=point_colour,
-            point_radius=point_radius, 
+            flow_accuracy_threshold=flow_accuracy_threshold,
             vector_colour=vector_colour, 
             vector_line_width=vector_line_width,
             legend=legend

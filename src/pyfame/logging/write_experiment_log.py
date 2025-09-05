@@ -2,19 +2,18 @@ import json
 import os
 from datetime import datetime
 from pyfame.layer.layer import Layer
-from pyfame.utilities.exceptions import *
 from pyfame.utilities.general_utilities import get_roi_name
 
-def write_experiment_log(layers:list[Layer], input_file:str, root_directory_path:str) -> None:
+def write_experiment_log(layers:list[Layer], input_file:str, working_directory_path:str) -> None:
     if os.getenv("PYTEST_RUNNING") == "1":
         return
     else:
-        if not os.path.isdir(root_directory_path):
-            raise FileWriteError(message=f"Unable to locate the input {os.path.basename(root_directory_path)} directory. Please call make_output_paths() to initialise the working directory.")
+        if not os.path.isdir(working_directory_path):
+            raise OSError(message=f"Unable to locate the input {os.path.basename(working_directory_path)} directory. Please call make_output_paths() to initialise the working directory.")
         
         # Creating a unique file identifier
         timestamp = datetime.now().isoformat(timespec='seconds')
-        output_path = os.path.join(root_directory_path, "logs")
+        output_path = os.path.join(working_directory_path, "logs")
 
         layer_dict = {}
         for layer in layers:

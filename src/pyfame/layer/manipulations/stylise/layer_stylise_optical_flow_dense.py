@@ -5,6 +5,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mpcolors
+from pyfame.layer.manipulations.stylise.draw_optical_flow_legend import draw_legend
 
 class DenseFlowParameters(BaseModel):
     pixel_neighborhood_size:PositiveInt
@@ -109,10 +110,14 @@ class LayerStyliseOpticalFlowDense(Layer):
 
                 # Map magnitudes to viridis colour scale
                 viridis = self.cmap(normal_mags)
-                output_img = (viridis[:, :, :3] * 255).astype(np.uint8)[:, :, ::-1]
-                ### DRAW LEGEND HERE
+                viridis_rgb = viridis[:, :, :3]
+                viridis_bgr = viridis_rgb[:, :, ::-1]
+                output_img = (viridis_bgr * 255).astype(np.uint8)
 
                 self.previous_grey_frame = grey_frame.copy()
+
+                if self.legend:
+                    draw_legend(output_img, self.magnitude_max)
 
                 return output_img
 
