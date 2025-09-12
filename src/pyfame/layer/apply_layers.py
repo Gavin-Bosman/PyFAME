@@ -72,7 +72,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     relative_paths = file_paths["Relative Path"]
 
     # Extracting the root directory name from the file paths
-    norm_path = os.path.normpath(absolute_paths[0])
+    norm_path = os.path.normpath(absolute_paths.iloc[0])
     norm_cwd = os.path.normpath(os.getcwd())
     rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
     parts = rel_dir_path.split(os.sep)
@@ -117,7 +117,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         cap_duration = 0
         
         # Get the relative file path
-        relative_file_path = relative_paths[i]
+        relative_file_path = relative_paths.iloc[i]
         
         subdirectory_names = [
             part for part in relative_file_path.split(os.sep)

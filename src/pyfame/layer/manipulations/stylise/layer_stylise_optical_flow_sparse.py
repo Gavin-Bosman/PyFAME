@@ -42,9 +42,9 @@ class SparseFlowParameters(BaseModel):
     gaussian_deviation:NonNegativeFloat = 1.2
     max_iterations:PositiveInt
     flow_accuracy_threshold:PositiveFloat
-    vector_colour:Tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
-    vector_line_width:PositiveInt
+    arrow_width:PositiveInt
     legend:bool = True
+    legend_position:str = "top-left"
 
     @field_validator("point_quality_threshold", "flow_accuracy_threshold")
     @classmethod
@@ -55,14 +55,17 @@ class SparseFlowParameters(BaseModel):
             raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
         
         return value
-
-    @field_validator("vector_colour")
+    
+    @field_validator("legend_position")
     @classmethod
-    def check_in_range(cls, value, info:ValidationInfo):
+    def check_accepted_value(cls, value, info:ValidationInfo):
         field_name = info.field_name
-        for elem in value:
-            if not (0 <= elem <= 255):
-                raise ValueError(f"{field_name} values must lie between 0 and 255.")
+
+        if value not in {"top-left", "bottom-left", "top-right", "bottom-right"}:
+            raise ValueError(
+                f"Unrecognized value provided for parameter {field_name}."
+                f" {field_name} must be one of: 'top-left', 'bottom-left', 'top-right', 'bottom-right'."
+            )
         
         return value
 
@@ -80,8 +83,12 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.loop_counter = 1
         self.last_arrows = None
         self.cmap = cm.get_cmap("viridis")
-        self.norm = mpcolors.Normalize(vmin=0.0, vmax=20.0)
-        self.magnitude_max = 20.0
+
+        # Dynamic magnitude scaling params
+        self.global_mags = []
+        self.norm = None
+        self.magnitude_min = None
+        self.magnitude_max = None
 
         # Declare class parameters
         self.landmark_idx_to_track = self.flow_params.landmarks_to_track
@@ -94,9 +101,9 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.gaussian_deviation = self.flow_params.gaussian_deviation
         self.max_iterations = self.flow_params.max_iterations
         self.flow_accuracy_threshold = self.flow_params.flow_accuracy_threshold
-        self.vector_colour = self.flow_params.vector_colour
-        self.vector_line_width = self.flow_params.vector_line_width
+        self.arrow_width = self.flow_params.arrow_width
         self.legend = self.flow_params.legend
+        self.legend_position = self.flow_params.legend_position
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
         self.min_detection_confidence = self.time_config.min_detection_confidence
         self.static_image_mode = False
@@ -125,84 +132,102 @@ class LayerStyliseOpticalFlowSparse(Layer):
 
         if weight == 0.0:
             return frame
-        else:
-            # Defining persistent loop params
-            output_img = None
 
-            # Parameters for lucas kanade optical flow
-            lk_params = dict(winSize  = self.search_window_size,
-                maxLevel = self.max_pyramid_level,
-                criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, self.max_iterations, self.flow_accuracy_threshold))
+        # Defining persistent loop params
+        output_img = None
 
-            frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            face_mesh = super().get_face_mesh()
-            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
+        # Parameters for lucas kanade optical flow
+        lk_params = dict(winSize  = self.search_window_size,
+            maxLevel = self.max_pyramid_level,
+            criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, self.max_iterations, self.flow_accuracy_threshold))
+
+        frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        face_mesh = super().get_face_mesh()
+        landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
+        
+        # Create face oval image mask
+        face_mask = mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
+
+        # Main Processing loop
+        
+        if self.loop_counter == 1:
+            self.vector_mask = np.zeros_like(frame)
+            self.previous_grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+            # If landmarks were provided 
+            if self.landmark_idx_to_track is not None:
+                self.initial_points = np.array([[lm.get('x'), lm.get('y')] for lm in landmark_screen_coords if lm.get('id') in self.landmark_idx_to_track], dtype=np.float32)
+                self.initial_points = self.initial_points.reshape(-1,1,2)
+            else:
+                self.initial_points = cv.goodFeaturesToTrack(self.previous_grey_frame, self.max_points, self.point_quality_threshold, self.min_point_distance, self.pixel_neighborhood_size, mask=face_mask)
             
-            # Create face oval image mask
-            face_mask = mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
+            self.loop_counter += 1
+            return frame
 
-            # Main Processing loop
-            
-            if self.loop_counter == 1:
-                self.vector_mask = np.zeros_like(frame)
-                self.previous_grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        if self.loop_counter > 1:
+            # Recompute the max magnitude every 1000 msec or ~30 frames
+            timestamp_msec = dt*1000
+            rolling_time_window = 1000
 
-                # If landmarks were provided 
-                if self.landmark_idx_to_track is not None:
-                    self.initial_points = np.array([[lm.get('x'), lm.get('y')] for lm in landmark_screen_coords if lm.get('id') in self.landmark_idx_to_track], dtype=np.float32)
-                    self.initial_points = self.initial_points.reshape(-1,1,2)
-                else:
-                    self.initial_points = cv.goodFeaturesToTrack(self.previous_grey_frame, self.max_points, self.point_quality_threshold, self.min_point_distance, self.pixel_neighborhood_size, mask=face_mask)
-                
-                self.loop_counter += 1
+            grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+            # Calculate optical flow
+            cur_points, st, err = cv.calcOpticalFlowPyrLK(self.previous_grey_frame, grey_frame, self.initial_points, None, **lk_params)
+
+            if cur_points is None:
                 return frame
+            
+            # Select good points
+            good_new_points = cur_points[st==1]
+            good_old_points = self.initial_points[st==1]
+            
+            arrows = []
+            # Compute the arrow origins, lengths and magnitudes (colour)
+            for (x0,y0), (x1,y1) in zip(good_old_points, good_new_points):
+                dx, dy = (x1 - x0, y1 - y0)
+                mag = np.sqrt(dx**2 + dy**2)
+                self.global_mags.append(float(mag))
+                arrows.append((int(x0), int(y0), int(dx), int(dy), float(mag)))
 
-            if self.loop_counter > 1:
-                grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            # Dynamic recomputing of max magnitude (to adjust for local maxima)
+            if self.magnitude_max is None or self.magnitude_min is None or timestamp_msec >= rolling_time_window:
+                self.magnitude_min = float(np.min(self.global_mags))
+                self.magnitude_max = float(np.max(self.global_mags))
+                self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
+                rolling_time_window += rolling_time_window
 
-                # Calculate optical flow
-                cur_points, st, err = cv.calcOpticalFlowPyrLK(self.previous_grey_frame, grey_frame, self.initial_points, None, **lk_params)
+            self.last_arrows = arrows
+            # Update previous frame and points
+            self.previous_grey_frame = grey_frame.copy()
+            self.initial_points = good_new_points.reshape(-1, 1, 2)
 
-                if cur_points is None:
-                    return frame
+            output_img = frame.copy()
+
+            # Scale the arrow length to the facial width
+            y_whites, x_whites = np.where(face_mask > 0)
+            x_min = x_whites.min()
+            x_max = x_whites.max()
+            arrow_length = int((x_max - x_min) * 0.05)
+
+            if self.last_arrows is not None:
+                for (x0, y0, dx, dy, mag) in self.last_arrows:
+                    colour = self.cmap(self.norm(mag))[:3]   # RGB in [0,1]
+                    colour_bgr = tuple(int(255*c) for c in colour[::-1])
+                    output_img = draw_scaled_flow_arrows(output_img, (x0, y0), (dx, dy), colour_bgr, arrow_length, self.arrow_width)
+
+            if self.legend:
+                draw_legend(
+                    frame=output_img, 
+                    vmin=self.magnitude_min,
+                    vmax=self.magnitude_max,
+                    legend_position=self.legend_position
+                )
                 
-                # Select good points
-                good_new_points = cur_points[st==1]
-                good_old_points = self.initial_points[st==1]
-                
-                arrows = []
-                for (x0,y0), (x1,y1) in zip(good_old_points, good_new_points):
-                    dx, dy = (x1 - x0, y1 - y0)
-                    mag = np.sqrt(dx**2 + dy**2)
-                    arrows.append((int(x0), int(y0), int(dx), int(dy), float(mag)))
-                
-                self.last_arrows = arrows
-                # Update previous frame and points
-                self.previous_grey_frame = grey_frame.copy()
-                self.initial_points = good_new_points.reshape(-1, 1, 2)
-
-                output_img = frame.copy()
-
-                # Scale the arrow length to the facial width
-                y_whites, x_whites = np.where(face_mask > 0)
-                x_min = x_whites.min()
-                x_max = x_whites.max()
-                arrow_length = int((x_max - x_min) * 0.05)
-
-                if self.last_arrows is not None:
-                    for (x0, y0, dx, dy, mag) in self.last_arrows:
-                        colour = self.cmap(self.norm(mag))[:3]   # RGB in [0,1]
-                        colour_bgr = tuple(int(255*c) for c in colour[::-1])
-                        output_img = draw_scaled_flow_arrows(output_img, (x0, y0), (dx, dy), colour_bgr, arrow_length, self.vector_line_width)
-
-                if self.legend:
-                    draw_legend(output_img, self.magnitude_max)
-                    
-                return output_img
+            return output_img
                 
 def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration | None = None, landmarks_to_track:list[int] | None = None, max_points:int = 20, 
                                       point_quality_threshold:float = 0.3, max_iterations:int = 10, flow_accuracy_threshold:float = 0.03, 
-                                      vector_colour:tuple[int,int,int] = (0,0,191), vector_line_width:int = 2, legend:bool = True) -> LayerStyliseOpticalFlowSparse:
+                                      arrow_width:int = 2, legend:bool = True, legend_position:str = "top-left") -> LayerStyliseOpticalFlowSparse:
     
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
@@ -215,9 +240,9 @@ def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration |
             point_quality_threshold=point_quality_threshold,
             max_iterations=max_iterations, 
             flow_accuracy_threshold=flow_accuracy_threshold,
-            vector_colour=vector_colour, 
-            vector_line_width=vector_line_width,
-            legend=legend
+            arrow_width=arrow_width,
+            legend=legend, 
+            legend_position=legend_position
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowSparse.__name__}: {e}")

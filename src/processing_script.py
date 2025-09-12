@@ -4,6 +4,6 @@ import pyfame as pf
 paths = pf.make_paths()
 timing = pf.TimingConfiguration()
 
-flow = pf.layer_stylise_optical_flow_dense(timing)
+flow = pf.layer_stylise_optical_flow_sparse(timing)
 
 pf.apply_layers(paths, flow)

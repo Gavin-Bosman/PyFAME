@@ -5,10 +5,13 @@ from datetime import datetime
 from pyfame.file_access.checks import *
 from pyfame.file_access.file_access_directories import create_output_directory
 
-def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], analysis_label:str, working_directory_path:str) -> None:
+def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], analysis_label:str, working_directory_path:str=os.path.join(os.getcwd(), "data")) -> None:
 
     if not os.path.isdir(working_directory_path):
-        raise OSError(message=f"Unable to locate the input {os.path.basename(working_directory_path)} directory. Please call make_output_paths() to initialise the working directory.")
+        raise OSError(
+            message=f"Unable to locate the input {os.path.basename(working_directory_path)} directory."
+            " Please call make_output_paths() to initialise the working directory."
+        )
 
     # Get a unique folder identifier for this analysis session
     output_root = os.path.join(working_directory_path, "analysis")
@@ -20,14 +23,18 @@ def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], analysis_label:
 
         # Format the output file path
         file_path = os.path.join(folder_path, f"{filename}.json")
-        analysis_dict = df.to_dict('index')
+        analysis_dict = {
+            f"{row['timestamp']:.5f}": row.drop('timestamp').to_dict()
+            for _, row in df.iterrows()
+        }
 
         # Format the output data
         output_dict = {
-            "timestamp":timestamp,
+            "datetime":timestamp,
             "filename":filename,
             "analysis":analysis_label,
-            "results":analysis_dict
+            "timestamp units": "seconds",
+            "results":analysis_dict,
         }
 
         # Serialize to Json

@@ -86,7 +86,16 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     Returns
     -------
 
-    None
+    dict[str, pandas.Dataframe]
+
+    Raises
+    ------
+
+    ValidationError:
+        Thrown by the pydantic model when invalid parameters are passed to the method.
+    
+    FileReadError:
+        When the working directory path; or any of its required sub-paths cannot be located. 
 
     """
     
@@ -117,7 +126,7 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
 
-    norm_path = os.path.normpath(absolute_paths[0])
+    norm_path = os.path.normpath(absolute_paths.iloc[0])
     norm_cwd = os.path.normpath(os.getcwd())
     rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
     parts = rel_dir_path.split(os.sep)
@@ -241,7 +250,7 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
                 std_angle = np.std(angles)
 
                 # Dataframes are immutable, so we need to store as lists during execution
-                timestamps.append(timestamp//1000)
+                timestamps.append(timestamp/1000)
                 mean_magnitudes.append(mean_mag)
                 std_magnitudes.append(std_mag)
                 mean_angles.append(mean_angle)
@@ -263,18 +272,18 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
         # Create and return dataframe
         if output_detail_level == "summary":
             output_df = pd.DataFrame({
-                "Timestamp":timestamps,
-                "Mean Magnitude":mean_magnitudes,
-                "Deviation Magnitude":std_magnitudes,
-                "Mean Angle":mean_angles,
-                "Deviation Angle":std_angles,
-                "Number of Points":num_points
+                "timestamp":timestamps,
+                "mean magnitude":mean_magnitudes,
+                "deviation magnitude":std_magnitudes,
+                "mean angle":mean_angles,
+                "deviation angle":std_angles,
+                "number of points":num_points
             })
             
             outputs.update({f"{filename}":output_df})
         
         else:
-            cols = ["Timestamp", "Old x", "Old y", "New x", "New y", "Magnitude", "Angle"]
+            cols = ["timestamp", "old x", "old y", "new x", "new y", "magnitude", "angle"]
             output_df = pd.DataFrame(full_stats, columns=cols)
             outputs.update({f"{filename}":output_df})
     

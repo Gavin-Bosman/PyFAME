@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveFloat
+from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveFloat, PositiveInt
 from typing import Union
 from pyfame.mesh import get_mesh
 from pyfame.mesh.mesh_landmarks import *
@@ -15,6 +15,7 @@ class ColourMeansParameters(BaseModel):
     colour_space:Union[str, int]
     min_detection_confidence:PositiveFloat
     min_tracking_confidence:PositiveFloat
+    output_sample_frequency_msec:PositiveInt
 
     @field_validator("colour_space", mode="before")
     @classmethod
@@ -51,8 +52,8 @@ class ColourMeansParameters(BaseModel):
         
         return value
 
-def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = COLOUR_SPACE_BGR,
-                                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> dict[str, pd.DataFrame]:
+def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = COLOUR_SPACE_BGR, min_detection_confidence:float = 0.5, 
+                                min_tracking_confidence:float = 0.5, output_sample_frequency_msec:int = 1000) -> dict[str, pd.DataFrame]:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
     Creates a new directory 'Color_Channel_Means', where a csv file will be written to for each input video file provided.
 
@@ -72,11 +73,28 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
     min_tracking_confidence: float
         A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
         FaceMesh constructor.
+    
+    output_sample_frequency_msec: int
+        The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
+        the value to increase the number of optical flow vector samples written to the output csv file.
+    
         
     Returns
     -------
 
-    None
+    dict[str, pandas.Dataframe]
+
+    Raises
+    ------
+
+    ValidationError:
+        Thrown by the pydantic model when invalid parameters are passed to the method.
+    
+    FileReadError:
+        When the working directory path; or any of its required sub-paths cannot be located. 
+    
+    UnrecognizedExtensionError
+        If an image or video file is passed that is encoded in an unrecognized codec.
     """
     
     # Global declarations and init
@@ -102,7 +120,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
 
-    norm_path = os.path.normpath(absolute_paths[0])
+    norm_path = os.path.normpath(absolute_paths.iloc[0])
     norm_cwd = os.path.normpath(os.getcwd())
     rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
     parts = rel_dir_path.split(os.sep)
@@ -148,6 +166,8 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
         if not static_image_mode:
             capture = get_video_capture(file)
         
+        timestamps = []
+
         # RGB value lists
         if colour_space == COLOUR_SPACE_BGR:
             red_means = []
@@ -184,6 +204,8 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
             cheeks_grey_means = []
             nose_grey_means = []
             chin_grey_means = []
+        
+        rolling_time_window = output_sample_frequency_msec
     
         while True:
             if not static_image_mode:
@@ -194,6 +216,11 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 frame = cv.imread(file)
                 if frame is None:
                     raise FileReadError()
+                
+            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
+
+            if timestamp < rolling_time_window:
+                continue
             
             # Creating landmark path variables
             lc_path = create_path(LEFT_CHEEK_IDX)
@@ -239,6 +266,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 b_nose, g_nose, r_nose, *_ = cv.mean(frame, bin_nose_mask)
                 b_chin, g_chin, r_chin, *_ = cv.mean(frame, bin_chin_mask)
 
+                timestamps.append(timestamp/1000)
                 red_means.append(red)
                 green_means.append(green)
                 blue_means.append(blue)
@@ -259,6 +287,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_nose_mask)
                 h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_chin_mask)
 
+                timestamps.append(timestamp/1000)
                 hue_means.append(hue)
                 sat_means.append(sat)
                 val_means.append(val)
@@ -279,16 +308,20 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_nose_mask)
                 v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_chin_mask)
 
+                timestamps.append(timestamp/1000)
                 grey_means.append(val)
                 cheeks_grey_means.append(v_cheeks)
                 nose_grey_means.append(v_nose)
                 chin_grey_means.append(v_chin)
+            
+            rolling_time_window += output_sample_frequency_msec
         
         if not static_image_mode:
             capture.release()
         
         if colour_space == COLOUR_SPACE_BGR:
             output_df = pd.DataFrame({
+                "timestamp":timestamps,
                 "mean red":red_means,
                 "mean green":green_means,
                 "mean blue":blue_means,
@@ -307,6 +340,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
 
         elif colour_space == COLOUR_SPACE_HSV:
             output_df = pd.DataFrame({
+                "timestamp":timestamps,
                 "mean hue": hue_means,
                 "mean saturation": sat_means,
                 "mean value": val_means,
@@ -325,6 +359,7 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
 
         else:
             output_df = pd.DataFrame({
+                "timestamp":timestamps,
                 "mean value": grey_means,
                 "mean cheeks value": cheeks_grey_means,
                 "mean nose value": nose_grey_means,

@@ -1,6 +1,7 @@
 __version__ = "1.0.0"
 __author__ = "Gavin Bosman"
 
+# Look into changing these to explicit names
 from pyfame.analyse import *
 from pyfame.file_access import *
 from pyfame.mesh import *

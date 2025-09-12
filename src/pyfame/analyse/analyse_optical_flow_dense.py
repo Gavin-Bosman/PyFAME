@@ -46,13 +46,17 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_
     Returns
     -------
 
-    dict[str, pd.DataFrame]
+    dict[str, pandas.DataFrame]
 
     Raises
     ------
 
-    ValueError
-        On the passing of unrecognized input parameter values.
+    ValidationError:
+        Thrown by the pydantic model when invalid parameters are passed to the method.
+    
+    FileReadError:
+        When the working directory path; or any of its required sub-paths cannot be located. 
+
     UnrecognizedExtensionError
         If an image file is passed; Farneback's dense flow requires video files.
     '''
@@ -73,7 +77,7 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
 
-    norm_path = os.path.normpath(absolute_paths[0])
+    norm_path = os.path.normpath(absolute_paths.iloc[0])
     norm_cwd = os.path.normpath(os.getcwd())
     rel_dir_path, *_ = os.path.split(os.path.relpath(norm_path, norm_cwd))
     parts = rel_dir_path.split(os.sep)
@@ -163,11 +167,11 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_
         capture.release()
 
         output_df = pd.DataFrame({
-            "Timestamp":timestamps,
-            "Mean Magnitude":mean_magnitudes,
-            "Deviation Magnitude":std_magnitudes,
-            "Mean Angle":mean_angles,
-            "Deviation Angle":std_angles
+            "timestamp":timestamps,
+            "mean magnitude":mean_magnitudes,
+            "deviation magnitude":std_magnitudes,
+            "mean angle":mean_angles,
+            "deviation angle":std_angles
         })
         outputs.update({f"{filename}":output_df})
     
