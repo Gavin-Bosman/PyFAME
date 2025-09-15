@@ -150,6 +150,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         
         # Loop over the current file until completion; (single iteration for static images)
         while(True):
+
             frame = None
             if static_image_mode:
                 frame = cv.imread(file)
@@ -163,11 +164,11 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
             if not static_image_mode:
                 # Getting the current video timestamp
                 dt = capture.get(cv.CAP_PROP_POS_MSEC)/1000
-                output_frame = pipeline.apply_layers(frame, dt)
+                output_frame = pipeline.apply_layers(frame, dt, file_path=file)
                 output_frame = output_frame.astype(np.uint8)
                 result.write(output_frame)
             else:
-                output_frame = pipeline.apply_layers(frame, None, static_image_mode=True)
+                output_frame = pipeline.apply_layers(frame, None, static_image_mode=True, file_path=file)
                 output_frame = output_frame.astype(np.uint8)
                 success = cv.imwrite(dir_file_path, output_frame)
                 if not success:

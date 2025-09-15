@@ -125,7 +125,7 @@ class OverlayParameters(BaseModel):
 
         if isinstance(value, str):
             value = str.lower(value)
-            if value in {"sunglasses", "glasses", "teardrop"}:
+            if value in {"sunglasses", "glasses", "teardrop", "teardrop_2"}:
                 return value
             
             elif os.path.isfile(value):

@@ -5,7 +5,9 @@ import cv2 as cv
 import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mpcolors
+import pandas as pd
 from pyfame.layer.manipulations.stylise.draw_optical_flow_legend import draw_legend
+from pyfame.analyse.analyse_optical_flow_sparse import analyse_optical_flow_sparse
 
 class DenseFlowParameters(BaseModel):
     pixel_neighborhood_size:PositiveInt
@@ -16,6 +18,7 @@ class DenseFlowParameters(BaseModel):
     gaussian_deviation:NonNegativeFloat
     legend:bool
     legend_position:str="top-left"
+    precise_colour_scale:bool = False
 
     @field_validator("pyramid_scale")
     @classmethod
@@ -68,6 +71,7 @@ class LayerStyliseOpticalFlowDense(Layer):
         self.gaussian_deviation = self.flow_params.gaussian_deviation
         self.legend = self.flow_params.legend
         self.legend_position = self.flow_params.legend_position
+        self.precise_colour_scale = self.flow_params.precise_colour_scale
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
         self.min_detection_confidence = self.time_config.min_detection_confidence
 
@@ -85,10 +89,35 @@ class LayerStyliseOpticalFlowDense(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
+    def precompute_colour_scale(self, file_path:str) -> None:
+        if self.norm is not None:
+            return
+
+        results = analyse_optical_flow_sparse(
+            pd.DataFrame({"Absolute Path" : [file_path]}),
+            max_points=10,
+            output_detail_level="full",
+            frame_step=15
+        )
+
+        result_df = list(results.values())[0]
+        mean_magnitude = result_df["magnitude"].mean()
+        std_magnitude = result_df["magnitude"].std()
+
+        self.magnitude_min = float(max(0.0, mean_magnitude - std_magnitude))
+        self.magnitude_max = float(mean_magnitude + std_magnitude)
+        self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
+    
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False, file_path:str|None = None):
         # Update the faceMesh when switching between image and video processing
         if static_image_mode == True:
             raise UnrecognizedExtensionError(message="Dense optical flow does not support static image files.")
+        
+        # If precise_colour_scale is True, precompute the norm using the full analysis results
+        if self.precise_colour_scale and self.norm is None:
+            if not file_path:
+                raise ValueError("File_path must be provided to apply_layer() when precise_colour_scale = True.")
+            self.precompute_colour_scale(file_path)
 
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -131,11 +160,12 @@ class LayerStyliseOpticalFlowDense(Layer):
             # Collect global mags
             self.global_mags.extend(magnitudes.flatten())
 
-            if self.magnitude_max is None or self.magnitude_min is None or timestamp_msec >= rolling_time_window:
-                self.magnitude_min = float(np.min(self.global_mags))
-                self.magnitude_max = float(np.max(self.global_mags))
-                self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
-                rolling_time_window += rolling_time_window
+            if not self.precise_colour_scale:
+                if self.magnitude_max is None or self.magnitude_min is None or timestamp_msec >= rolling_time_window:
+                    self.magnitude_min = float(np.min(self.global_mags))
+                    self.magnitude_max = float(np.max(self.global_mags))
+                    self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
+                    rolling_time_window += rolling_time_window
 
             # Normalise magnitudes to [0,1]
             normal_mags = self.norm(magnitudes)
@@ -160,7 +190,7 @@ class LayerStyliseOpticalFlowDense(Layer):
 
 def layer_stylise_optical_flow_dense(timing_configuration:TimingConfiguration | None = None, pixel_neighborhood_size:int = 5, search_window_size:int = 15, 
                                      max_pyramid_level:int = 2, pyramid_scale:float = 0.5, max_iterations:int = 10, gaussian_deviation:float = 1.2, 
-                                     legend:bool = True, legend_position:str = "top-left") -> LayerStyliseOpticalFlowDense:
+                                     legend:bool = True, legend_position:str = "top-left", precise_colour_scale:bool = False) -> LayerStyliseOpticalFlowDense:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
@@ -174,7 +204,8 @@ def layer_stylise_optical_flow_dense(timing_configuration:TimingConfiguration | 
             max_iterations=max_iterations, 
             gaussian_deviation=gaussian_deviation, 
             legend=legend,
-            legend_position=legend_position
+            legend_position=legend_position,
+            precise_colour_scale=precise_colour_scale
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowDense.__name__}: {e}")

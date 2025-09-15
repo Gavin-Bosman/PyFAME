@@ -17,19 +17,9 @@ class DenseFlowAnalysisParameters(BaseModel):
     pyramid_scale:PositiveFloat = 0.5
     max_iterations:PositiveInt = 10
     gaussian_deviation:NonNegativeFloat = 1.2
-    output_sample_frequency:PositiveInt = 1000
+    frame_step:PositiveInt = 5
 
-    @field_validator("pyramid_scale")
-    @classmethod
-    def check_normal_range(cls, value, info:ValidationInfo):
-        field_name = info.field_name
-
-        if not (0.0 < value <= 1.0):
-            raise ValueError(f"Parameter {field_name} must lie in the normalised range 0.0-1.0.")
-        
-        return value
-
-def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_msec:int = 1000) -> dict[str, pd.DataFrame]:
+def analyse_optical_flow_dense(file_paths:pd.DataFrame, frame_step:int = 5) -> dict[str, pd.DataFrame]:
     '''Takes an input video file, and computes the dense optical flow, outputting the visualised optical flow to output_dir.
     Dense optical flow uses Farneback's algorithm to track every point within a frame.
 
@@ -39,9 +29,9 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_
     file_paths: pandas.DataFrame
         An Nx2 dataframe of absolute and relative file paths, returned by the make_paths() function.
     
-    output_sample_frequency_msec: int
-        The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
-        the value to increase the number of optical flow vector samples written to the output csv file.
+    frame_step: int
+        The number of frames between successive optical flow calculations. The flow values will be more consistent 
+        and robust as you increase this parameter. 
     
     Returns
     -------
@@ -63,7 +53,7 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_
 
     # Validate and assign input parameters
     try:
-        input_parameters = DenseFlowAnalysisParameters(output_sample_frequency=output_sample_frequency_msec)
+        input_parameters = DenseFlowAnalysisParameters(frame_step=frame_step)
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {analyse_optical_flow_dense.__name__}: {e}")
 
@@ -123,46 +113,47 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, output_sample_frequency_
         std_angles = []
 
         # Defining persistent loop params
-        counter = 1
+        counter = 0
         old_gray = None
-        rolling_time_win = output_sample_frequency_msec
 
         # Main Processing loop
         while True:
+            counter += 1
+
+            # Cache the last frame before reassigning the variable
+            if counter > 1:
+                old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
             success, frame = capture.read()
             if not success:
                 break    
-
-            old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-                
-            if counter > 1:
-                gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-                timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
-
-                # Calculate dense optical flow
-                flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyramid_scale, max_pyramid_level, search_window_size, max_iterations, pixel_neighborhood_size, gaussian_deviation, 0)
-
-                # Get vector magnitudes and angles
-                magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])
-
-                if timestamp > rolling_time_win:
-                    mean_mag = np.mean(magnitudes)
-                    std_mag = np.std(magnitudes)
-                    mean_angle = np.mean(angles)
-                    std_angle = np.std(angles)
-
-                    # Dataframes are immutable, so we need to store as lists during execution
-                    timestamps.append(timestamp//1000)
-                    mean_magnitudes.append(mean_mag)
-                    std_magnitudes.append(std_mag)
-                    mean_angles.append(mean_angle)
-                    std_angles.append(std_angle)
-
-                    rolling_time_win += output_sample_frequency_msec
-
-                old_gray = gray_frame.copy()
             
-            counter += 1
+            if counter % frame_step != 0:
+                continue
+            
+            gray_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
+
+            # Calculate dense optical flow
+            flow = cv.calcOpticalFlowFarneback(old_gray, gray_frame, None, pyramid_scale, max_pyramid_level, search_window_size, max_iterations, pixel_neighborhood_size, gaussian_deviation, 0)
+
+            # Get vector magnitudes and angles
+            magnitudes, angles = cv.cartToPolar(flow[...,0],flow[...,1])
+
+            # Get magnitude/angle means and distribution
+            mean_mag = np.mean(magnitudes)
+            std_mag = np.std(magnitudes)
+            mean_angle = np.mean(angles)
+            std_angle = np.std(angles)
+
+            # Dataframes are immutable, so we need to store as lists during execution
+            timestamps.append(timestamp//1000)
+            mean_magnitudes.append(mean_mag)
+            std_magnitudes.append(std_mag)
+            mean_angles.append(mean_angle)
+            std_angles.append(std_angle)
+
+            old_gray = gray_frame.copy()
 
         capture.release()
 

@@ -8,7 +8,9 @@ import cv2 as cv
 import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mpcolors
+import pandas as pd
 from pyfame.layer.manipulations.stylise.draw_optical_flow_legend import draw_legend
+from pyfame.analyse.analyse_optical_flow_sparse import analyse_optical_flow_sparse
 
 def draw_scaled_flow_arrows(frame, origin_point, flow_vector, colour, arrow_length:int = 10, line_thickness:int = 1) -> cv.typing.MatLike:
 
@@ -45,6 +47,7 @@ class SparseFlowParameters(BaseModel):
     arrow_width:PositiveInt
     legend:bool = True
     legend_position:str = "top-left"
+    precise_colour_scale:bool = False
 
     @field_validator("point_quality_threshold", "flow_accuracy_threshold")
     @classmethod
@@ -104,6 +107,7 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.arrow_width = self.flow_params.arrow_width
         self.legend = self.flow_params.legend
         self.legend_position = self.flow_params.legend_position
+        self.precise_colour_scale = self.flow_params.precise_colour_scale
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
         self.min_detection_confidence = self.time_config.min_detection_confidence
         self.static_image_mode = False
@@ -121,12 +125,37 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self._layer_parameters["time_onset"] = self.onset_t
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
+
+    def precompute_colour_scale(self, file_path:str) -> None:
+        if self.norm is not None:
+            return
+
+        results = analyse_optical_flow_sparse(
+            pd.DataFrame({"Absolute Path" : [file_path]}),
+            max_points=10,
+            output_detail_level="full",
+            frame_step=15
+        )
+
+        result_df = list(results.values())[0]
+        mean_magnitude = result_df["magnitude"].mean()
+        std_magnitude = result_df["magnitude"].std()
+
+        self.magnitude_min = float(max(0.0, mean_magnitude - std_magnitude))
+        self.magnitude_max = float(mean_magnitude + std_magnitude)
+        self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
+    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False, file_path:str|None = None):
 
         # Update the faceMesh when switching between image and video processing
         if static_image_mode == True:
             raise UnrecognizedExtensionError(message="Sparse optical flow does not support static image files.")
+        
+        # If precise_colour_scale is True, precompute the norm using the full analysis results
+        if self.precise_colour_scale and self.norm is None:
+            if not file_path:
+                raise ValueError("File_path must be provided to apply_layer() when precise_colour_scale = True.")
+            self.precompute_colour_scale(file_path)
 
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -189,12 +218,13 @@ class LayerStyliseOpticalFlowSparse(Layer):
                 self.global_mags.append(float(mag))
                 arrows.append((int(x0), int(y0), int(dx), int(dy), float(mag)))
 
-            # Dynamic recomputing of max magnitude (to adjust for local maxima)
-            if self.magnitude_max is None or self.magnitude_min is None or timestamp_msec >= rolling_time_window:
-                self.magnitude_min = float(np.min(self.global_mags))
-                self.magnitude_max = float(np.max(self.global_mags))
-                self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
-                rolling_time_window += rolling_time_window
+            if not self.precise_colour_scale:
+                # Dynamic recomputing of max magnitude (to adjust for local maxima)
+                if self.magnitude_max is None or self.magnitude_min is None or timestamp_msec >= rolling_time_window:
+                    self.magnitude_min = float(np.min(self.global_mags))
+                    self.magnitude_max = float(np.max(self.global_mags))
+                    self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
+                    rolling_time_window += rolling_time_window
 
             self.last_arrows = arrows
             # Update previous frame and points
@@ -227,7 +257,7 @@ class LayerStyliseOpticalFlowSparse(Layer):
                 
 def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration | None = None, landmarks_to_track:list[int] | None = None, max_points:int = 20, 
                                       point_quality_threshold:float = 0.3, max_iterations:int = 10, flow_accuracy_threshold:float = 0.03, 
-                                      arrow_width:int = 2, legend:bool = True, legend_position:str = "top-left") -> LayerStyliseOpticalFlowSparse:
+                                      arrow_width:int = 2, legend:bool = True, legend_position:str = "top-left", precise_colour_scale:bool = False) -> LayerStyliseOpticalFlowSparse:
     
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
@@ -242,7 +272,8 @@ def layer_stylise_optical_flow_sparse(timing_configuration:TimingConfiguration |
             flow_accuracy_threshold=flow_accuracy_threshold,
             arrow_width=arrow_width,
             legend=legend, 
-            legend_position=legend_position
+            legend_position=legend_position,
+            precise_colour_scale=precise_colour_scale
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerStyliseOpticalFlowSparse.__name__}: {e}")

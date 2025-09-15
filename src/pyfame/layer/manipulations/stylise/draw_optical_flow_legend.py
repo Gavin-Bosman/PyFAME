@@ -3,23 +3,7 @@ import numpy as np
 import matplotlib.cm as cm
 import numbers
 
-def _resolve_position(position, frame_h, frame_w) -> tuple[int,int]:
-    if not (isinstance(position, tuple) and len(position) == 2):
-        raise ValueError("Legend position must be a tuple of (x,y).")
 
-    x,y = position
-
-    if type(x) is not type(y):
-        raise ValueError("Legend position requires both (x,y) coordinates to be of the same type.")
-
-    # Relative coordinates (fractions)
-    if isinstance(x, numbers.Real) and isinstance(y, numbers.Real):
-        if isinstance(x, float) and 0 <= x <= 1 and 0 <= y <= 1:
-            return int(x * frame_w), int(y * frame_h)
-        else:
-            return int(x), int(y)
-    
-    raise TypeError("Legend position must be floats in [0,1] or integers (pixels).")
 
 def draw_legend(frame, vmin:float = 0.0, vmax:float = 1.0, legend_position:str = "top-left"):
     h, w, _ = frame.shape
@@ -53,7 +37,7 @@ def draw_legend(frame, vmin:float = 0.0, vmax:float = 1.0, legend_position:str =
 
 
     # Create a vertical gradient colour mapped to viridis
-    gradient = np.linspace(0, 1, height)[:, None]
+    gradient = np.linspace(1, 0, height)[:, None]
     cmap = cm.get_cmap("viridis")
     colours = (cmap(gradient)[:, :, :3] * 255).astype(np.uint8)
     legend_bar = cv.resize(colours, (bar_width, height - padding))
@@ -73,7 +57,7 @@ def draw_legend(frame, vmin:float = 0.0, vmax:float = 1.0, legend_position:str =
     # Axis ticks
     # ---- Draw axis ticks ----
     ticks_y = [bar_top, (bar_top + bar_bottom)//2, bar_bottom]
-    tick_values = [vmin, (vmin+vmax)/2, vmax]
+    tick_values = [vmax, (vmin+vmax)/2, vmin]
     
     for ty, val in zip(ticks_y, tick_values):
         # tick line
