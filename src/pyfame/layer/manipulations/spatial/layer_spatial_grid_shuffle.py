@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveInt
-from typing import Union, List, Tuple, Optional
+from typing import Union, List, Tuple, Optional, Any
 from pyfame.mesh import *
 from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
@@ -68,10 +68,7 @@ class LayerSpatialGridShuffle(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
-
-        # Update the faceMesh when switching between image and video processing
-        face_mesh = super().get_face_mesh(static_image_mode)
+    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float):
         
         weight = super().compute_weight(dt, self.supports_weight())
 

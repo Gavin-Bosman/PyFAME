@@ -1,6 +1,10 @@
 __version__ = "1.0.0"
 __author__ = "Gavin Bosman"
 
+# Configure tensorflow log outputs (via mediapipe)
+import os
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
+
 # Look into changing these to explicit names
 from pyfame.analyse import *
 from pyfame.file_access import *

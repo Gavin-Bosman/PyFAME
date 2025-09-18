@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveInt
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Any
 from pyfame.mesh import *
 from pyfame.utilities.constants import *
 from pyfame.layer.layer import Layer, TimingConfiguration
@@ -72,10 +72,7 @@ class LayerOcclusionBlur(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float = None, static_image_mode:bool = False):
-
-        # Update faceMesh when switching between image and video processing
-        face_mesh = super().get_face_mesh(static_image_mode)
+    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float = None):
 
         # Blurring does not support weight, so weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())

@@ -4,6 +4,10 @@ import pyfame as pf
 paths = pf.make_paths()
 timing = pf.TimingConfiguration()
 
-flow = pf.layer_stylise_optical_flow_dense(timing, precise_colour_scale=True)
+mask = pf.layer_mask(timing)
 
-pf.apply_layers(paths.iloc[[1]], flow)
+pf.apply_layers(paths, mask)
+
+# Progress bars for:
+# write log file
+# Layer-level execution

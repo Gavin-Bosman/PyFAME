@@ -5,10 +5,12 @@ from pyfame.mesh.mesh_landmarks import *
 from pyfame.layer.layer import Layer
 from pyfame.layer.layer_pipeline import LayerPipeline
 from pyfame.logging.write_experiment_log import write_experiment_log
+from pyfame.mesh.get_mesh_coordinates import get_mesh
 import cv2 as cv
 import os
 import pandas as pd
 from datetime import datetime
+from tqdm import tqdm
 
 def resolve_missing_timing(layer:Layer, video_duration:int) -> tuple[int,int]:
     onset = layer.onset_t if layer.onset_t is not None else 0
@@ -58,6 +60,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
 
     None
     """
+
     # Get the current sys timestamp for a unique output folder
     # name that will identify the processing session
     timestamp = datetime.now().isoformat(timespec='seconds')
@@ -105,12 +108,30 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     pipeline = LayerPipeline()
     pipeline.add_layers(layers)
 
-    for i,file in enumerate(absolute_paths):
+    static_image_mode = False
+    face_mesh = get_mesh(
+        min_tracking_confidence=layers[0].config.min_tracking_confidence, 
+        min_detection_confidence=layers[0].config.min_detection_confidence,
+        static_image_mode=static_image_mode,
+        max_num_faces=1
+    )
+
+    # Iterate over file list
+    for i,file in enumerate(
+        tqdm(
+            absolute_paths, 
+            total=len(absolute_paths), 
+            desc="Files processed:",
+            bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}',
+            position=0,
+            dynamic_ncols=True
+        )
+    ):
+        
         if not os.path.isfile(file):
             raise FileReadError(file_path=file)
         
         filename, extension = os.path.splitext(os.path.basename(file))
-        static_image_mode = False
         codec = "mp4v"
         capture = None
         result = None
@@ -127,9 +148,18 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         dir_file_path = os.path.join(output_directory, *subdirectory_names, f"{filename}{extension}")
 
         # Using the file extension to sniff video codec or image container for images
-        if str.lower(extension) not in [".mp4", ".mov", ".jpg", ".jpeg", ".png", ".bmp"]:
+        if str.lower(extension) not in {".mp4", ".mov", ".jpg", ".jpeg", ".png", ".bmp"}:
             print(f"Skipping unparseable file {os.path.basename(file)}.")
             continue
+        # Reset the face mesh if switching between movies and images
+        elif str.lower(extension) in {".jpg", ".jpeg", ".png", ".bmp"}:
+            static_image_mode = True
+            face_mesh = get_mesh(
+                min_tracking_confidence=layers[0].config.min_tracking_confidence, 
+                min_detection_confidence=layers[0].config.min_detection_confidence,
+                static_image_mode=static_image_mode,
+                max_num_faces=1
+            )
         
         if not static_image_mode:
             capture = get_video_capture(file)
@@ -149,6 +179,15 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
                 resolve_missing_timing(layer, cap_duration)
         
         # Loop over the current file until completion; (single iteration for static images)
+        pb = tqdm(
+            total=frame_count, 
+            desc="Video frames processed:",
+            bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}', 
+            leave=False,
+            colour="blue",
+            position=1,
+            dynamic_ncols=True
+        )
         while(True):
 
             frame = None
@@ -164,24 +203,35 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
             if not static_image_mode:
                 # Getting the current video timestamp
                 dt = capture.get(cv.CAP_PROP_POS_MSEC)/1000
-                output_frame = pipeline.apply_layers(frame, dt, file_path=file)
+                output_frame = pipeline.apply_layers(face_mesh, frame, dt, file_path=file)
                 output_frame = output_frame.astype(np.uint8)
                 result.write(output_frame)
             else:
-                output_frame = pipeline.apply_layers(frame, None, static_image_mode=True, file_path=file)
+                output_frame = pipeline.apply_layers(face_mesh, frame, None, file_path=file)
                 output_frame = output_frame.astype(np.uint8)
                 success = cv.imwrite(dir_file_path, output_frame)
                 if not success:
                     raise FileWriteError()
                 
                 break
+
+            pb.update(1)
         
+        pb.close()
         write_experiment_log(layers, file, test_path)
         
         if not static_image_mode:
             capture.release()
             result.release()
         
-        for layer in layers:
+        for layer in tqdm(
+            layers, 
+            total=len(layers), 
+            desc="Layer state reset:", 
+            bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}',
+            leave=False,
+            colour="blue"
+        ):
+    
             # Reset back to initial state after user construction
             layer._reset_state()

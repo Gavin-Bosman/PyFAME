@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt, PositiveInt, PositiveFloat, NonNegativeFloat
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations.mask import mask_from_path
 from pyfame.mesh import *
@@ -145,11 +145,7 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.magnitude_max = float(mean_magnitude + std_magnitude)
         self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False, file_path:str|None = None):
-
-        # Update the faceMesh when switching between image and video processing
-        if static_image_mode == True:
-            raise UnrecognizedExtensionError(message="Sparse optical flow does not support static image files.")
+    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float, file_path:str|None = None) -> cv.typing.MatLike:
         
         # If precise_colour_scale is True, precompute the norm using the full analysis results
         if self.precise_colour_scale and self.norm is None:

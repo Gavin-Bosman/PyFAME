@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Any
 from pyfame.mesh import *
 from pyfame.file_access import *
 from pyfame.utilities import compute_rot_angle
@@ -197,10 +197,7 @@ class LayerStyliseOverlay(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, frame:cv.typing.MatLike, dt:float, static_image_mode:bool = False):
-
-        # Update the faceMesh when switching between image and video processing
-        face_mesh = super().get_face_mesh(static_image_mode)
+    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float):
 
         weight = super().compute_weight(dt, self.supports_weight())
 

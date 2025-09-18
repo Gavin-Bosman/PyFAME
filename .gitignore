@@ -20,7 +20,7 @@ src/processing_script.py
 src/old_code.txt
 tests/data/outputs/.
 .pytest_cache
-.venv
+venv
 .tox
 .vscode
 .python-version

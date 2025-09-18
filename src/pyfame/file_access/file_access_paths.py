@@ -29,6 +29,9 @@ def make_paths(root_path:str = None, exclude_directories:list[str] | None = ["pr
         else:
             print(f"Directory {dir} already exists within {root_path}.")
     
+    print("\n")
+    print("-----------------------------------------------------------")
+    
     full_file_paths = []
     rel_file_paths = []
 

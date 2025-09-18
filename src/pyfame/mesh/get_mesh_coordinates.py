@@ -1,13 +1,18 @@
 from pyfame.utilities.exceptions import *
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
+from typing import Any
+import mediapipe as mp
 
-def get_mesh(min_tracking_confidence:float, min_detection_confidence:float, static_image_mode:bool, max_num_faces:int = 1) -> mp.solutions.face_mesh.FaceMesh:
-    return mp.solutions.face_mesh.FaceMesh(max_num_faces = max_num_faces, static_image_mode = static_image_mode, 
-                                           min_detection_confidence = min_detection_confidence, min_tracking_confidence = min_tracking_confidence)
+def get_mesh(min_tracking_confidence:float, min_detection_confidence:float, static_image_mode:bool, max_num_faces:int = 1):
+    return mp.solutions.face_mesh.FaceMesh(
+        max_num_faces = max_num_faces, 
+        static_image_mode = static_image_mode, 
+        min_detection_confidence = min_detection_confidence, 
+        min_tracking_confidence = min_tracking_confidence
+    )
 
-def get_mesh_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh) -> list[dict]:
+def get_mesh_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:Any) -> list[dict]:
 
     # Save the orignal dimensions for determining padding
     original_h, original_w = frame_rgb.shape[:2]
@@ -54,7 +59,7 @@ def get_mesh_coordinates(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.fac
     
     return landmark_screen_coords
 
-def get_mesh_coordinates_from_path(frame_rgb:cv.typing.MatLike, face_mesh:mp.solutions.face_mesh.FaceMesh, landmark_path:list[tuple]) -> list[tuple]:
+def get_mesh_coordinates_from_path(frame_rgb:cv.typing.MatLike, face_mesh:Any, landmark_path:list[tuple]) -> list[tuple]:
 
     lm_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
     path_screen_coords = []

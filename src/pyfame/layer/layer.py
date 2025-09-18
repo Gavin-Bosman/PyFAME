@@ -1,5 +1,5 @@
 from pydantic import BaseModel, NonNegativeFloat, field_validator, ValidationInfo, ConfigDict
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 from abc import ABC, abstractmethod
 from cv2.typing import MatLike
 from pyfame.layer.timing_curves import timing_linear
@@ -51,7 +51,9 @@ class Layer(ABC):
         self.__dict__ = init_state
         
     def compute_weight(self, dt:float, supports_weight:bool) -> float:
-        if supports_weight:
+        if dt is None:
+            return 0.0
+        elif supports_weight:
             return self.timing(dt, self.onset_t, self.offset_t, self.rise, self.fall, **self.time_kwargs)
         else:
             return 1.0
@@ -79,5 +81,5 @@ class Layer(ABC):
         pass
 
     @abstractmethod
-    def apply_layer(self, frame:MatLike, dt:float, static_image_mode:bool = False) -> MatLike:
+    def apply_layer(self, face_mesh:Any, frame:MatLike, dt:float) -> MatLike:
         pass

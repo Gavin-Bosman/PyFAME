@@ -2,6 +2,7 @@ from .layer import Layer
 from cv2.typing import MatLike
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_dense import LayerStyliseOpticalFlowDense
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_sparse import LayerStyliseOpticalFlowSparse
+from typing import Any
 
 
 class LayerPipeline:
@@ -32,7 +33,7 @@ class LayerPipeline:
         weighted.extend(non_weighted)
         return weighted
     
-    def apply_layers(self, frame:MatLike, dt:float, static_image_mode:bool = False, **kwargs) -> MatLike:
+    def apply_layers(self, face_mesh:Any, frame:MatLike, dt:float, **kwargs) -> MatLike:
         self.layers = self.enforce_layer_ordering()
 
         file_path = kwargs.get("file_path", None)
@@ -40,7 +41,7 @@ class LayerPipeline:
         for layer in self.layers:
             # Optical flow layers require the file path if a precomputed colour scale is specified
             if isinstance(layer, (LayerStyliseOpticalFlowDense, LayerStyliseOpticalFlowSparse)):
-                frame = layer.apply_layer(frame, dt, static_image_mode, file_path=file_path)
+                frame = layer.apply_layer(face_mesh, frame, dt, file_path=file_path)
             else:
-                frame = layer.apply_layer(frame, dt, static_image_mode)
+                frame = layer.apply_layer(face_mesh, frame, dt)
         return frame
