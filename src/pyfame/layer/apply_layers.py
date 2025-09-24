@@ -183,7 +183,6 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
             total=frame_count, 
             desc="Video frames processed:",
             bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}', 
-            leave=False,
             colour="blue",
             position=1,
             dynamic_ncols=True

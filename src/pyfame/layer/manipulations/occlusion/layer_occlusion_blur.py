@@ -7,6 +7,8 @@ from pyfame.layer.manipulations.mask import mask_from_path
 import cv2 as cv
 import numpy as np
 
+# Investigate weight scaling the blurring kernel's dimensions
+
 class BlurringParameters(BaseModel):
     blur_method:Union[str, int]
     kernel_size:Tuple[PositiveInt, PositiveInt]
@@ -82,6 +84,7 @@ class LayerOcclusionBlur(Layer):
         else:
             # Mask out region of interest
             mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask[:,:,np.newaxis]
             output_frame = np.zeros_like(frame, dtype=np.uint8)
 
             # Blur the input frame depending on user-specified blur method

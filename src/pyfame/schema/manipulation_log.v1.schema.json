@@ -1,0 +1,51 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://pyfame.org/schemas/manipulation_log.v1.schema.json",
+    "title": "PyFAME Manipulation Log",
+    "description": "Schema for log files produced by PyFAME manipulations, so that the manipulations may be replicated.",
+    "type":"object",
+    "required": ["schema_version", "timestamp", "file", "layers"],
+    "properties": {
+        "schema_version": {
+            "type":"string",
+            "description": "Schema version for compatibility, (e.g. 'v1.0' or '1.0')."
+        },
+        "timestamp": {
+            "type":"string",
+            "format": "date-time",
+            "description": "When the manipulation log was created (ISO 8601)."
+        },
+        "file": {
+            "type":"string",
+            "description": "Path to the original file the manipulations were applied to."
+        },
+        "layers": {
+            "type":"object",
+            "description": "Mapping of layer names to their configuration parameters.",
+            "additionalProperties": {
+                "type":"object",
+                "description": "Configuration parameters for a single manipulation layer.",
+                "required": [
+                    "time_onset", 
+                    "time_offset", 
+                    "timing_function", 
+                    "rise_duration", 
+                    "fall_duration", 
+                    "min_tracking_confidence", 
+                    "min_detection_confidence"
+                ],
+                "properties": {
+                    "time_onset": {"type":"number"},
+                    "time_offset": {"type":"number"},
+                    "timing_function": {"type":"string"},
+                    "rise_duration": {"type":"number"},
+                    "fall_duration": {"type":"number"},
+                    "min_tracking_confidence": {"type":"number", "minimum": 0, "maximum": 1},
+                    "min_detection_confidence": {"type":"number", "minimum": 0, "maximum": 1}
+                },
+                "additionalProperties": true
+            }
+        }
+    },
+    "additionalProperties": false
+}

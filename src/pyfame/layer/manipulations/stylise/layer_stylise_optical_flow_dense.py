@@ -19,7 +19,7 @@ class DenseFlowParameters(BaseModel):
     gaussian_deviation:NonNegativeFloat
     legend:bool
     legend_position:str="top-left"
-    precise_colour_scale:bool = False
+    precise_colour_scale:bool = True
 
     @field_validator("pyramid_scale")
     @classmethod
@@ -188,7 +188,7 @@ class LayerStyliseOpticalFlowDense(Layer):
 
 def layer_stylise_optical_flow_dense(timing_configuration:TimingConfiguration | None = None, pixel_neighborhood_size:int = 5, search_window_size:int = 15, 
                                      max_pyramid_level:int = 2, pyramid_scale:float = 0.5, max_iterations:int = 10, gaussian_deviation:float = 1.2, 
-                                     legend:bool = True, legend_position:str = "top-left", precise_colour_scale:bool = False) -> LayerStyliseOpticalFlowDense:
+                                     legend:bool = True, legend_position:str = "top-left", precise_colour_scale:bool = True) -> LayerStyliseOpticalFlowDense:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 

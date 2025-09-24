@@ -85,7 +85,7 @@ class LayerMask(Layer):
             masked_frame = masked_frame.astype(np.uint8)
             return masked_frame
 
-def layer_mask(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]]= FACE_OVAL_PATH, background_colour:tuple[int,int,int] = (0,0,0)) -> LayerMask:
+def layer_mask(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, background_colour:tuple[int,int,int] = (0,0,0)) -> LayerMask:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 

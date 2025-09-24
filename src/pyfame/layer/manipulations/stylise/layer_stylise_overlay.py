@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt
-from typing import Union, Tuple, Optional, Any
+from typing import Union, Optional, Any
 from pyfame.mesh import *
 from pyfame.file_access import *
 from pyfame.utilities import compute_rot_angle
@@ -11,7 +11,9 @@ from pathlib import Path
 import os
 
 _OVERLAY_DIR = Path(__file__).parent / "overlay_images"
-
+# (6, 356) for left cheek scaling, center 348
+# (127, 6) for right cheek scaling, center lm 119
+# try center lms 253/450 for welling tears
 _OVERLAY_MAPPING = {
     "sunglasses": {
         "path": _OVERLAY_DIR / "sunglasses.png",
@@ -25,11 +27,23 @@ _OVERLAY_MAPPING = {
         "centre_landmark": 6,
         "scale": None
     },
-    "teardrop": {
-        "path": _OVERLAY_DIR / "teardrop.png",
+    "tear_short_1": {
+        "path": _OVERLAY_DIR / "tears" / "tear_short_1.png",
+        "anchor_landmarks": (6, 356),
+        "centre_landmark": 348,
+        "scale": 0.2
+    },
+    "tear_welled_left": {
+        "path": _OVERLAY_DIR / "tears" / "tear_welled_1_left_eye.png",
+        "anchor_landmarks": (6, 356),
+        "centre_landmark": 450,
+        "scale": 0.4
+    },
+    "tear_long_2": {
+        "path": _OVERLAY_DIR / "tears" / "tear_long_1.png",
         "anchor_landmarks": (127, 6),
-        "centre_landmark": 119,
-        "scale": 0.25
+        "centre_landmark": 101,
+        "scale": 0.8
     }
 }
 
@@ -59,12 +73,14 @@ def compute_scale(landmark_coordinates:list[dict], anchor_landmarks:tuple[int,in
     return np.linalg.norm(p1-p2) * scale_factor
 
 def load_overlay(name_or_path:str, landmark_coordinates:list[dict], anchor_landmarks:tuple[int, ...] | None = None, 
-                 centre_point:tuple[int,int] = None, scale_factor:float | None = None) -> tuple[cv.typing.MatLike, tuple, tuple, float]:
+                 scale_factor:float | None = None) -> tuple[cv.typing.MatLike, tuple, tuple, float]:
 
     global _OVERLAY_CACHE
 
     if landmark_coordinates is None:
         raise ValueError("load_overlay requires a landmark screen coordinate mapping to properly compute the overlay scale.")
+
+    # TODO add path handling ~ if Path(path):
 
     # Pre-defined overlay type
     if name_or_path in _OVERLAY_MAPPING:
@@ -83,9 +99,8 @@ def load_overlay(name_or_path:str, landmark_coordinates:list[dict], anchor_landm
         if anchor_landmarks is None:
             anchor_landmarks = config["anchor_landmarks"]
         
-        if centre_point is None:
-            centre = config["centre_landmark"]
-            centre_point = (landmark_coordinates[centre].get('x'), landmark_coordinates[centre].get('y'))
+        centre = config["centre_landmark"]
+        centre_point = (landmark_coordinates[centre].get('x'), landmark_coordinates[centre].get('y'))
         
         if scale_factor is None:
             scale = compute_scale(landmark_coordinates, anchor_landmarks)
@@ -115,7 +130,6 @@ def load_overlay(name_or_path:str, landmark_coordinates:list[dict], anchor_landm
         
 class OverlayParameters(BaseModel):
     overlay_name_or_path:Union[NonNegativeInt, str]
-    overlay_centre_point:Optional[Tuple[NonNegativeInt, NonNegativeInt]] = None
     overlay_scale_factor:Optional[float] = None
 
     @field_validator("overlay_name_or_path", mode="before")
@@ -125,7 +139,7 @@ class OverlayParameters(BaseModel):
 
         if isinstance(value, str):
             value = str.lower(value)
-            if value in {"sunglasses", "glasses", "teardrop", "teardrop_2"}:
+            if value in {"sunglasses", "glasses", "tear_short_1", "tear_welled_left", "tear_long_2"}:
                 return value
             
             elif os.path.isfile(value):
@@ -134,10 +148,11 @@ class OverlayParameters(BaseModel):
             raise ValueError(f"Unrecognized value or invalid file path provided to parameter {field_name}.")
             
         elif isinstance(value, int):
-            if value not in {43,44,45}:
+            # 46,47,... not currently actual constants
+            if value not in {43,44,45,46,47}:
                 raise ValueError(f"Unrecognized value for parameter {field_name}.")
             
-            mapping = {43: "sunglasses", 44:"glasses", 45:"teardrop"}
+            mapping = {43: "sunglasses", 44:"glasses", 45:"tear_short_1", 46:"tear_welled_left", 47:"tear_long_2"}
             return mapping.get(value)
         
         raise TypeError(f"Invalid type for parameter {field_name}. Expected int or str.")
@@ -149,23 +164,12 @@ class OverlayParameters(BaseModel):
         params = info.data
 
         # Check that an overlay type was passed, and that it is a custom type
-        if params.get("overlay_name_or_path") and (params.get("overlay_name_or_path") not in {"sunglasses", "glasses", "teardrop", 43, 44, 45}):
+        if params.get("overlay_name_or_path") and (params.get("overlay_name_or_path") not in {"sunglasses", "glasses", "tear_short_1", "tear_welled_left", "tear_long_2", 43, 44, 45, 46, 47}):
             if value is None:
                 raise ValueError(f"{field_name} is a required parameter when passing custom overlay paths.")
             elif not (0.0 < value <= 1.0):
                 raise ValueError(f"{field_name} must be a float in the normal range 0.0 - 1.0.")
     
-    @field_validator("overlay_centre_point")
-    @classmethod
-    def check_valid_range(cls, value, info:ValidationInfo):
-        field_name = info.field_name
-        params = info.data
-
-        # Check that an overlay type was passed, and that it is a custom type
-        if params.get("overlay_name_or_path") and (params.get("overlay_name_or_path") not in {"sunglasses", "glasses", "teardrop", 43, 44, 45}):
-            if value is None:
-                raise ValueError(f"{field_name} is a required parameter when passing custom overlay paths.")
-
 class LayerStyliseOverlay(Layer):
     def __init__(self, timing_configuration:TimingConfiguration, overlay_parameters:OverlayParameters):
 
@@ -174,10 +178,13 @@ class LayerStyliseOverlay(Layer):
 
         # Initialise superclass
         super().__init__(self.time_config)
+
+        # Intra-frame tracking
+        self.overlay_img = None
+        self.overlay_scale = None
         
         # Declare class parameters
         self.overlay_name_or_path = self.overlay_params.overlay_name_or_path
-        self.overlay_centre_point = self.overlay_params.overlay_centre_point
         self.overlay_scale_factor = self.overlay_params.overlay_scale_factor
         self.min_tracking_confidence = self.time_config.min_tracking_confidence
         self.min_detection_confidence = self.time_config.min_detection_confidence
@@ -212,7 +219,6 @@ class LayerStyliseOverlay(Layer):
             overlay, anchor_lms, centre_point, scale = load_overlay(
                 name_or_path=self.overlay_name_or_path,
                 landmark_coordinates=landmark_screen_coords,
-                centre_point=self.overlay_centre_point,
                 scale_factor=self.overlay_scale_factor
             )
 
@@ -262,6 +268,9 @@ class LayerStyliseOverlay(Layer):
             blended = (1.0 - overlay_mask) * roi + overlay_mask * overlay_img
 
             overlayed_frame[y_pos:y_pos + padded_height, x_pos:x_pos + padded_width] = blended.astype(np.uint8)
+
+            # cv.imshow('overlayed', overlayed_frame)
+            # cv.waitKey(0)
 
             return overlayed_frame
         

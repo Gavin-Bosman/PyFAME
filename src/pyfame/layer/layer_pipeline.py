@@ -1,4 +1,5 @@
 from .layer import Layer
+import cv2 as cv
 from cv2.typing import MatLike
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_dense import LayerStyliseOpticalFlowDense
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_sparse import LayerStyliseOpticalFlowSparse
@@ -29,6 +30,9 @@ class LayerPipeline:
                 weighted.append(layer)
             else:
                 non_weighted.append(layer)
+        
+        # Non-weighted manipulations order of precidence
+        # Masking, blurring/noise, 
         
         weighted.extend(non_weighted)
         return weighted
