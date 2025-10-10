@@ -1,14 +1,14 @@
 from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError
-from typing import Union, List, Tuple, Any
-from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
+from typing import Union, List, Tuple
+from pyfame.landmark.facial_landmarks import LANDMARK_FACE_OVAL
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
 
 class BrightnessParameters(BaseModel):
-    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
     magnitude:float
 
     @field_validator("magnitude")
@@ -31,10 +31,8 @@ class LayerColourBrightness(Layer):
         self.static_image_mode = False
 
         # Define class parameters
-        self.region_of_interest = self.bright_params.region_of_interest
+        self.landmark_paths = self.bright_params.landmark_paths
         self.magnitude = self.bright_params.magnitude
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -50,7 +48,7 @@ class LayerColourBrightness(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
 
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float = None):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int, int]], frame:cv.typing.MatLike, dt:float = None):
         
         weight = super().compute_weight(dt, self.supports_weight())
         
@@ -59,7 +57,7 @@ class LayerColourBrightness(Layer):
             return frame
         else:
             # Mask out the region of interest
-            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask_from_landmarks(frame, self.landmark_paths, landmarker_coordinates)
             # Reshape the mask for compatibility with cv2.convertScaleAbs()
             mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
 
@@ -83,14 +81,14 @@ class LayerColourBrightness(Layer):
             img_brightened[foreground == 0] = frame[foreground == 0]
             return img_brightened
 
-def layer_colour_brightness(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, magnitude:float = 20.0) -> LayerColourBrightness:
+def layer_colour_brightness(timing_configuration:TimingConfiguration | None = None, landmark_paths:list[list[tuple[int,...]]] | list[tuple[int,...]] = LANDMARK_FACE_OVAL, magnitude:float = 20.0) -> LayerColourBrightness:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
     # Validate input parameters
     try:
         params = BrightnessParameters(
-            region_of_interest=region_of_interest, 
+            landmark_paths=landmark_paths, 
             magnitude=magnitude
         )
     except ValidationError as e:

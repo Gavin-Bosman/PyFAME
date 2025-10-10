@@ -20,7 +20,7 @@ src/processing_script.py
 src/old_code.txt
 tests/data/outputs/.
 .pytest_cache
-venv
+venv311
 .tox
 .vscode
 .python-version
@@ -29,3 +29,4 @@ docs/.vitepress/cache
 Moviefied/
 moviefy_test
 data/
+test_scripts/

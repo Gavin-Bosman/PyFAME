@@ -1,10 +1,8 @@
-from pydantic import BaseModel, NonNegativeFloat, field_validator, ValidationInfo, ConfigDict
-from typing import Callable, Optional, Any
+from pydantic import BaseModel, NonNegativeFloat, ConfigDict
+from typing import Callable, Optional
 from abc import ABC, abstractmethod
 from cv2.typing import MatLike
 from pyfame.layer.timing_curves import timing_linear
-from pyfame.file_access.checks import *
-from pyfame.mesh.get_mesh_coordinates import get_mesh
 import copy
 
 class TimingConfiguration(BaseModel):
@@ -13,17 +11,8 @@ class TimingConfiguration(BaseModel):
     timing_function:Callable[...,float] = timing_linear
     rise_duration:NonNegativeFloat = 0.5
     fall_duration:NonNegativeFloat = 0.5
-    min_tracking_confidence:NonNegativeFloat = 0.5
-    min_detection_confidence:NonNegativeFloat = 0.5
     # kwargs-like dict of extra arguments stored in model_extra dictionary
     model_config = ConfigDict(extra="allow")
-
-    @field_validator('min_tracking_confidence', 'min_detection_confidence')
-    @classmethod
-    def check_normal_range(cls, value, info:ValidationInfo):
-        field_name = info.field_name
-        if not (0.0 <= value <= 1.0):
-            raise ValueError(f"{field_name} must lie in the range [0.0, 1.0].")
 
 class Layer(ABC): 
     """ An abstract base class to be extended by pyfame's manipulation layer classes. """
@@ -39,7 +28,6 @@ class Layer(ABC):
         self.rise = self.config.rise_duration
         self.fall = self.config.fall_duration
         self.time_kwargs = self.config.model_extra
-        self.face_mesh = None
     
     def _snapshot_state(self):
         self._initial_state = copy.deepcopy(self.__dict__)
@@ -47,7 +35,6 @@ class Layer(ABC):
     def _reset_state(self):
         init_state = copy.deepcopy(self._initial_state)
         init_state["_initial_state"] = self._initial_state
-        init_state["face_mesh"] = None
         self.__dict__ = init_state
         
     def compute_weight(self, dt:float, supports_weight:bool) -> float:
@@ -58,19 +45,21 @@ class Layer(ABC):
         else:
             return 1.0
     
-    def get_face_mesh(self, static_image_mode=False):
-        if self.face_mesh is not None:
-            return self.face_mesh
-        else:
-            # Only instantiate when necessary (after state reset)
-            # otherwise lazy-load
-            self.face_mesh = get_mesh(
-                min_tracking_confidence=self.config.min_tracking_confidence, 
-                min_detection_confidence=self.config.min_detection_confidence,
-                static_image_mode=static_image_mode,
-                max_num_faces=1
-            )
-            return self.face_mesh
+    # def get_frame_as_mp_image(frame:MatLike):
+    #     # Save the orignal dimensions for determining padding
+    #     original_h, original_w = frame.shape[:2]
+
+    #     # Pad to square dimensions before face landmarking
+    #     if original_h > original_w:
+    #         pad = (original_h - original_w) // 2
+    #         padded_frame = cv.copyMakeBorder(frame, 0, 0, pad, pad, cv.BORDER_CONSTANT, value=(0,0,0))
+    #     elif original_w > original_h:
+    #         pad = (original_w - original_h) // 2
+    #         padded_frame = cv.copyMakeBorder(frame, pad, pad, 0, 0, cv.BORDER_CONSTANT, value=(0,0,0))
+    #     else:
+    #         padded_frame = frame
+        
+    #     return mp.Image(image_format=mp.ImageFormat.SRGB, data=padded_frame)
 
     @abstractmethod
     def supports_weight(self) -> bool:
@@ -81,5 +70,5 @@ class Layer(ABC):
         pass
 
     @abstractmethod
-    def apply_layer(self, face_mesh:Any, frame:MatLike, dt:float) -> MatLike:
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:MatLike, dt:float) -> MatLike:
         pass

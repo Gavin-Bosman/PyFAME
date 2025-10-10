@@ -8,7 +8,7 @@ def timing_constant(time_delta:float, time_onset:float, time_offset:float, rise_
     ----------
 
     time_delta: float
-        The current timestamp of the video file being evaluated.
+        The current timestamp (msec) of the video file being evaluated.
 
     time_onset: float
         The timestamp at which to transition to 1.0.
@@ -16,6 +16,7 @@ def timing_constant(time_delta:float, time_onset:float, time_offset:float, rise_
     time_offset: float
         The timestamp at which to transition back to 0.0. 
     """
+    time_delta /= 1000
 
     if time_delta < time_onset:
         return 0.0
@@ -33,7 +34,7 @@ def timing_linear(time_delta:float, time_onset:float, time_offset:float, rise_du
     ----------
 
     time_delta: float
-        The current time value of the video file being processed.
+        The current timestamp (msec) of the video file being processed.
     
     time_onset: float
         The timestamp at which to begin linearly transitioning to 1.0.
@@ -52,6 +53,7 @@ def timing_linear(time_delta:float, time_onset:float, time_offset:float, rise_du
 
     weight: float
     """
+    time_delta /= 1000
 
     def linear(t):
         return np.clip(t, 0.0, 1.0)
@@ -61,9 +63,9 @@ def timing_linear(time_delta:float, time_onset:float, time_offset:float, rise_du
     elif time_onset <= time_delta < time_onset + rise_duration:
         cur_eval = (time_delta - time_onset) / rise_duration
         return linear(cur_eval)
-    elif time_onset + rise_duration <= time_delta < time_offset:
+    elif time_onset + rise_duration <= time_delta < time_offset - fall_duration:
         return 1.0
-    elif time_offset <= time_delta < time_offset + fall_duration:
+    elif time_offset - fall_duration <= time_delta < time_offset:
         cur_eval = (time_delta - time_offset) / fall_duration
         return linear(1 - cur_eval)
     else:
@@ -77,7 +79,7 @@ def timing_sigmoid(time_delta:float, time_onset:float, time_offset:float, rise_d
     ----------
 
     time_delta: float
-        The current timestamp of the video file being evaluated. 
+        The current timestamp (msec) of the video file being evaluated. 
     
     time_onset: float
         The timestamp at which to begin linearly transitioning to 1.0.
@@ -101,6 +103,7 @@ def timing_sigmoid(time_delta:float, time_onset:float, time_offset:float, rise_d
     weight: float
         A normalised weight in the range [0,1].
     """
+    time_delta /= 1000
 
     def scaled_sigmoid(t, k):
         raw = 1 / (1 + np.exp(-k * (t-0.5)))
@@ -110,12 +113,12 @@ def timing_sigmoid(time_delta:float, time_onset:float, time_offset:float, rise_d
 
     if time_delta < time_onset:
         return 0.0
-    elif time_onset <= time_delta <= time_onset + rise_duration:
+    elif time_onset <= time_delta < time_onset + rise_duration:
         cur_eval = (time_delta - time_onset) / rise_duration
         return scaled_sigmoid(cur_eval, growth_rate)
-    elif time_onset + rise_duration <= time_delta <= time_offset:
+    elif time_onset + rise_duration <= time_delta < time_offset - fall_duration:
         return 1.0
-    elif time_offset <= time_delta <= time_offset + fall_duration:
+    elif time_offset - fall_duration <= time_delta < time_offset:
         cur_eval = (time_delta - time_offset) / fall_duration
         return scaled_sigmoid(1-cur_eval, growth_rate)
     else:
@@ -128,7 +131,7 @@ def timing_gaussian(time_delta:float, time_onset:float, time_offset:float, rise_
     ----------
 
     time_delta: float
-        The current timestamp of the video file being evaluated. 
+        The current timestamp (msec) of the video file being evaluated. 
     
     time_onset: float
         The timestamp at which to begin linearly transitioning to 1.0.
@@ -155,6 +158,8 @@ def timing_gaussian(time_delta:float, time_onset:float, time_offset:float, rise_
         A normalised weight in the range [0,1].
     """
 
+    time_delta /= 1000
+
     def gaussian(t, sigma):
         raw = np.exp(-((t - 0.5) ** 2) / (2 * sigma**2))
         min_val = np.exp(-((0.0 - 0.5) ** 2) / (2 * sigma**2))
@@ -166,12 +171,12 @@ def timing_gaussian(time_delta:float, time_onset:float, time_offset:float, rise_
     
     if time_delta < time_onset:
         return 0.0
-    elif time_onset <= time_delta <= time_onset + rise_duration:
+    elif time_onset <= time_delta < time_onset + rise_duration:
         cur_eval = ((time_delta - time_onset) / rise_duration) * 0.5
         return gaussian(cur_eval, rise_sigma)
-    elif time_onset + rise_duration <= time_delta <= time_offset:
+    elif time_onset + rise_duration <= time_delta < time_offset - fall_duration:
         return 1.0
-    elif time_offset <= time_delta <= time_offset + fall_duration:
+    elif time_offset - fall_duration <= time_delta < time_offset:
         cur_eval = ((time_delta - time_offset) / fall_duration) * 0.5 + 0.5
         return gaussian(1-cur_eval, fall_sigma)
     else:

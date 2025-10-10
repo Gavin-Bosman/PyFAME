@@ -16,8 +16,8 @@ class NamespaceError(PyFameError):
             self.name = name
 
 class FaceNotFoundError(PyFameError):
-    """ Raised when the mediapipe FaceMesh cannot successfully detect a face in a given frame."""
-    def __init__(self, message:str="FaceMesh failed to identify a face in the provided image."):
+    """ Raised when the mediapipe FaceLandmarker cannot successfully detect a face in a given frame."""
+    def __init__(self, message:str="FaceLandmarker failed to identify a face in the provided image or video."):
         self.message = message
         super().__init__(self.message)
 

@@ -1,8 +1,8 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt, PositiveFloat, PositiveInt
 from typing import Optional, List, Tuple
-from pyfame.mesh import get_mesh, get_mesh_coordinates
-from pyfame.mesh.mesh_landmarks import *
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.landmark.get_landmark_coordinates import get_face_landmarker, get_pixel_coordinates
+from pyfame.landmark.facial_landmarks import *
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.file_access import get_video_capture
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
@@ -121,7 +121,7 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     pixel_neighborhood_size = input_parameters.pixel_neighborhood_size
     
     # Defining the mediapipe facemesh task
-    face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, False)
+    face_mesh = get_face_landmarker(min_tracking_confidence, min_detection_confidence, False)
     
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
@@ -193,10 +193,10 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
             
             # Get the landmark screen coordinates
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_pixel_coordinates(frame_rgb, face_mesh)
             
             # Create face oval image mask
-            face_mask = mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
+            face_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, face_mesh)
 
             if counter == 1:
                 # Get initial tracking points

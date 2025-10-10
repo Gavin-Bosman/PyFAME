@@ -1,11 +1,11 @@
-from pyfame.file_access import get_video_capture, get_video_writer, map_directory_structure, create_output_directory
+from pyfame.file_access import get_video_capture, get_video_writer, get_imread, map_directory_structure, create_output_directory
 from pyfame.utilities.exceptions import *
 from pyfame.layer.timing_curves import *
-from pyfame.mesh.mesh_landmarks import *
+from pyfame.landmark.facial_landmarks import *
 from pyfame.layer.layer import Layer
 from pyfame.layer.layer_pipeline import LayerPipeline
 from pyfame.logging.write_experiment_log import write_experiment_log
-from pyfame.mesh.get_mesh_coordinates import get_mesh
+from pyfame.landmark.get_landmark_coordinates import get_face_landmarker, get_pixel_coordinates
 import cv2 as cv
 import os
 import pandas as pd
@@ -28,7 +28,8 @@ def resolve_missing_timing(layer:Layer, video_duration:int) -> tuple[int,int]:
 
     return onset, offset
 
-def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
+def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer, min_face_detection_confidence:float = 0.4, 
+                 min_face_presence_confidence:float = 0.7, min_tracking_confidence:float = 0.7):
     """ Takes in a list of layer objects, and applies each manipulation layer in sequence frame-by-frame, and file-by-file for each file provided within input_dir.
 
     Parameters
@@ -39,6 +40,21 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     
     layers: list of Layer
         A list of Layer objects containing the specified layer and its parameters.
+    
+    min_face_detection_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance.
+        Controls how confident the detection model needs to be to confirm a face is present in the frame.
+    
+    min_face_presence_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance.
+        Controls how confident the landmarker needs to be that the detected face is still present, 
+        if not it will attempt to re-detect the face.
+    
+    min_tracking_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance. 
+        Controls how confident the facial tracking model needs to be for the landmarker to 
+        continue using the current mesh layout. If this parameter fails, the landmarker will
+        transition back to facial detection.
     
     Raises
     ------
@@ -88,18 +104,18 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         root_directory = "data"
     
     # Test that the directory provided actually exists in the file system before any read/writes
-    test_path = os.path.join(norm_cwd, root_directory)
+    root_directory_path = os.path.join(norm_cwd, root_directory)
 
-    if not os.path.isdir(test_path):
+    if not os.path.isdir(root_directory_path):
         raise FileReadError(message=f"Unable to locate the input {root_directory} directory. Please call make_output_paths() to set up the correct directory structure.")
-    if not os.path.isdir(os.path.join(test_path, "raw")):
+    if not os.path.isdir(os.path.join(root_directory_path, "raw")):
         raise FileReadError(message=f"Unable to locate the 'raw' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
-    if not os.path.isdir(os.path.join(test_path, "processed")):
+    if not os.path.isdir(os.path.join(root_directory_path, "processed")):
         raise FileReadError(message=f"Unable to locate the 'processed' subdirectory under root directory '{root_directory}'. Please call make_output_paths() to set up the correct directory structure.")
 
     # Pre-made subdirectory structure in the project root
-    input_directory = os.path.join(test_path, "raw")
-    output_directory = os.path.join(test_path, "processed")
+    input_directory = os.path.join(root_directory_path, "raw")
+    output_directory = os.path.join(root_directory_path, "processed")
     output_directory = create_output_directory(output_directory, timestamp_str)
     # Map any scaffoled sub-organization from the input dir to the output dir
     map_directory_structure(input_directory, output_directory)
@@ -109,12 +125,6 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
     pipeline.add_layers(layers)
 
     static_image_mode = False
-    face_mesh = get_mesh(
-        min_tracking_confidence=layers[0].config.min_tracking_confidence, 
-        min_detection_confidence=layers[0].config.min_detection_confidence,
-        static_image_mode=static_image_mode,
-        max_num_faces=1
-    )
 
     # Iterate over file list
     for i,file in enumerate(
@@ -145,6 +155,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
             if part not in (root_directory, "raw", os.path.basename(file))
         ]
 
+        # Saving the absolute output path for writing out later
         dir_file_path = os.path.join(output_directory, *subdirectory_names, f"{filename}{extension}")
 
         # Using the file extension to sniff video codec or image container for images
@@ -154,12 +165,6 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         # Reset the face mesh if switching between movies and images
         elif str.lower(extension) in {".jpg", ".jpeg", ".png", ".bmp"}:
             static_image_mode = True
-            face_mesh = get_mesh(
-                min_tracking_confidence=layers[0].config.min_tracking_confidence, 
-                min_detection_confidence=layers[0].config.min_detection_confidence,
-                static_image_mode=static_image_mode,
-                max_num_faces=1
-            )
         
         if not static_image_mode:
             capture = get_video_capture(file)
@@ -177,11 +182,24 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
 
             for layer in pipeline.layers:
                 resolve_missing_timing(layer, cap_duration)
+        else:
+            frame_count = 1
+        
+        # We need to call the faceLandmarker only once per frame, specifically for video running mode.
+        # Instantiate a single, top-level faceLandmarker instance that will be passed to layers
+        face_landmarker = get_face_landmarker(
+            running_mode = "image" if static_image_mode else "video",
+            num_faces=1,
+            min_face_detection_confidence=min_face_detection_confidence,
+            min_face_presence_confidence=min_face_presence_confidence,
+            min_tracking_confidence=min_tracking_confidence,
+            output_face_blendshapes=True
+        )
         
         # Loop over the current file until completion; (single iteration for static images)
         pb = tqdm(
             total=frame_count, 
-            desc="Video frames processed:",
+            desc="Frame(s) processed:",
             bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}', 
             colour="blue",
             position=1,
@@ -189,48 +207,45 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer):
         )
         while(True):
 
-            frame = None
             if static_image_mode:
-                frame = cv.imread(file)
+                frame = get_imread(file)
+                pb.update(1)
                 if frame is None:
-                    raise FileReadError()
+                    break
             else:
                 success, frame = capture.read()
+                pb.update(1)
                 if not success:
                     break
+            
+            frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+            dt = capture.get(cv.CAP_PROP_POS_MSEC)
+            landmark_coordinates, blendshapes = get_pixel_coordinates(frame_rgb, face_landmarker, dt)
+
+            if blendshapes is None:
+                raise FaceNotFoundError()
 
             if not static_image_mode:
                 # Getting the current video timestamp
-                dt = capture.get(cv.CAP_PROP_POS_MSEC)/1000
-                output_frame = pipeline.apply_layers(face_mesh, frame, dt, file_path=file)
+                output_frame = pipeline.apply_layers(landmark_coordinates, frame, dt, file_path=file, blendshapes=blendshapes)
                 output_frame = output_frame.astype(np.uint8)
                 result.write(output_frame)
             else:
-                output_frame = pipeline.apply_layers(face_mesh, frame, None, file_path=file)
+                output_frame = pipeline.apply_layers(landmark_coordinates, frame, None, file_path=file, blendshapes=blendshapes)
                 output_frame = output_frame.astype(np.uint8)
                 success = cv.imwrite(dir_file_path, output_frame)
                 if not success:
                     raise FileWriteError()
                 
                 break
-
-            pb.update(1)
         
         pb.close()
-        write_experiment_log(layers, file, test_path)
+        write_experiment_log(layers, file, root_directory_path)
         
         if not static_image_mode:
             capture.release()
             result.release()
         
-        for layer in tqdm(
-            layers, 
-            total=len(layers), 
-            desc="Layer state reset:", 
-            bar_format='[{elapsed}<{remaining}] {n_fmt}/{total_fmt} | {l_bar}{bar} {rate_fmt}{postfix}',
-            leave=False,
-            colour="blue"
-        ):
-    
+        for layer in layers:
             # Reset back to initial state after user construction
             layer._reset_state()

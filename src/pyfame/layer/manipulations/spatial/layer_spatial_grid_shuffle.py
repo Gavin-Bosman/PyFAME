@@ -1,8 +1,9 @@
 from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveInt
-from typing import Union, List, Tuple, Optional, Any
-from pyfame.mesh import *
+from typing import Union, List, Tuple, Optional
+from pyfame.landmark.facial_landmarks import *
+from pyfame.landmark.get_landmark_coordinates import get_pixel_coordinates_from_landmark
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.utilities.constants import * 
 from pyfame.utilities.general_utilities import compute_rot_angle  
 import cv2 as cv
@@ -14,7 +15,7 @@ class GridShuffleParameters(BaseModel):
     shuffle_method:Union[int,str]
     shuffle_threshold:PositiveInt
     grid_square_size:PositiveInt
-    output_mask:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
 
     @field_validator("shuffle_method", mode="before")
     @classmethod
@@ -49,10 +50,7 @@ class LayerSpatialGridShuffle(Layer):
         self.shuffle_method = self.shuffle_params.shuffle_method
         self.shuffle_threshold = self.shuffle_params.shuffle_threshold
         self.grid_square_size = self.shuffle_params.grid_square_size
-        self.output_mask = self.shuffle_params.output_mask
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
+        self.landmark_paths = self.shuffle_params.landmark_paths
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -68,7 +66,7 @@ class LayerSpatialGridShuffle(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float) -> cv.typing.MatLike:
         
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -76,13 +74,11 @@ class LayerSpatialGridShuffle(Layer):
             return frame
         else:
             # Mask out the roi
-            mask = mask_from_path(frame, self.output_mask, face_mesh)
-            output_frame = np.zeros_like(frame, dtype=np.uint8)
+            mask = mask_from_landmarks(frame, self.landmark_paths, landmarker_coordinates)
+            bin_mask = mask.astype(bool)
 
-            # Get the pixel coordinates of the face oval
-            frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
-            fo_mask = mask.astype(bool)
+            fo_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_FACE_OVAL)
+            output_frame = np.zeros_like(frame, dtype=np.uint8)
 
             rng = None
 
@@ -212,9 +208,8 @@ class LayerSpatialGridShuffle(Layer):
 
             # Calculate the slope of the connecting line & angle to the horizontal
             # landmarks 162, 389 form a paralell line to the x-axis when the face is vertical
-            landmark_screen_coords = get_mesh_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), self.face_mesh)
-            p1 = landmark_screen_coords[162]
-            p2 = landmark_screen_coords[389]
+            p1 = landmarker_coordinates[162]
+            p2 = landmarker_coordinates[389]
             slope = (p2.get('y') - p1.get('y'))/(p2.get('x') - p1.get('x'))
 
             if slope > 0:
@@ -230,14 +225,14 @@ class LayerSpatialGridShuffle(Layer):
 
             # Ensure grid only overlays the face oval
             masked_frame = np.zeros((frame.shape[0], frame.shape[1], 1), dtype=np.uint8)
-            masked_frame[fo_mask] = 255
+            masked_frame[bin_mask] = 255
             output_frame = np.where(masked_frame == 255, output_frame, frame)
             output_frame = output_frame.astype(np.uint8)
 
             return output_frame
         
-def layer_spatial_grid_shuffle(timing_configuration:TimingConfiguration | None = None, output_mask:list[list[tuple[int,...]]] | list[tuple[int,...]]=FACE_OVAL_PATH, 
-                               random_seed:int|None = None, shuffle_method:int|str = "fully_random", shuffle_threshold:int = 2, grid_square_size:int = 40) -> LayerSpatialGridShuffle:
+def layer_spatial_grid_shuffle(timing_configuration:TimingConfiguration | None = None, landmark_paths:list[list[tuple[int,...]]] | list[tuple[int,...]]=LANDMARK_FACE_OVAL, 
+                               random_seed:int|None = None, shuffle_method:int|str = "full random", shuffle_threshold:int = 2, grid_square_size:int = 40) -> LayerSpatialGridShuffle:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
@@ -248,7 +243,7 @@ def layer_spatial_grid_shuffle(timing_configuration:TimingConfiguration | None =
             shuffle_method=shuffle_method, 
             shuffle_threshold=shuffle_threshold, 
             grid_square_size=grid_square_size, 
-            output_mask=output_mask
+            landmark_paths=landmark_paths
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerSpatialGridShuffle.__name__}: {e}")

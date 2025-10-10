@@ -1,37 +1,34 @@
 from pyfame.utilities.constants import *
-from pyfame.mesh import get_mesh_coordinates, get_mesh_coordinates_from_path
-from pyfame.mesh.mesh_landmarks import *
+from pyfame.landmark.get_landmark_coordinates import get_pixel_coordinates_from_landmark
+from pyfame.landmark.facial_landmarks import *
 from pyfame.utilities.exceptions import *
 import cv2 as cv
-import mediapipe as mp
 import numpy as np
 import logging
 
 logger = logging.getLogger("pyfame")
 debug_logger = logging.getLogger("pyfame.debug")
 
-def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]], face_mesh:mp.solutions.face_mesh.FaceMesh) -> cv.typing.MatLike:
+def mask_from_landmarks(frame:cv.typing.MatLike, landmark_paths:list[list[tuple[int,int]]] | list[tuple[int,int]], landmarker_coordinates) -> cv.typing.MatLike:
     
-    frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-    landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
     masked_frame = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
 
-    # Pre-declaring screen coords
-    left_cheek_path = create_path(LEFT_CHEEK_IDX)
-    right_cheek_path = create_path(RIGHT_CHEEK_IDX)
-    chin_path = create_path(CHIN_IDX)
+    # Extracting all of the relevant landmark pixel coordinates
+    lc_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_LEFT_CHEEK)
+    rc_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_RIGHT_CHEEK)
+    chin_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_CHIN)
+    nose_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_NOSE)
+    ler_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_LEFT_EYE_REGION)
+    rer_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_RIGHT_EYE_REGION)
+    le_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_LEFT_EYE)
+    re_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_RIGHT_EYE)
+    li_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_LEFT_IRIS)
+    ri_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_RIGHT_IRIS)
+    lips_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_LIPS)
+    fo_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_FACE_OVAL)
 
-    lc_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, left_cheek_path)
-    rc_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, right_cheek_path)
-    chin_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, chin_path)
-    nose_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, NOSE_PATH)
-    le_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, LEFT_EYE_PATH)
-    re_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, RIGHT_EYE_PATH)
-    lips_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, MOUTH_PATH)
-    fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_PATH)
-
-    if isinstance(region_of_interest[0], list):
-        for path in region_of_interest:
+    if isinstance(landmark_paths[0], list):
+        for path in landmark_paths:
             match path:
                 # Both Cheeks
                 case [(0,)]:
@@ -100,30 +97,30 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
                     masked_frame[rc_mask] = 255
                     masked_frame[nose_mask] = 255
                 
-                # Both eyes
+                # Both eye regions
                 case [(4,)]:
                     # Creating boolean masks for the facial landmarks 
-                    le_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                    le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
-                    le_mask = le_mask.astype(bool)
+                    ler_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                    ler_mask = cv.fillConvexPoly(ler_mask, np.array(ler_screen_coords), 1)
+                    ler_mask = ler_mask.astype(bool)
 
-                    re_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                    re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
-                    re_mask = re_mask.astype(bool)
+                    rer_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                    rer_mask = cv.fillConvexPoly(rer_mask, np.array(rer_screen_coords), 1)
+                    rer_mask = rer_mask.astype(bool)
 
-                    masked_frame[le_mask] = 255
-                    masked_frame[re_mask] = 255
+                    masked_frame[ler_mask] = 255
+                    masked_frame[rer_mask] = 255
 
                 # Face Skin
                 case [(5,)]:
                     # Creating boolean masks for the facial landmarks 
-                    le_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                    le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
-                    le_mask = le_mask.astype(bool)
+                    ler_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                    ler_mask = cv.fillConvexPoly(ler_mask, np.array(ler_screen_coords), 1)
+                    ler_mask = ler_mask.astype(bool)
 
-                    re_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                    re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
-                    re_mask = re_mask.astype(bool)
+                    rer_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                    rer_mask = cv.fillConvexPoly(rer_mask, np.array(rer_screen_coords), 1)
+                    rer_mask = rer_mask.astype(bool)
 
                     lip_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
                     lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
@@ -135,8 +132,8 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
 
                     # Masking the face oval
                     masked_frame[oval_mask] = 255
-                    masked_frame[le_mask] = 0
-                    masked_frame[re_mask] = 0
+                    masked_frame[ler_mask] = 0
+                    masked_frame[rer_mask] = 0
                     masked_frame[lip_mask] = 0
                 
                 # Chin
@@ -149,15 +146,46 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
                     chin_mask = chin_mask.astype(bool)
 
                     masked_frame[chin_mask] = 255
+                
+                # Lips
+                case [(7,)]:
+                    lips_screen_coords = np.array(lips_screen_coords, dtype=np.int32)
+                    lips_screen_coords.reshape((-1, 1, 2))
+
+                    lips_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                    lips_mask = cv.fillPoly(img=lips_mask, pts=[lips_screen_coords], color=(255,255,255))
+                    lips_mask = lips_mask.astype(bool)
+
+                    masked_frame[lips_mask] = 255
+                
+                # Both eyes (sclera)
+                case [(8,)]:
+                    le_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                    le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                    le_mask = le_mask.astype(bool)
+
+                    re_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                    re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                    re_mask = re_mask.astype(bool)
+
+                    masked_frame[le_mask] = 255
+                    masked_frame[re_mask] = 255
+                
+                # Both irises
+                case [(9,)]:
+                    li_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                    li_mask = cv.fillConvexPoly(li_mask, np.array(li_screen_coords), 1)
+                    li_mask = li_mask.astype(bool)
+
+                    ri_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                    ri_mask = cv.fillConvexPoly(ri_mask, np.array(ri_screen_coords), 1)
+                    ri_mask = ri_mask.astype(bool)
+
+                    masked_frame[li_mask] = 255
+                    masked_frame[ri_mask] = 255
 
                 case _:
-                    cur_landmark_coords = []
-                    # Converting landmark coords to screen coords
-                    for cur_source, cur_target in path:
-                        source = landmark_screen_coords[cur_source]
-                        target = landmark_screen_coords[cur_target]
-                        cur_landmark_coords.append((source.get('x'),source.get('y')))
-                        cur_landmark_coords.append((target.get('x'),target.get('y')))
+                    cur_landmark_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, path)
 
                     # Creating boolean masks for the facial landmarks 
                     bool_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
@@ -166,7 +194,7 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
 
                     masked_frame[bool_mask] = 255
     else:
-        match region_of_interest:
+        match landmark_paths:
             # Both Cheeks
             case [(0,)]:
                 lc_screen_coords = np.array(lc_screen_coords, dtype=np.int32)
@@ -237,27 +265,27 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
             # Both eyes
             case [(4,)]:
                 # Creating boolean masks for the facial landmarks 
-                le_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
-                le_mask = le_mask.astype(bool)
+                ler_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                ler_mask = cv.fillConvexPoly(ler_mask, np.array(ler_screen_coords), 1)
+                ler_mask = ler_mask.astype(bool)
 
-                re_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
-                re_mask = re_mask.astype(bool)
+                rer_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                rer_mask = cv.fillConvexPoly(rer_mask, np.array(rer_screen_coords), 1)
+                rer_mask = rer_mask.astype(bool)
 
-                masked_frame[le_mask] = 255
-                masked_frame[re_mask] = 255
+                masked_frame[ler_mask] = 255
+                masked_frame[rer_mask] = 255
 
             # Face Skin
             case [(5,)]:
                 # Creating boolean masks for the facial landmarks 
-                le_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
-                le_mask = le_mask.astype(bool)
+                ler_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                ler_mask = cv.fillConvexPoly(ler_mask, np.array(ler_screen_coords), 1)
+                ler_mask = ler_mask.astype(bool)
 
-                re_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
-                re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
-                re_mask = re_mask.astype(bool)
+                rer_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                rer_mask = cv.fillConvexPoly(rer_mask, np.array(rer_screen_coords), 1)
+                rer_mask = rer_mask.astype(bool)
 
                 lip_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
                 lip_mask = cv.fillConvexPoly(lip_mask, np.array(lips_screen_coords), 1)
@@ -269,8 +297,8 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
 
                 # Masking the face oval
                 masked_frame[oval_mask] = 255
-                masked_frame[le_mask] = 0
-                masked_frame[re_mask] = 0
+                masked_frame[ler_mask] = 0
+                masked_frame[rer_mask] = 0
                 masked_frame[lip_mask] = 0
             
             # Chin
@@ -283,15 +311,46 @@ def mask_from_path(frame:cv.typing.MatLike, region_of_interest:list[list[tuple[i
                 chin_mask = chin_mask.astype(bool)
 
                 masked_frame[chin_mask] = 255
+            
+            # Lips
+            case [(7,)]:
+                lips_screen_coords = np.array(lips_screen_coords, dtype=np.int32)
+                lips_screen_coords.reshape((-1, 1, 2))
+
+                lips_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                lips_mask = cv.fillPoly(img=lips_mask, pts=[lips_screen_coords], color=(255,255,255))
+                lips_mask = lips_mask.astype(bool)
+
+                masked_frame[lips_mask] = 255
+
+            # Both eyes (sclera)
+            case [(8,)]:
+                le_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                le_mask = cv.fillConvexPoly(le_mask, np.array(le_screen_coords), 1)
+                le_mask = le_mask.astype(bool)
+
+                re_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                re_mask = cv.fillConvexPoly(re_mask, np.array(re_screen_coords), 1)
+                re_mask = re_mask.astype(bool)
+
+                masked_frame[le_mask] = 255
+                masked_frame[re_mask] = 255
+            
+            # Both irises
+            case [(9,)]:
+                li_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                li_mask = cv.fillConvexPoly(li_mask, np.array(li_screen_coords), 1)
+                li_mask = li_mask.astype(bool)
+
+                ri_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
+                ri_mask = cv.fillConvexPoly(ri_mask, np.array(ri_screen_coords), 1)
+                ri_mask = ri_mask.astype(bool)
+
+                masked_frame[li_mask] = 255
+                masked_frame[ri_mask] = 255
 
             case _:
-                cur_landmark_coords = []
-                # Converting landmark coords to screen coords
-                for cur_source, cur_target in region_of_interest:
-                    source = landmark_screen_coords[cur_source]
-                    target = landmark_screen_coords[cur_target]
-                    cur_landmark_coords.append((source.get('x'),source.get('y')))
-                    cur_landmark_coords.append((target.get('x'),target.get('y')))
+                cur_landmark_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, landmark_paths)
 
                 # Creating boolean masks for the facial landmarks 
                 bool_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)

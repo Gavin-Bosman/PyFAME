@@ -1,7 +1,12 @@
 from pyfame.utilities.constants import *
-from pyfame.mesh import mesh_landmarks
+from pyfame.landmark import facial_landmarks
 from math import atan
 import numpy as np
+import cv2 as cv
+
+def display_landmarks_face_overlay(frame, lm_screen_coords, point_radius:int = 4):
+    for (x, y) in lm_screen_coords:
+        cv.circle(frame, (x,y), point_radius, (0, 0, 255), -1)
 
 def get_variable_name(variable, namespace) -> str:
     """ Takes in a variable and a namespace (one of locals() or globals()), and returns the variables defined name in the 
@@ -54,14 +59,14 @@ def sanitize_json_value(value):
     else:
         return value
 
-def get_roi_name(roi_value, module_globals = vars(mesh_landmarks)):
+def get_landmark_name(landmark, module_globals = vars(facial_landmarks)):
     """ Takes in a region of interest list, and returns its internal variable name. 
         
     """
     # check for sublists
-    if isinstance(roi_value[0], list):
+    if isinstance(landmark[0], list):
         names = []
-        for i,roi in enumerate(roi_value, start=1):
+        for i,roi in enumerate(landmark, start=1):
             for name, val in module_globals.items():
                 if isinstance(val, list) and val == roi:
                     names.append(name)
@@ -73,7 +78,7 @@ def get_roi_name(roi_value, module_globals = vars(mesh_landmarks)):
     
     else:
         for name, val in module_globals.items():
-            if isinstance(val, list) and val == roi_value:
+            if isinstance(val, list) and val == landmark:
                 return name
         
         return "UNKNOWN_ROI"
@@ -98,10 +103,24 @@ def compute_rot_angle(slope_1:float, slope_2:float = 0.0) -> float:
         The displacement between the two slopes. 
     """
 
-    angle = (slope_2-slope_1) / (1 + slope_1*slope_2)
-    rad_angle = atan(angle)
-    rot_angle = (rad_angle * 180) / np.pi
+    if np.isinf(slope_1) and np.isinf(slope_2):
+        return 0.0
+    elif np.isinf(slope_1):
+        return 90.0
+    elif np.isinf(slope_2):
+        return -90.0
+
+    rad_angle = atan((slope_2-slope_1) / (1 + slope_1*slope_2))
+    rot_angle = np.degrees(rad_angle)
     return rot_angle
+
+def compute_slope(p1:tuple[int,int], p2:tuple[int,int]) -> float:
+    dx = p2[0] - p1[0]
+    dy = p2[1] - p1[1]
+
+    if dx == 0:
+        return float("inf")
+    return dy/dx
 
 def compute_line_intersection(p1:tuple, p2:tuple, line:int, vertical:bool=False) -> tuple | None:
     """ compute_line_intersection takes two (x,y) points, and a line. If the path of the two provided points intersects the 

@@ -1,8 +1,8 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveFloat, PositiveInt
 from typing import Union
-from pyfame.mesh import get_mesh
-from pyfame.mesh.mesh_landmarks import *
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.landmark.get_landmark_coordinates import get_face_landmarker
+from pyfame.landmark.facial_landmarks import *
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.file_access import get_video_capture, create_output_directory
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *
@@ -156,10 +156,10 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4" | ".mov":
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
+                face_mesh = get_face_landmarker(min_tracking_confidence, min_detection_confidence, static_image_mode)
             case ".png" | ".jpg" | ".jpeg" | ".bmp":
                 static_image_mode = True
-                face_mesh = get_mesh(min_tracking_confidence, min_detection_confidence, static_image_mode)
+                face_mesh = get_face_landmarker(min_tracking_confidence, min_detection_confidence, static_image_mode)
             case _:
                 raise UnrecognizedExtensionError()
 
@@ -223,19 +223,19 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 continue
             
             # Creating landmark path variables
-            lc_path = create_path(LEFT_CHEEK_IDX)
-            rc_path = create_path(RIGHT_CHEEK_IDX)
-            chin_path = create_path(CHIN_IDX)
+            lc_path = create_landmark_path(LEFT_CHEEK_IDX)
+            rc_path = create_landmark_path(RIGHT_CHEEK_IDX)
+            chin_path = create_landmark_path(CHIN_IDX)
 
             # Creating masks
-            lc_mask = mask_from_path(frame, lc_path, face_mesh)
-            rc_mask = mask_from_path(frame, rc_path, face_mesh)
-            chin_mask = mask_from_path(frame, chin_path, face_mesh)
-            fo_tight_mask = mask_from_path(frame, FACE_OVAL_TIGHT_PATH, face_mesh)
-            le_mask = mask_from_path(frame, LEFT_EYE_PATH, face_mesh)
-            re_mask = mask_from_path(frame, RIGHT_EYE_PATH, face_mesh)
-            nose_mask = mask_from_path(frame, NOSE_PATH, face_mesh)
-            mouth_mask = mask_from_path(frame, MOUTH_PATH, face_mesh)
+            lc_mask = mask_from_landmarks(frame, lc_path, face_mesh)
+            rc_mask = mask_from_landmarks(frame, rc_path, face_mesh)
+            chin_mask = mask_from_landmarks(frame, chin_path, face_mesh)
+            fo_tight_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, face_mesh)
+            le_mask = mask_from_landmarks(frame, LANDMARK_LEFT_EYE_REGION, face_mesh)
+            re_mask = mask_from_landmarks(frame, LANDMARK_RIGHT_EYE_REGION, face_mesh)
+            nose_mask = mask_from_landmarks(frame, LANDMARK_NOSE, face_mesh)
+            mouth_mask = mask_from_landmarks(frame, LANDMARK_MOUTH_REGION, face_mesh)
             masks = [lc_mask, rc_mask, chin_mask, fo_tight_mask, le_mask, re_mask, nose_mask, mouth_mask]
             
             # Convert masks to binary representation

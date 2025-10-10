@@ -5,7 +5,7 @@ from datetime import datetime
 from pyfame.file_access.checks import *
 from pyfame.file_access.file_access_directories import create_output_directory
 
-def analyse_to_disk(analysis_dictionary:dict[str, pd.DataFrame], analysis_label:str, working_directory_path:str=os.path.join(os.getcwd(), "data")) -> None:
+def analysis_to_disk(analysis_dictionary:dict[str, pd.DataFrame], analysis_label:str, working_directory_path:str=os.path.join(os.getcwd(), "data")) -> None:
 
     if not os.path.isdir(working_directory_path):
         raise OSError(

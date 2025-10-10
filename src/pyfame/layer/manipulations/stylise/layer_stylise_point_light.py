@@ -1,15 +1,15 @@
 from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveFloat, NonNegativeInt
-from typing import Union, List, Tuple, Any
-from pyfame.mesh import *
+from typing import Union, List, Tuple
+from pyfame.landmark.facial_landmarks import *
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
 from skimage.util import *
 
 class PointLightParameters(BaseModel):
-    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
     point_density:PositiveFloat
     point_colour:tuple[NonNegativeInt, NonNegativeInt, NonNegativeInt]
     display_history_vectors:bool
@@ -74,10 +74,7 @@ class LayerStylisePointLight(Layer):
         self.history_method = self.pl_params.history_method
         self.history_window_msec = self.pl_params.history_window_msec
         self.history_colour = self.pl_params.history_vector_colour
-        self.region_of_interest = self.pl_params.region_of_interest
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
+        self.landmark_paths = self.pl_params.landmark_paths
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -93,17 +90,14 @@ class LayerStylisePointLight(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
 
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float):
         
         weight = super().compute_weight(dt, self.supports_weight())
 
         if weight == 0.0:
             return frame
         else:
-            # Get the screen pixel coordinates of the frame/image
-            landmark_screen_coords = get_mesh_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), face_mesh)
             mask = np.zeros_like(frame, dtype=np.uint8)
-            output_img = None
             frame_history_count = round(30 * (self.history_window_msec/1000))
 
             if self.maintain_background:
@@ -112,14 +106,14 @@ class LayerStylisePointLight(Layer):
                 output_img = np.zeros_like(frame, dtype=np.uint8)
 
             if self.idx_to_display.size == 0:
-                for lm_path in self.region_of_interest:
-                    lm_mask = mask_from_path(frame, [lm_path], face_mesh)
+                for lm_path in self.landmark_paths:
+                    lm_mask = mask_from_landmarks(frame, lm_path, landmarker_coordinates)
                     lm_mask = lm_mask.astype(bool)
 
                     # Use the generated bool mask to get valid indicies
-                    for lm in landmark_screen_coords:
-                        x = lm.get('x')
-                        y = lm.get('y')
+                    for lm in landmarker_coordinates:
+                        x = lm[0]
+                        y = lm[1]
                         if lm_mask[y,x] == True:
                             self.idx_to_display = np.append(self.idx_to_display, lm.get('id'))
             
@@ -163,7 +157,7 @@ class LayerStylisePointLight(Layer):
             # Store the x,y coords of every idx_to_display
             for id in self.idx_to_display:
                 if id != -1:
-                    point = landmark_screen_coords[id]
+                    point = landmarker_coordinates[id]
                     cur_points.append((point.get('x'), point.get('y')))
             
             if self.prev_points == None or self.display_history_vectors == False:
@@ -213,7 +207,7 @@ class LayerStylisePointLight(Layer):
 
             return output_img
         
-def layer_stylise_point_light(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,int]]] | list[tuple[int,int]]=FACE_OVAL_PATH, 
+def layer_stylise_point_light(timing_configuration:TimingConfiguration | None = None, landmark_paths:list[list[tuple[int,int]]] | list[tuple[int,int]]=LANDMARK_FACE_OVAL, 
                               point_density:float = 1.0, point_colour:tuple[int,int,int] = (255,255,255), display_history_vectors:bool = False, 
                               history_method:int|str = SHOW_HISTORY_ORIGIN, history_vector_colour:tuple[int,int,int] = (0,0,255), maintain_background:bool = True):
     # Populate with defaults if None
@@ -222,7 +216,7 @@ def layer_stylise_point_light(timing_configuration:TimingConfiguration | None = 
     # Validate input params
     try:
         params = PointLightParameters(
-            region_of_interest=region_of_interest, 
+            landmark_paths=landmark_paths, 
             point_density=point_density, 
             point_colour=point_colour, 
             display_history_vectors=display_history_vectors, 

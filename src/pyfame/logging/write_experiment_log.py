@@ -5,7 +5,7 @@ from importlib.resources import files
 import jsonschema
 from jsonschema import ValidationError
 from pyfame.layer.layer import Layer
-from pyfame.utilities.general_utilities import get_roi_name
+from pyfame.utilities.general_utilities import get_landmark_name
 
 def write_experiment_log(layers:list[Layer], input_file:str, working_directory_path:str) -> None:
     if os.getenv("PYTEST_RUNNING") == "1":
@@ -23,8 +23,8 @@ def write_experiment_log(layers:list[Layer], input_file:str, working_directory_p
             layer_type = type(layer).__name__
             parameters = layer.get_layer_parameters()
 
-            if parameters.get("region_of_interest") is not None:
-                parameters.update({"region_of_interest":get_roi_name(parameters.get("region_of_interest"))})
+            if parameters.get("landmark_paths") is not None:
+                parameters.update({"landmark_paths":get_landmark_name(parameters.get("landmark_paths"))})
             
             if parameters.get("timing_function") is not None:
                 parameters.update({"timing_function":parameters.get("timing_function").__name__})

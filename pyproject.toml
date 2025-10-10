@@ -44,7 +44,9 @@ include = ["pyfame*"]
 exclude = ["processing_script.py"]
 
 [tool.setuptools.package-data]
-pyfame = ["schemas/*.json", "layer/manipulations/stylise/overlay_images/*"]
+"pyfame.schema" = ["*.json"]
+"pyfame.layer.manipulations.stylise.overlay_images" = ["*.png", "*.jpg"]
+"pyfame.models.mediapipe" = ["*.task"]
 
 [tool.pytest.ini_options]
 testpaths = [

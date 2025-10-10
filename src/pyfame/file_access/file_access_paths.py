@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from pyfame.file_access.checks import *
 from pathlib import Path
+from importlib import resources
 
 def make_paths(root_path:str = None, exclude_directories:list[str] | None = ["processed", "logs", "conversion", "analysis"]) -> pd.DataFrame:
     # The standard folder names for Pyfame input and output files. 
@@ -83,3 +84,7 @@ def get_sub_directories_relative_to_path(file_path:str, anchor_directory:str) ->
         return Path(*relative_parts)
     except ValueError:
         raise ValueError(f"Anchor directory '{anchor_directory}' not found in path: {file_path}")
+
+def get_landmarker_task_path() -> str:
+    with resources.as_file(resources.files("pyfame.models.mediapipe") / "face_landmarker.task") as path:
+        return str(path)

@@ -1,5 +1,5 @@
-from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError, PositiveInt, NonNegativeInt, PositiveFloat, NonNegativeFloat
-from pyfame.mesh.mesh_landmarks import *
+from pydantic import BaseModel, ValidationError, PositiveInt, NonNegativeInt, PositiveFloat, NonNegativeFloat
+from pyfame.landmark.facial_landmarks import *
 from pyfame.file_access import get_video_capture
 from pyfame.utilities.exceptions import *
 from pyfame.utilities.constants import *

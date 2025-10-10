@@ -1,17 +1,18 @@
 from pydantic import BaseModel, field_validator, ValidationInfo, ValidationError
-from typing import Union, List, Tuple, Any
-from pyfame.mesh import *
+from typing import Union, List, Tuple
+from pyfame.landmark.facial_landmarks import *
+from pyfame.landmark.get_landmark_coordinates import get_pixel_coordinates_from_landmark
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
 
 ### Note: possibly expand fill_method options to include colour presets in the future
 
-class PathOcclusionParameters(BaseModel):
+class LandmarkOcclusionParameters(BaseModel):
     fill_method:Union[int,str]
-    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
 
     @field_validator("fill_method", mode="before")
     @classmethod
@@ -32,8 +33,8 @@ class PathOcclusionParameters(BaseModel):
         raise TypeError(f"Invalid type provided for {field_name}. Must be one of int or str.")
         
 
-class LayerOcclusionPath(Layer):
-    def __init__(self, timing_configuration:TimingConfiguration, occlusion_parameters:PathOcclusionParameters):
+class LayerOcclusionLandmark(Layer):
+    def __init__(self, timing_configuration:TimingConfiguration, occlusion_parameters:LandmarkOcclusionParameters):
 
         self.time_config = timing_configuration
         self.occlude_params = occlusion_parameters
@@ -43,10 +44,7 @@ class LayerOcclusionPath(Layer):
 
         # Declaring class parameters
         self.fill_method = self.occlude_params.fill_method
-        self.region_of_interest = self.occlude_params.region_of_interest
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
+        self.landmark_paths = self.occlude_params.landmark_paths
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -62,7 +60,7 @@ class LayerOcclusionPath(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float = None):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float = None):
         
         weight = super().compute_weight(dt, self.supports_weight())
         
@@ -70,18 +68,17 @@ class LayerOcclusionPath(Layer):
             return frame
         else:
             # Mask out the region of interest
-            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask_from_landmarks(frame, self.landmark_paths, landmarker_coordinates)
             mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
 
             match self.fill_method:
                 case 8 | "black":
-                    occluded = np.where(mask == 255, self.fill_method, frame)
+                    bool_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
+                    occluded = np.where(mask == 255, (0,0,0), frame)
                     return occluded
                 
                 case 9 | "mean":
-                    frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-                    # Uses the tight-path to avoid any background inclusion in the mean colour sampling
-                    fo_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_TIGHT_PATH)
+                    fo_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_FACE_OVAL)
 
                     # Creating boolean masks for the facial landmarks 
                     bool_mask = np.zeros((frame.shape[0],frame.shape[1]), dtype=np.uint8)
@@ -99,18 +96,18 @@ class LayerOcclusionPath(Layer):
                     occluded = np.where(mask == 255, mean_img, frame)
                     return occluded
 
-def layer_occlusion_path(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]]=FACE_OVAL_PATH, fill_method:int|str = OCCLUSION_FILL_BLACK) -> LayerOcclusionPath:
+def layer_occlusion_landmark(timing_configuration:TimingConfiguration | None = None, landmark_paths:list[list[tuple[int,...]]] | list[tuple[int,...]]=LANDMARK_FACE_OVAL, fill_method:int|str = OCCLUSION_FILL_BLACK) -> LayerOcclusionLandmark:
     
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
     # Validate input parameters
     try:
-        params = PathOcclusionParameters(
+        params = LandmarkOcclusionParameters(
             fill_method=fill_method, 
-            region_of_interest=region_of_interest
+            landmark_paths=landmark_paths
         )
     except ValidationError as e:
-        raise ValueError(f"Invalid parameters for {LayerOcclusionPath.__name__}: {e}")
+        raise ValueError(f"Invalid parameters for {LayerOcclusionLandmark.__name__}: {e}")
 
-    return LayerOcclusionPath(time_config, params)
+    return LayerOcclusionLandmark(time_config, params)

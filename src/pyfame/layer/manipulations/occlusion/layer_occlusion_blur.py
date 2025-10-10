@@ -1,9 +1,9 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveInt
-from typing import Union, List, Tuple, Any
-from pyfame.mesh import *
+from typing import Union, List, Tuple
+from pyfame.landmark.facial_landmarks import *
 from pyfame.utilities.constants import *
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 import cv2 as cv
 import numpy as np
 
@@ -12,7 +12,7 @@ import numpy as np
 class BlurringParameters(BaseModel):
     blur_method:Union[str, int]
     kernel_size:Tuple[PositiveInt, PositiveInt]
-    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
 
     @field_validator("blur_method", mode="before")
     @classmethod
@@ -55,10 +55,7 @@ class LayerOcclusionBlur(Layer):
         # Define class parameters
         self.blur_method = self.blur_params.blur_method
         self.kernel_size = self.blur_params.kernel_size
-        self.region_of_interest = self.blur_params.region_of_interest
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
+        self.landmark_paths = self.blur_params.landmark_paths
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -74,7 +71,7 @@ class LayerOcclusionBlur(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float = None):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float = None):
 
         # Blurring does not support weight, so weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
@@ -83,7 +80,7 @@ class LayerOcclusionBlur(Layer):
             return frame
         else:
             # Mask out region of interest
-            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask_from_landmarks(frame, self.landmark_paths, landmarker_coordinates)
             mask = mask[:,:,np.newaxis]
             output_frame = np.zeros_like(frame, dtype=np.uint8)
 
@@ -103,7 +100,7 @@ class LayerOcclusionBlur(Layer):
             
             return output_frame
 
-def layer_occlusion_blur(timing_configuration:TimingConfiguration | None = None, blur_method:str|int = "gaussian", region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, kernel_size:tuple[int,int] = (15,15)) -> LayerOcclusionBlur:
+def layer_occlusion_blur(timing_configuration:TimingConfiguration | None = None, blur_method:str|int = "gaussian", landmark_paths:list[list[tuple[int,...]]] | list[tuple[int,...]] = LANDMARK_FACE_OVAL, kernel_size:tuple[int,int] = (15,15)) -> LayerOcclusionBlur:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
@@ -111,7 +108,7 @@ def layer_occlusion_blur(timing_configuration:TimingConfiguration | None = None,
         params = BlurringParameters(
             blur_method=blur_method, 
             kernel_size=kernel_size, 
-            region_of_interest=region_of_interest
+            landmark_paths=landmark_paths
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerOcclusionBlur.__name__}: {e}")

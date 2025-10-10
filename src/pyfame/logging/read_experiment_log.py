@@ -7,7 +7,7 @@ from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.layer.manipulations import *
 import pyfame.layer.timing_curves as t_curves
 import pyfame.utilities.constants as const
-import pyfame.mesh.mesh_landmarks as landmark
+import pyfame.landmark.facial_landmarks as landmark
 
 def read_experiment_log(log_file_path:str) -> list[Layer]:
     if not os.path.exists(log_file_path):
@@ -74,7 +74,7 @@ def read_experiment_log(log_file_path:str) -> list[Layer]:
             rise_duration=rise,
             fall_duration=fall,
             min_tracking_confidence=mtc,
-            min_detection_confidence=mdc
+            min_face_detection_confidence=mdc
         )
 
         # Resolve remaining params

@@ -1,9 +1,8 @@
 from .layer import Layer
-import cv2 as cv
 from cv2.typing import MatLike
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_dense import LayerStyliseOpticalFlowDense
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_sparse import LayerStyliseOpticalFlowSparse
-from typing import Any
+from pyfame.layer.manipulations.colour.layer_colour_redden_sclera import LayerColourReddenSclera
 
 
 class LayerPipeline:
@@ -37,15 +36,18 @@ class LayerPipeline:
         weighted.extend(non_weighted)
         return weighted
     
-    def apply_layers(self, face_mesh:Any, frame:MatLike, dt:float, **kwargs) -> MatLike:
+    def apply_layers(self, landmarker_coordinates:list[tuple[int,int]], frame:MatLike, dt:float, **kwargs) -> MatLike:
         self.layers = self.enforce_layer_ordering()
 
         file_path = kwargs.get("file_path", None)
+        blendshapes = kwargs.get("blendshapes", None)
 
         for layer in self.layers:
             # Optical flow layers require the file path if a precomputed colour scale is specified
             if isinstance(layer, (LayerStyliseOpticalFlowDense, LayerStyliseOpticalFlowSparse)):
-                frame = layer.apply_layer(face_mesh, frame, dt, file_path=file_path)
+                frame = layer.apply_layer(landmarker_coordinates, frame, dt, file_path)
+            elif isinstance(layer, LayerColourReddenSclera):
+                frame = layer.apply_layer(landmarker_coordinates, frame, dt, blendshapes)
             else:
-                frame = layer.apply_layer(face_mesh, frame, dt)
+                frame = layer.apply_layer(landmarker_coordinates, frame, dt)
         return frame

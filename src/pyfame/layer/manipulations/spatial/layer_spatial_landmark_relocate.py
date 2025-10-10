@@ -1,8 +1,9 @@
 from pydantic import BaseModel, ValidationError, PositiveInt
-from typing import Optional, Any
-from pyfame.mesh import *
+from typing import Optional
+from pyfame.landmark.facial_landmarks import *
+from pyfame.landmark.get_landmark_coordinates import get_pixel_coordinates_from_landmark
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
@@ -21,9 +22,6 @@ class LayerSpatialLandmarkRelocate(Layer):
 
         # Declare class parameters
         self.rand_seed = self.relocate_params.random_seed
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -39,7 +37,7 @@ class LayerSpatialLandmarkRelocate(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float) -> cv.typing.MatLike:
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float) -> cv.typing.MatLike:
         
         weight = super().compute_weight(dt, self.supports_weight())
 
@@ -53,11 +51,8 @@ class LayerSpatialLandmarkRelocate(Layer):
             else:
                 rng = np.random.default_rng()
 
-            # Get the face oval coordinates and mask out the roi
-            frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            fo_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, FACE_OVAL_TIGHT_PATH)
-            fo_mask = mask_from_path(frame, FACE_OVAL_PATH, self.face_mesh)
-
+            fo_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_FACE_OVAL)
+            
             # Get x and y bounds of the face oval
             max_x = max(fo_screen_coords, key=itemgetter(0))[0]
             min_x = min(fo_screen_coords, key=itemgetter(0))[0]
@@ -98,17 +93,17 @@ class LayerSpatialLandmarkRelocate(Layer):
                     x_displacements.update({i+1:int(40 * rng.random())})
 
             # Get the pixel coordinates of various landmark regions
-            le_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, LEFT_EYE_PATH)
-            re_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, RIGHT_EYE_PATH)
-            nose_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, NOSE_PATH)
-            lips_screen_coords = get_mesh_coordinates_from_path(frame_rgb, face_mesh, MOUTH_PATH)
+            le_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_LEFT_EYE_REGION)
+            re_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_RIGHT_EYE_REGION)
+            nose_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_NOSE)
+            lips_screen_coords = get_pixel_coordinates_from_landmark(landmarker_coordinates, LANDMARK_MOUTH_REGION)
 
             # Creating boolean masks of each landmark region
-            le_mask = mask_from_path(frame, [LEFT_EYE_PATH], face_mesh).astype(bool)
-            re_mask = mask_from_path(frame, [RIGHT_EYE_PATH], face_mesh).astype(bool)
-            nose_mask = mask_from_path(frame, [NOSE_PATH], face_mesh).astype(bool)
-            lip_mask = mask_from_path(frame, [MOUTH_PATH], face_mesh).astype(bool)
-            fo_mask = fo_mask.astype(bool)
+            le_mask = mask_from_landmarks(frame, LANDMARK_LEFT_EYE_REGION, landmarker_coordinates).astype(bool)
+            re_mask = mask_from_landmarks(frame, LANDMARK_RIGHT_EYE_REGION, landmarker_coordinates).astype(bool)
+            nose_mask = mask_from_landmarks(frame, LANDMARK_NOSE, landmarker_coordinates).astype(bool)
+            lip_mask = mask_from_landmarks(frame, LANDMARK_MOUTH_REGION, landmarker_coordinates).astype(bool)
+            fo_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, landmarker_coordinates).astype(bool)
 
             masks = [le_mask, re_mask, nose_mask, lip_mask]
             screen_coords = [le_screen_coords, re_screen_coords, nose_screen_coords, lips_screen_coords]

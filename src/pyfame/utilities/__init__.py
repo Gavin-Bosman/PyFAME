@@ -3,7 +3,8 @@ from .constants import *
 from .exceptions import *
 
 __all__ = [
-    "get_variable_name", "sanitize_json_value", "compute_line_intersection", "compute_rot_angle", "get_roi_name",
+    "get_variable_name", "sanitize_json_value", "compute_line_intersection", "compute_rot_angle", "get_landmark_name",
+    "display_landmarks_face_overlay", "compute_slope",
 
     "FACE_OVAL_MASK", "FACE_SKIN_MASK", "EYES_MASK", "IRISES_MASK", "LIPS_MASK", "HEMI_FACE_LEFT_MASK", "HEMI_FACE_RIGHT_MASK",
     "HEMI_FACE_BOTTOM_MASK", "HEMI_FACE_TOP_MASK", "EYES_NOSE_MOUTH_MASK", "MASK_OPTIONS", "COLOUR_SPACE_BGR", "COLOR_SPACE_BGR",

@@ -1,8 +1,8 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt, PositiveInt, PositiveFloat, NonNegativeFloat
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
-from pyfame.mesh import *
+from pyfame.layer.manipulations.mask import mask_from_landmarks
+from pyfame.landmark.facial_landmarks import *
 from pyfame.utilities.exceptions import *
 import cv2 as cv
 import numpy as np
@@ -108,9 +108,6 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.legend = self.flow_params.legend
         self.legend_position = self.flow_params.legend_position
         self.precise_colour_scale = self.flow_params.precise_colour_scale
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -145,7 +142,7 @@ class LayerStyliseOpticalFlowSparse(Layer):
         self.magnitude_max = float(mean_magnitude + std_magnitude)
         self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float, file_path:str|None = None) -> cv.typing.MatLike:
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float, file_path:str|None = None) -> cv.typing.MatLike:
         
         # If precise_colour_scale is True, precompute the norm using the full analysis results
         if self.precise_colour_scale and self.norm is None:
@@ -165,13 +162,9 @@ class LayerStyliseOpticalFlowSparse(Layer):
         lk_params = dict(winSize  = self.search_window_size,
             maxLevel = self.max_pyramid_level,
             criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, self.max_iterations, self.flow_accuracy_threshold))
-
-        frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        face_mesh = super().get_face_mesh()
-        landmark_screen_coords = get_mesh_coordinates(frame_rgb, face_mesh)
         
         # Create face oval image mask
-        face_mask = mask_from_path(frame, FACE_OVAL_PATH, face_mesh)
+        face_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, landmarker_coordinates)
 
         # Main Processing loop
         
@@ -181,7 +174,13 @@ class LayerStyliseOpticalFlowSparse(Layer):
 
             # If landmarks were provided 
             if self.landmark_idx_to_track is not None:
-                self.initial_points = np.array([[lm.get('x'), lm.get('y')] for lm in landmark_screen_coords if lm.get('id') in self.landmark_idx_to_track], dtype=np.float32)
+                self.initial_points = np.array([
+                        [lm[0], lm[1]] 
+                        for i, lm in enumerate(landmarker_coordinates) 
+                        if i in self.landmark_idx_to_track
+                    ], 
+                    dtype=np.float32
+                )
                 self.initial_points = self.initial_points.reshape(-1,1,2)
             else:
                 self.initial_points = cv.goodFeaturesToTrack(self.previous_grey_frame, self.max_points, self.point_quality_threshold, self.min_point_distance, self.pixel_neighborhood_size, mask=face_mask)

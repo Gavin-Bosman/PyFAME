@@ -10,6 +10,38 @@ next: false
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] 2025-10-02
+
+### Added
+
+- Major revisions and changes to the packages architecture over the last several months. We wanted to transition 
+into a more modular, and more readable structure for applying PyFAME's manipulations. 
+- Reframed manipulation functions as manipulation `Layer` instances. Each manipulation layer comes paired with a 
+factory function of the same name, so that users don't have to deal with complex object-oriented programming paradigms.
+- We also aimed to simplify the process of selecting and passing files to the manipulations. As such, PyFAME now uses a single top-level `make_paths()` method, which takes in a directory in your current working folder, and sets up some scaffolded subdirectories to make reading, writing and logging image and video files much simpler. 
+    - By default, PyFAME will always try to create a new directory called `data`, but users can provide any location they would like the working folder to be written too. Inside this working folder `make_paths()` creates several subdirectories: `raw`, `processed`, `logs` and `analysis`. 
+    - The `raw` and `processed` directories are where the raw image or video files, and the processed image or video files are read, and written to respectively. For each processing session, a uniquely timestamp-named folder is created under `processed/`, and it will contain all of the processed files from that specific session.
+    - The `logs` folder similarly contains uniquely timestamp-named log files, which are now written out to JSON, as opposed to the previous plaintext and csv implementations. JSON was chosen as the ideal method of filing manipulation logs due to its human-readability, and its enforced structure and support from python packages like 
+    `jsonschema` and `json`. Reproducability was a key focus with the new log files, and a new method `read_experiment_log()` has been created to solve this exact problem. `read_experiment_log()` takes in a manipulation log file, and returns you a list of the manipulation layers used, configured with the same parameters used in the original experiment. 
+- Another reoccuring issue with earlier implementations was how to layer multiple manipulations together over the same file. Our solution to that issue is the new top-level `apply_layers(file_paths, layers)` method. `apply_layers` alongside the internal `LayerPipeline` class handle all the hard work of iterating over files and frames, configuring and operating the mediapipe `FaceLandmarker`, sequentially applying manipulations to the same frame, formatting and writing out log files, and writing out the processed input files all in a single call.
+    - The goal in mind when designing the `apply_layers` method was to make it as simple as possible for inexperienced programmers to jump right in to using all of PyFAMES extensive manipulations, without the need to know how to work with image or video processing, configuring machine learning models with mediapipe, or complicated object-oriented programming paradigms like instantiation, waste collection, etc.
+- The last major change is the encapsulation of layer input parameters in Pydantic models, for rapid and effective validation. All of the manipulation layers can be precisely temporally controlled using timing functions; now all of the timing parameters are contained in a useful helper class `TimingConfiguration()`. The timing configuration class has been set up with reasonable defaults for most situations, and as such can be passed directly to the layers as is, without needing to change any configurations.
+
+### Changed
+
+- As noted above, we have completely reworked PyFAME's underlying architecture and design structure preparing for the 
+v1.0.0 release. The high-level changes and their justifications are as follows:
+    - Transitioning from using the now deprecated mediapipe.solutions.FaceMesh to using the newer, actively supported 
+    mediapipe.tasks.vision.FaceLandmarker. Almost every manipulation function in PyFAME relied on mediapipe's FaceMesh implementation, so a complete redesign was in order when migrating to mediapipe's newer equivalent FaceLandmarker. Additionally, the method by which the two models perform facial detection and tracking, the way in which they are instantiated, and the results they return differ quite drastically. 
+    - Renaming and redefining landmark path constants was also a necessary step in PyFAME's redesign, as the new FacialLandmarker has 10 additional landmarks around the iris that previously were unimplimented in the FaceMesh solution. Several landmark indicies were renamed or moved, so PyFAME's previously defined landmark sets were no longer valid. The naming change reflects a higher degree of consistency with mediapipe's parameter names, and makes it easier to understand which constant is for what use case. 
+        - Previously all of the landmark constants were referred to as PATHS. In order to avoid confusion in using both 'landmarks' and 'paths' to refer to the same thing, PyFAME now refers to all of its constant landmark sets as `LANDMARK_...`, for example `LANDMARK_FACE_OVAL` as opposed to the previous `FACE_OVAL_PATH`. Furthermore the PATH constants were too similar in name to several of the masking parameters (i.e. `FACE_OVAL_MASK`), further justifying the name change.
+    - Remodling PyFAME's internal package structure for ease of navigation, scoping of functionality and upholding industry standards. PyFAME now contains 8 top-level submodules, namely `analyse`, `file_access`, `landmark`, `layer`, `logging`, `models`, `schema` and `utilities`. This structure reflects a more accurate scoping of the package's functionality, and makes it much simpler to navigate. The `layer` and `analyse` submodules contain the majority of user-exposed functionality, with the remaining functionality falling under `utilities`. Previous implementations of the manipulation functions were far to large, and contained a large amount of out-of-scope code. The new structure reflects the higher degree of modularity we are aiming for in v1.0.0.
+
+### Removed
+- Parameter check functions have been mostly removed, due to the lack of need now that PyFAME is using Pydantic models to validate its manipulation layer's parameters. 
+- Some of the prior functionality in things like sparse/dense optical flow and the moviefy function is either completely rewritten or removed entirely and replaced with smaller, more in-scope implementations. For example, previous implementations of the optical flow functions would return analysis results and display visualised optical flow in the same call. These functionalities have now been split up, and rewritten into distinct analysis and manipulation methods.
+
+
 ## [0.7.3] 2025-04-12
 
 ### Added

@@ -1,7 +1,5 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveInt, NonNegativeInt, PositiveFloat, NonNegativeFloat
-from typing import Any
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.utilities.exceptions import UnrecognizedExtensionError
 import cv2 as cv
 import numpy as np
 import matplotlib.cm as cm
@@ -73,8 +71,6 @@ class LayerStyliseOpticalFlowDense(Layer):
         self.legend = self.flow_params.legend
         self.legend_position = self.flow_params.legend_position
         self.precise_colour_scale = self.flow_params.precise_colour_scale
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -109,7 +105,7 @@ class LayerStyliseOpticalFlowDense(Layer):
         self.magnitude_max = float(mean_magnitude + std_magnitude)
         self.norm = mpcolors.Normalize(vmin=self.magnitude_min, vmax=self.magnitude_max)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float, file_path:str|None = None) -> cv.typing.MatLike:
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float, file_path:str|None = None) -> cv.typing.MatLike:
         
         # If precise_colour_scale is True, precompute the norm using the full analysis results
         if self.precise_colour_scale and self.norm is None:
@@ -133,7 +129,7 @@ class LayerStyliseOpticalFlowDense(Layer):
 
         if self.loop_counter > 1:
             # Recompute the max magnitude every 1000 msec or ~30 frames
-            timestamp_msec = dt*1000
+            timestamp_msec = dt
             rolling_time_window = 1000
 
             grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)

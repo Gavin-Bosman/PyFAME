@@ -1,8 +1,8 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeFloat, PositiveInt
-from typing import Union, List, Tuple, Optional, Any
-from pyfame.mesh import *
+from typing import Union, List, Tuple, Optional
+from pyfame.landmark.facial_landmarks import *
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.layer.manipulations.mask import mask_from_path
+from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.utilities.constants import *
 import cv2 as cv
 import numpy as np
@@ -15,7 +15,7 @@ class NoiseParameters(BaseModel):
     pixel_size:PositiveInt
     gaussian_mean:float
     gaussian_deviation:NonNegativeFloat
-    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
 
     @field_validator("noise_method", mode="before")
     @classmethod
@@ -61,10 +61,7 @@ class LayerOcclusionNoise(Layer):
         self.pixel_size = self.noise_params.pixel_size
         self.mean = self.noise_params.gaussian_mean
         self.standard_deviation = self.noise_params.gaussian_deviation
-        self.region_of_interest = self.noise_params.region_of_interest
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.static_image_mode = False
+        self.landmark_paths = self.noise_params.landmark_paths
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -80,7 +77,7 @@ class LayerOcclusionNoise(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
 
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float = None):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float = None):
         
         # This layer does not support weight; weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
@@ -96,7 +93,7 @@ class LayerOcclusionNoise(Layer):
                 rng = np.random.default_rng()
 
             # Mask out the roi
-            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask_from_landmarks(frame, self.landmark_paths, landmarker_coordinates)
             mask = np.reshape(mask, (mask.shape[0], mask.shape[1], 1))
             output_frame = frame.copy()
 
@@ -142,7 +139,7 @@ class LayerOcclusionNoise(Layer):
             
             return output_frame
 
-def layer_occlusion_noise(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, noise_method:int|str = "gaussian", 
+def layer_occlusion_noise(timing_configuration:TimingConfiguration | None = None, landmark_paths:list[list[tuple[int,...]]] | list[tuple[int,...]] = LANDMARK_FACE_OVAL, noise_method:int|str = "gaussian", 
                           noise_probability:float = 0.5, pixel_size:int = 32, mean:float = 0.0, standard_deviation:float = 0.5, random_seed:int|None = None) -> LayerOcclusionNoise:
     
     # Populate with defaults if None
@@ -157,7 +154,7 @@ def layer_occlusion_noise(timing_configuration:TimingConfiguration | None = None
             pixel_size=pixel_size, 
             gaussian_mean=mean, 
             gaussian_deviation=standard_deviation, 
-            region_of_interest=region_of_interest
+            landmark_paths=landmark_paths
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {LayerOcclusionNoise.__name__}: {e}")

@@ -1,5 +1,5 @@
 from pyfame.utilities.constants import *
-from pyfame.mesh import *
+from pyfame.landmark import *
 from pyfame.file_access import *
 from pyfame.utilities.exceptions import *
 import os

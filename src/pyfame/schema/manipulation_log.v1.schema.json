@@ -30,18 +30,14 @@
                     "time_offset", 
                     "timing_function", 
                     "rise_duration", 
-                    "fall_duration", 
-                    "min_tracking_confidence", 
-                    "min_detection_confidence"
+                    "fall_duration"
                 ],
                 "properties": {
                     "time_onset": {"type":"number"},
                     "time_offset": {"type":"number"},
                     "timing_function": {"type":"string"},
                     "rise_duration": {"type":"number"},
-                    "fall_duration": {"type":"number"},
-                    "min_tracking_confidence": {"type":"number", "minimum": 0, "maximum": 1},
-                    "min_detection_confidence": {"type":"number", "minimum": 0, "maximum": 1}
+                    "fall_duration": {"type":"number"}
                 },
                 "additionalProperties": true
             }

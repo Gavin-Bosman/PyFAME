@@ -1,14 +1,14 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo
-from typing import Union, List, Tuple, Any
+from typing import Union, List, Tuple
 from pyfame.utilities.constants import *
-from pyfame.layer.manipulations.mask.mask_from_path import mask_from_path
+from pyfame.layer.manipulations.mask.mask_from_landmarks import mask_from_landmarks
 from pyfame.layer.layer import Layer, TimingConfiguration
-from pyfame.mesh.mesh_landmarks import FACE_OVAL_PATH
+from pyfame.landmark.facial_landmarks import LANDMARK_FACE_OVAL
 import numpy as np
 import cv2 as cv
 
 class MaskingParameters(BaseModel):
-    region_of_interest:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
+    landmark_paths:Union[List[List[Tuple[int,...]]], List[Tuple[int,...]]]
     background_colour:Tuple[int,int,int]
 
     @field_validator("background_colour")
@@ -32,10 +32,8 @@ class LayerMask(Layer):
 
         # Define class parameters
         self.static_image_mode = False
-        self.region_of_interest = self.mask_params.region_of_interest
+        self.landmark_paths = self.mask_params.landmark_paths
         self.background_colour = self.mask_params.background_colour
-        self.min_detection_confidence = self.time_config.min_detection_confidence
-        self.min_tracking_confidence = self.time_config.min_tracking_confidence
 
         # Snapshot of initial state
         self._snapshot_state()
@@ -51,7 +49,7 @@ class LayerMask(Layer):
         self._layer_parameters["time_offset"] = self.offset_t
         return dict(self._layer_parameters)
     
-    def apply_layer(self, face_mesh:Any, frame:cv.typing.MatLike, dt:float = None):
+    def apply_layer(self, landmarker_coordinates:list[tuple[int,int]], frame:cv.typing.MatLike, dt:float = None):
         
         # Masking does not support weight, so weight will always be 0.0 or 1.0
         weight = super().compute_weight(dt, self.supports_weight())
@@ -61,7 +59,7 @@ class LayerMask(Layer):
             return frame
         else:
             # Mask out the region of interest
-            mask = mask_from_path(frame, self.region_of_interest, face_mesh)
+            mask = mask_from_landmarks(frame, self.landmark_paths, landmarker_coordinates)
 
             # Otsu thresholding to seperate foreground and background
             grey_frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -85,14 +83,14 @@ class LayerMask(Layer):
             masked_frame = masked_frame.astype(np.uint8)
             return masked_frame
 
-def layer_mask(timing_configuration:TimingConfiguration | None = None, region_of_interest:list[list[tuple[int,...]]] | list[tuple[int,...]] = FACE_OVAL_PATH, background_colour:tuple[int,int,int] = (0,0,0)) -> LayerMask:
+def layer_mask(timing_configuration:TimingConfiguration | None = None, landmark_paths:list[list[tuple[int,...]]] | list[tuple[int,...]] = LANDMARK_FACE_OVAL, background_colour:tuple[int,int,int] = (0,0,0)) -> LayerMask:
     # Populate with defaults if None
     time_config = timing_configuration or TimingConfiguration()
 
     # Validate input parameters
     try:
         params = MaskingParameters(
-            region_of_interest=region_of_interest, 
+            landmark_paths=landmark_paths, 
             background_colour=background_colour
         )
     except ValidationError as e:

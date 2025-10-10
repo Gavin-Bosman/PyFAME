@@ -1,6 +1,6 @@
 import os
 import pytest
-from pyfame.mesh import get_mesh
+from pyfame.landmark import get_face_landmarker
 
 os.environ["PYTEST_RUNNING"] = "1"
 
@@ -36,4 +36,4 @@ def sample_image_path():
 
 @pytest.fixture
 def face_mesh():
-    return get_mesh(0.5, 0.5, False, 1)
+    return get_face_landmarker(0.5, 0.5, False, 1)
