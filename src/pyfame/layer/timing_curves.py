@@ -60,14 +60,21 @@ def timing_linear(time_delta:float, time_onset:float, time_offset:float, rise_du
 
     if time_delta < time_onset:
         return 0.0
+    
     elif time_onset <= time_delta < time_onset + rise_duration:
+        # Rise transition
         cur_eval = (time_delta - time_onset) / rise_duration
         return linear(cur_eval)
+    
     elif time_onset + rise_duration <= time_delta < time_offset - fall_duration:
+        # Sustain max weight
         return 1.0
+    
     elif time_offset - fall_duration <= time_delta < time_offset:
-        cur_eval = (time_delta - time_offset) / fall_duration
+        # Fall transition
+        cur_eval = (time_delta - (time_offset - fall_duration)) / fall_duration
         return linear(1 - cur_eval)
+    
     else:
         return 0.0
 
@@ -113,14 +120,21 @@ def timing_sigmoid(time_delta:float, time_onset:float, time_offset:float, rise_d
 
     if time_delta < time_onset:
         return 0.0
+    
     elif time_onset <= time_delta < time_onset + rise_duration:
+        # Rise transition
         cur_eval = (time_delta - time_onset) / rise_duration
         return scaled_sigmoid(cur_eval, growth_rate)
+    
     elif time_onset + rise_duration <= time_delta < time_offset - fall_duration:
+        # Sustain max weight
         return 1.0
+    
     elif time_offset - fall_duration <= time_delta < time_offset:
-        cur_eval = (time_delta - time_offset) / fall_duration
+        # Fall transition
+        cur_eval = (time_delta - (time_offset - fall_duration)) / fall_duration
         return scaled_sigmoid(1-cur_eval, growth_rate)
+    
     else:
         return 0.0
 
@@ -171,13 +185,20 @@ def timing_gaussian(time_delta:float, time_onset:float, time_offset:float, rise_
     
     if time_delta < time_onset:
         return 0.0
+    
     elif time_onset <= time_delta < time_onset + rise_duration:
-        cur_eval = ((time_delta - time_onset) / rise_duration) * 0.5
+        # Rise transition
+        cur_eval = (time_delta - time_onset) / rise_duration
         return gaussian(cur_eval, rise_sigma)
+    
     elif time_onset + rise_duration <= time_delta < time_offset - fall_duration:
+        # Sustain max weight
         return 1.0
+    
     elif time_offset - fall_duration <= time_delta < time_offset:
-        cur_eval = ((time_delta - time_offset) / fall_duration) * 0.5 + 0.5
+        # Fall transition
+        cur_eval = (time_delta - (time_offset - fall_duration)) / fall_duration
         return gaussian(1-cur_eval, fall_sigma)
+    
     else:
         return 0.0

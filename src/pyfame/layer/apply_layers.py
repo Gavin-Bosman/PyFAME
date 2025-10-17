@@ -209,15 +209,14 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer, min_face_d
 
             if static_image_mode:
                 frame = get_imread(file)
-                pb.update(1)
                 if frame is None:
                     break
             else:
                 success, frame = capture.read()
-                pb.update(1)
                 if not success:
                     break
-            
+
+            pb.update(1)
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             dt = capture.get(cv.CAP_PROP_POS_MSEC)
             landmark_coordinates, blendshapes = get_pixel_coordinates(frame_rgb, face_landmarker, dt)
@@ -238,7 +237,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer, min_face_d
                     raise FileWriteError()
                 
                 break
-        
+
         pb.close()
         write_experiment_log(layers, file, root_directory_path)
         

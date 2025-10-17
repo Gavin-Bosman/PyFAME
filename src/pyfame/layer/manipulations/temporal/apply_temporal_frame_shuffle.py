@@ -8,7 +8,7 @@ import numpy as np
 from skimage.util import *
 import itertools
 
-def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, rand_seed:int|None = None, block_duration:int = 1000) -> tuple:
+def generate_shuffled_block_array(file_path:str, shuffle_method:int = TEMPORAL_SHUFFLE_RANDOM, rand_seed:int|None = None, block_duration:int = 1000) -> tuple:
     """ This function takes a given file path and shuffling method, and returns a tuple containing the block_order array and the block size parameter used
     in shuffle_frame_order(). The output of generate_shuffled_block_array can be directly fed into shuffle_frame_order as the block_order parameter.
 
@@ -72,7 +72,7 @@ def generate_shuffled_block_array(file_path:str, shuffle_method:int = FRAME_SHUF
     capture.release()
     return (block_order, block_size)
 
-def apply_frame_shuffle(input_directory:str, output_directory:str, shuffle_method:int = FRAME_SHUFFLE_RANDOM, rand_seed:int|None = None, 
+def apply_frame_shuffle(input_directory:str, output_directory:str, shuffle_method:int = TEMPORAL_SHUFFLE_RANDOM, rand_seed:int|None = None, 
                         block_order:tuple|None = None, block_duration:int = 1000, drop_last_block:bool = True) -> None:
     """For each video file contained within input_dir, randomly shuffles the frame order by shuffling blocks of frames. Use utility function generate_shuffled_block_array()
     to pre-generate the block_order list. The output of generate_shuffled_block_array() can be directly passed as the value of input parameter block_order. Alternatively, 

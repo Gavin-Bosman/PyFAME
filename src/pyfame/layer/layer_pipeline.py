@@ -2,7 +2,8 @@ from .layer import Layer
 from cv2.typing import MatLike
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_dense import LayerStyliseOpticalFlowDense
 from pyfame.layer.manipulations.stylise.layer_stylise_optical_flow_sparse import LayerStyliseOpticalFlowSparse
-from pyfame.layer.manipulations.colour.layer_colour_redden_sclera import LayerColourReddenSclera
+from pyfame.layer.manipulations.colour.layer_colour_recolour import LayerColourRecolour
+from pyfame.layer.manipulations.overlay.layer_overlay import LayerOverlay
 
 
 class LayerPipeline:
@@ -46,7 +47,7 @@ class LayerPipeline:
             # Optical flow layers require the file path if a precomputed colour scale is specified
             if isinstance(layer, (LayerStyliseOpticalFlowDense, LayerStyliseOpticalFlowSparse)):
                 frame = layer.apply_layer(landmarker_coordinates, frame, dt, file_path)
-            elif isinstance(layer, LayerColourReddenSclera):
+            elif isinstance(layer, (LayerColourRecolour, LayerOverlay)):
                 frame = layer.apply_layer(landmarker_coordinates, frame, dt, blendshapes)
             else:
                 frame = layer.apply_layer(landmarker_coordinates, frame, dt)

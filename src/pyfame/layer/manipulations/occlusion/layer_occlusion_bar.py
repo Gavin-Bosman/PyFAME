@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, NonNegativeInt
 from typing import Tuple, List
-from pyfame.utilities.general_utilities import compute_rot_angle, compute_slope
+from pyfame.utilities.general_utilities import compute_rotation_angle, compute_slope
 from pyfame.utilities.constants import *
 from pyfame.layer.layer import Layer, TimingConfiguration
 from pyfame.landmark.facial_landmarks import *
@@ -123,7 +123,7 @@ class LayerOcclusionBar(Layer):
             p1 = landmarker_coordinates[162]
             p2 = landmarker_coordinates[389]
             slope = compute_slope(p1, p2)
-            rot_angle = compute_rot_angle(slope_1=slope)
+            rot_angle = compute_rotation_angle(slope_1=slope)
             
             # Compute the center bisecting line of the landmark
             min_x_lm = landmarker_coordinates[self.min_x_lm_id]

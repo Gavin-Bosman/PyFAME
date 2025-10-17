@@ -1,5 +1,6 @@
 from .facial_landmarks import *
 from .get_landmark_coordinates import get_face_landmarker, get_pixel_coordinates, get_pixel_coordinates_from_landmark
+from .blendshape_smoother import EyeBlendshapeSmoother
 
 __all__ = [
     "FACE_OVAL_IDX", "RIGHT_EYE_REGION_IDX", "RIGHT_EYE_IDX", "RIGHT_IRIS_IDX", "LEFT_EYE_REGION_IDX", "LEFT_EYE_IDX", 

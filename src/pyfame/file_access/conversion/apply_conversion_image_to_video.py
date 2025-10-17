@@ -6,7 +6,7 @@ import numpy as np
 import cv2 as cv
 import pandas as pd
 
-def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDISE_DIMS_CROP, pad_colour:tuple[int,int,int] = (255,255,255)) -> None:
+def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDISE_IMAGE_SIZES_CROP, pad_colour:tuple[int,int,int] = (255,255,255)) -> None:
     """ Takes in an input directory of static images, then scans through the directory to compute the maximal and minimal 
     image dimensions. Depending on the equalization method provided, each image in the directory will be either padded to the maximal 
     dimensions, or cropped to the minimal dimensions.
@@ -50,7 +50,7 @@ def standardise_image_dimensions(input_directory:str, method:int|str = STANDARDI
     check_type(method, [int,str])
     if isinstance(method, str):
         method = str.lower(method)
-    check_value(method, [STANDARDISE_DIMS_CROP, STANDARDISE_DIMS_PAD, "crop", "pad"])
+    check_value(method, [STANDARDISE_IMAGE_SIZES_CROP, STANDARDISE_IMAGE_SIZES_PAD, "crop", "pad"])
 
     check_type(pad_colour, [tuple])
     check_type(pad_colour, [int], iterable=True)
