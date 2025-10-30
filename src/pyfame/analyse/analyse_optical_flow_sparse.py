@@ -24,10 +24,11 @@ class SparseFlowAnalysisParameters(BaseModel):
     flow_accuracy_threshold:PositiveFloat
     output_detail_level:str
     frame_step:PositiveInt = 1
-    min_detection_confidence:PositiveFloat
+    min_face_detection_confidence:PositiveFloat
+    min_face_presence_confidence:PositiveFloat
     min_tracking_confidence:PositiveFloat
 
-    @field_validator("point_quality_threshold", "flow_accuracy_threshold", "min_detection_confidence", "min_tracking_confidence")
+    @field_validator("point_quality_threshold", "flow_accuracy_threshold", "min_face_detection_confidence", "min_face_presence_confidence", "min_tracking_confidence")
     @classmethod
     def check_normal_range(cls, value, info:ValidationInfo):
         field_name = info.field_name
@@ -49,7 +50,7 @@ class SparseFlowAnalysisParameters(BaseModel):
 
 def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list[int]|None = None, max_points:int = 20, 
                                 flow_accuracy_threshold:float = 0.03, output_detail_level:str = "summary", frame_step:int = 5, 
-                                min_detection_confidence:float = 0.5, min_tracking_confidence:float = 0.5) -> dict[str, pd.DataFrame]:
+                                min_face_detection_confidence:float = 0.4, min_face_presence_confidence:float = 0.7, min_tracking_confidence:float = 0.7) -> dict[str, pd.DataFrame]:
     
     """Takes each input video file provided within input_directory, and generates a sparse optical flow image, as well as a csv containing periodically
     sampled flow vector data. This function makes use of the Lucas-Kanadae optical flow algorithm, as well as the Shi-Tomasi good-corners algorithm to identify
@@ -77,11 +78,20 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
         The number of frames between successive optical flow calculations. The flow values will be more consistent 
         and robust as you increase this parameter. 
     
-    min_detection_confidence: float
-        A normalized float; an input parameter to the mediapipe FaceMesh solution.
+    min_face_detection_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance.
+        Controls how confident the detection model needs to be to confirm a face is present in the frame.
+    
+    min_face_presence_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance.
+        Controls how confident the landmarker needs to be that the detected face is still present, 
+        if not it will attempt to re-detect the face.
     
     min_tracking_confidence: float
-        A normalized float; an input parameter to the mediapipe FaceMesh solution.
+        A confidence parameter passed to the mediapipe FaceLandmarker instance. 
+        Controls how confident the facial tracking model needs to be for the landmarker to 
+        continue using the current mesh layout. If this parameter fails, the landmarker will
+        transition back to facial detection.
     
     Returns
     -------
@@ -91,11 +101,12 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     Raises
     ------
 
-    ValidationError:
+    ValueError:
         Thrown by the pydantic model when invalid parameters are passed to the method.
     
     FileReadError:
         When the working directory path; or any of its required sub-paths cannot be located. 
+        Additionally, if any tracking errors are encountered mid analysis.
 
     """
     
@@ -107,7 +118,8 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
             flow_accuracy_threshold=flow_accuracy_threshold,
             output_detail_level=output_detail_level,
             frame_step=frame_step,
-            min_detection_confidence=min_detection_confidence,
+            min_face_detection_confidence=min_face_detection_confidence,
+            min_face_presence_confidence=min_face_presence_confidence,
             min_tracking_confidence=min_tracking_confidence
         )
     except ValidationError as e:
@@ -121,7 +133,11 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
     pixel_neighborhood_size = input_parameters.pixel_neighborhood_size
     
     # Defining the mediapipe facemesh task
-    face_mesh = get_face_landmarker(min_tracking_confidence, min_detection_confidence, False)
+    face_landmarker = get_face_landmarker(
+        min_face_detection_confidence=min_face_detection_confidence,
+        min_face_presence_confidence=min_face_presence_confidence,
+        min_tracking_confidence=min_tracking_confidence
+    )
     
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
@@ -193,10 +209,10 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
             
             # Get the landmark screen coordinates
             frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            landmark_screen_coords = get_pixel_coordinates(frame_rgb, face_mesh)
+            landmark_screen_coords = get_pixel_coordinates(frame_rgb, face_landmarker)
             
             # Create face oval image mask
-            face_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, face_mesh)
+            face_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, landmark_screen_coords)
 
             if counter == 1:
                 # Get initial tracking points
@@ -226,6 +242,8 @@ def analyse_optical_flow_sparse(file_paths:pd.DataFrame, landmarks_to_track:list
             if cur_points is not None:
                 good_new_points = cur_points[st==1]
                 good_old_points = init_points[st==1]
+            else:
+                raise FileReadError(message="analyse_optical_flow_sparse encountered an error: Cannot track points at the current frame.")
             
             old_coords = []
             new_coords = []

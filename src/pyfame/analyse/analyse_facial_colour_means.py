@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, ValidationError, ValidationInfo, PositiveFloat, PositiveInt
 from typing import Union
-from pyfame.landmark.get_landmark_coordinates import get_face_landmarker
+from pyfame.landmark.get_landmark_coordinates import get_face_landmarker, get_pixel_coordinates, get_pixel_coordinates_from_landmark
 from pyfame.landmark.facial_landmarks import *
 from pyfame.layer.manipulations.mask import mask_from_landmarks
 from pyfame.file_access import get_video_capture, create_output_directory
@@ -13,9 +13,10 @@ import pandas as pd
 
 class ColourMeansParameters(BaseModel):
     colour_space:Union[str, int]
-    min_detection_confidence:PositiveFloat
+    min_face_detection_confidence:PositiveFloat
+    min_face_presence_confidence:PositiveFloat
     min_tracking_confidence:PositiveFloat
-    output_sample_frequency_msec:PositiveInt
+    frame_step:PositiveInt
 
     @field_validator("colour_space", mode="before")
     @classmethod
@@ -42,7 +43,7 @@ class ColourMeansParameters(BaseModel):
         
         raise TypeError(f"Parameter {field_name} expects int or str.")
     
-    @field_validator("min_detection_confidence", "min_tracking_confidence")
+    @field_validator("min_face_detection_confidence", "min_face_presence_confidence", "min_tracking_confidence")
     @classmethod
     def check_valid_range(cls, value, info:ValidationInfo):
         field_name = info.field_name
@@ -52,10 +53,10 @@ class ColourMeansParameters(BaseModel):
         
         return value
 
-def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = COLOUR_SPACE_BGR, min_detection_confidence:float = 0.5, 
-                                min_tracking_confidence:float = 0.5, output_sample_frequency_msec:int = 1000) -> dict[str, pd.DataFrame]:
+def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = COLOUR_SPACE_BGR, min_face_detection_confidence:float = 0.4, 
+                                min_face_presence_confidence:float = 0.7, min_tracking_confidence:float = 0.7, frame_step:int = 5) -> dict[str, pd.DataFrame]:
     """Takes an input video file, and extracts colour channel means in the specified color space for the full-face, cheeks, nose and chin.
-    Creates a new directory 'Color_Channel_Means', where a csv file will be written to for each input video file provided.
+    Results are returned as a filename-keyed dictionary of colour mean results; this dict can be passed to analyse_to_disk to be saved locally as a JSON file.
 
     Parameters
     ----------
@@ -66,17 +67,23 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
     colour_space: int, str
         A specifier for which color space to operate in. One of COLOR_SPACE_RGB, COLOR_SPACE_HSV or COLOR_SPACE_GRAYSCALE
     
-    min_detection_confidence: float
-        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
-        FaceMesh constructor.
-
-    min_tracking_confidence: float
-        A normalised float value in the range [0,1], this parameter is passed as a specifier to the mediapipe 
-        FaceMesh constructor.
+    min_face_detection_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance.
+        Controls how confident the detection model needs to be to confirm a face is present in the frame.
     
-    output_sample_frequency_msec: int
-        The time delay in milliseconds between successive csv write calls. Increase this value to speed up computation time, and decrease 
-        the value to increase the number of optical flow vector samples written to the output csv file.
+    min_face_presence_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance.
+        Controls how confident the landmarker needs to be that the detected face is still present, 
+        if not it will attempt to re-detect the face.
+    
+    min_tracking_confidence: float
+        A confidence parameter passed to the mediapipe FaceLandmarker instance. 
+        Controls how confident the facial tracking model needs to be for the landmarker to 
+        continue using the current mesh layout. If this parameter fails, the landmarker will
+        transition back to facial detection.
+    
+    frame_step: int
+        The number of frames between successive colour sampling. 
     
         
     Returns
@@ -104,18 +111,22 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
     try:
         input_params = ColourMeansParameters(
             colour_space=colour_space,
-            min_detection_confidence=min_detection_confidence,
-            min_tracking_confidence=min_tracking_confidence
+            min_face_detection_confidence=min_face_detection_confidence,
+            min_face_presence_confidence=min_face_presence_confidence,
+            min_tracking_confidence=min_tracking_confidence,
+            frame_step=frame_step
         )
     except ValidationError as e:
         raise ValueError(f"Invalid parameters for {analyse_facial_colour_means.__name__}: {e}")
     
     colour_space = input_params.colour_space
-    min_detection_confidence = input_params.min_detection_confidence
-    min_tracking_confidence = input_params.min_tracking_confidence
     
     # Defining mediapipe facemesh task
-    face_mesh = None
+    face_landmarker = get_face_landmarker(
+        min_face_detection_confidence=min_face_detection_confidence,
+        min_face_presence_confidence=min_face_presence_confidence,
+        min_tracking_confidence=min_tracking_confidence
+    )
 
     # Extracting the i/o paths from the file_paths dataframe
     absolute_paths = file_paths["Absolute Path"]
@@ -156,10 +167,9 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
         # Using the file extension to sniff video codec or image container for images
         match extension:
             case ".mp4" | ".mov":
-                face_mesh = get_face_landmarker(min_tracking_confidence, min_detection_confidence, static_image_mode)
+                static_image_mode = False
             case ".png" | ".jpg" | ".jpeg" | ".bmp":
                 static_image_mode = True
-                face_mesh = get_face_landmarker(min_tracking_confidence, min_detection_confidence, static_image_mode)
             case _:
                 raise UnrecognizedExtensionError()
 
@@ -205,9 +215,10 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
             nose_grey_means = []
             chin_grey_means = []
         
-        rolling_time_window = output_sample_frequency_msec
+        counter = 0
     
         while True:
+            counter += 1
             if not static_image_mode:
                 success, frame = capture.read()
                 if not success:
@@ -216,55 +227,27 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
                 frame = cv.imread(file)
                 if frame is None:
                     raise FileReadError()
-                
-            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
 
-            if timestamp < rolling_time_window:
+            if counter % frame_step != 0:
                 continue
             
-            # Creating landmark path variables
-            lc_path = create_landmark_path(LEFT_CHEEK_IDX)
-            rc_path = create_landmark_path(RIGHT_CHEEK_IDX)
-            chin_path = create_landmark_path(CHIN_IDX)
+            # Get facial landmark set as screen coordinates
+            landmarker_coordinates = get_pixel_coordinates(cv.cvtColor(frame, cv.COLOR_BGR2RGB), face_landmarker)
 
             # Creating masks
-            lc_mask = mask_from_landmarks(frame, lc_path, face_mesh)
-            rc_mask = mask_from_landmarks(frame, rc_path, face_mesh)
-            chin_mask = mask_from_landmarks(frame, chin_path, face_mesh)
-            fo_tight_mask = mask_from_landmarks(frame, LANDMARK_FACE_OVAL, face_mesh)
-            le_mask = mask_from_landmarks(frame, LANDMARK_LEFT_EYE_REGION, face_mesh)
-            re_mask = mask_from_landmarks(frame, LANDMARK_RIGHT_EYE_REGION, face_mesh)
-            nose_mask = mask_from_landmarks(frame, LANDMARK_NOSE, face_mesh)
-            mouth_mask = mask_from_landmarks(frame, LANDMARK_MOUTH_REGION, face_mesh)
-            masks = [lc_mask, rc_mask, chin_mask, fo_tight_mask, le_mask, re_mask, nose_mask, mouth_mask]
-            
-            # Convert masks to binary representation
-            for mask in masks:
-                mask = mask.astype(bool)
+            cheeks_mask = mask_from_landmarks(frame, LANDMARK_BOTH_CHEEKS, landmarker_coordinates)
+            chin_mask = mask_from_landmarks(frame, LANDMARK_CHIN, landmarker_coordinates)
+            face_skin_mask = mask_from_landmarks(frame, LANDMARK_FACE_SKIN, landmarker_coordinates)
+            nose_mask = mask_from_landmarks(frame, LANDMARK_NOSE, landmarker_coordinates)
 
-            # Create binary image masks 
-            bin_fo_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
-            bin_fo_mask[fo_tight_mask] = 255
-            bin_fo_mask[le_mask] = 0
-            bin_fo_mask[le_mask] = 0
-            bin_fo_mask[mouth_mask] = 0
-
-            bin_cheeks_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
-            bin_cheeks_mask[lc_mask] = 255
-            bin_cheeks_mask[rc_mask] = 255
-
-            bin_nose_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
-            bin_nose_mask[nose_mask] = 255
-
-            bin_chin_mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
-            bin_chin_mask[chin_mask] = 255
+            timestamp = capture.get(cv.CAP_PROP_POS_MSEC)
              
             if colour_space == COLOUR_SPACE_BGR:
                 # Extracting the color channel means
-                blue, green, red, *_ = cv.mean(frame, bin_fo_mask)
-                b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, bin_cheeks_mask)
-                b_nose, g_nose, r_nose, *_ = cv.mean(frame, bin_nose_mask)
-                b_chin, g_chin, r_chin, *_ = cv.mean(frame, bin_chin_mask)
+                blue, green, red, *_ = cv.mean(frame, face_skin_mask)
+                b_cheeks, g_cheeks, r_cheeks, *_ = cv.mean(frame, cheeks_mask)
+                b_nose, g_nose, r_nose, *_ = cv.mean(frame, nose_mask)
+                b_chin, g_chin, r_chin, *_ = cv.mean(frame, chin_mask)
 
                 timestamps.append(timestamp/1000)
                 red_means.append(red)
@@ -282,10 +265,10 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
 
             elif colour_space == COLOUR_SPACE_HSV:
                 # Extracting the color channel means
-                hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_fo_mask)
-                h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_cheeks_mask)
-                h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_nose_mask)
-                h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), bin_chin_mask)
+                hue, sat, val, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), face_skin_mask)
+                h_cheeks, s_cheeks, v_cheeks, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), cheeks_mask)
+                h_nose, s_nose, v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), nose_mask)
+                h_chin, s_chin, v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2HSV), chin_mask)
 
                 timestamps.append(timestamp/1000)
                 hue_means.append(hue)
@@ -303,18 +286,16 @@ def analyse_facial_colour_means(file_paths:pd.DataFrame, colour_space:int|str = 
             
             else:
                 # Extracting the color channel means
-                val, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_fo_mask)
-                v_cheeks, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_cheeks_mask)
-                v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_nose_mask)
-                v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), bin_chin_mask)
+                val, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), face_skin_mask)
+                v_cheeks, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), cheeks_mask)
+                v_nose, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), nose_mask)
+                v_chin, *_ = cv.mean(cv.cvtColor(frame, cv.COLOR_BGR2GRAY), chin_mask)
 
                 timestamps.append(timestamp/1000)
                 grey_means.append(val)
                 cheeks_grey_means.append(v_cheeks)
                 nose_grey_means.append(v_nose)
                 chin_grey_means.append(v_chin)
-            
-            rolling_time_window += output_sample_frequency_msec
         
         if not static_image_mode:
             capture.release()

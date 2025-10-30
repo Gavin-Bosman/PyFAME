@@ -36,7 +36,7 @@ def get_face_landmarker(running_mode:str = "image", num_faces:int = 1, min_face_
 
     return detector
 
-def get_pixel_coordinates(frame_rgb:cv.typing.MatLike, face_landmarker:Any, timestamp_msec:float | None = None) -> tuple[list[tuple[int,int]], list[Any] | None]:
+def get_pixel_coordinates(frame_rgb:cv.typing.MatLike, face_landmarker:Any, timestamp_msec:float | None = None) -> tuple[tuple[list[tuple[int,int]]], list[Any]] | tuple[list[tuple[int,int]]]:
     
     # Save the orignal dimensions for determining padding
     original_h, original_w = frame_rgb.shape[:2]
@@ -83,7 +83,7 @@ def get_pixel_coordinates(frame_rgb:cv.typing.MatLike, face_landmarker:Any, time
     
     if lm_results.face_blendshapes:
         return (pixel_coords, lm_results.face_blendshapes[0])
-    return (pixel_coords, None)
+    return pixel_coords
 
 def get_pixel_coordinates_from_landmark(landmarker_coordinates:Any, landmark_path:list[tuple]) -> list[tuple[int,int]]:
     path_screen_coords = []

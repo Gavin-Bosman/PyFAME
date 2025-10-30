@@ -31,9 +31,9 @@ def test_exception_handling(valid_input_dir, valid_output_dir, invalid_input_dir
     
     # exception testing mediapipe configuration parameters
     with pytest.raises(TypeError):
-        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, min_detection_confidence="test")
+        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, min_face_detection_confidence="test")
     with pytest.raises(ValueError):
-        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, min_detection_confidence=2.2)
+        analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, min_face_detection_confidence=2.2)
     
     with pytest.raises(TypeError):
         analyse_facial_colour_means(input_directory=valid_input_dir, output_directory=valid_output_dir, min_tracking_confidence="test")

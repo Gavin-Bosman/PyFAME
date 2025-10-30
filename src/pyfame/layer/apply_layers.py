@@ -222,7 +222,7 @@ def apply_layers(file_paths:pd.DataFrame, layers:list[Layer] | Layer, min_face_d
             landmark_coordinates, blendshapes = get_pixel_coordinates(frame_rgb, face_landmarker, dt)
 
             if blendshapes is None:
-                raise FaceNotFoundError()
+                raise FaceNotFoundError(message="FaceLandmarker failed to identify and return blendshapes.")
 
             if not static_image_mode:
                 # Getting the current video timestamp

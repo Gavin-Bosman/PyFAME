@@ -147,7 +147,7 @@ def analyse_optical_flow_dense(file_paths:pd.DataFrame, frame_step:int = 5) -> d
             std_angle = np.std(angles)
 
             # Dataframes are immutable, so we need to store as lists during execution
-            timestamps.append(timestamp//1000)
+            timestamps.append(timestamp/1000)
             mean_magnitudes.append(mean_mag)
             std_magnitudes.append(std_mag)
             mean_angles.append(mean_angle)
